@@ -1,7 +1,8 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
-import { rootDir, resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import botSource from '../../../bot.js?raw';
+import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
 
 let enginePromise = null;
 
@@ -68,10 +69,8 @@ function normalizeLine(text) {
 
 function bootSync() {
   ensureRuntimeDir();
-  const file = path.join(rootDir, 'bot.js');
-  const source = readFileSync(file, 'utf8');
   const context = createContext();
-  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  vm.runInContext(`${botSource}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
 
   const response = context.__response;
   if (typeof response !== 'function') {
