@@ -226,8 +226,11 @@
     });
   }
 
-  async function sendWord() {
-    await send(`0${word}`);
+  async function sendWord(event) {
+    event?.preventDefault?.();
+    const text = word.trim();
+    if (!text || !canPlay) return;
+    await send(`0${text}`);
     word = '';
   }
 
@@ -247,7 +250,20 @@
       '전체 직업 목록:',
       '밴을 마치면 남은 CPU 직업',
       '선택 가능 직업:',
-      '다른 참가자들은 이제 직업을 선택'
+      '다른 참가자들은 이제 직업을 선택',
+      '끝말잇기 경기가 시작',
+      '참가자:',
+      '시작은 아무나',
+      '단어 입력:',
+      '능력 사용:',
+      '현황 확인:',
+      '무효 요청:',
+      '무르기 요청:',
+      '입장 바꾸기:',
+      '기권:',
+      '잠수 확인:',
+      '첫 수에는',
+      '두음법칙:'
     ].some((needle) => value.includes(needle));
   }
 
@@ -681,45 +697,6 @@
                 </div>
               {/each}
             </div>
-
-            <!-- Input row -->
-            <div class="input-zone" class:input-active={canPlay}>
-              <input
-                class="word-input"
-                bind:value={word}
-                placeholder={canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
-                onkeydown={(e) => e.key === 'Enter' && sendWord()}
-                disabled={!canPlay}
-              />
-              <button class="send-btn" class:send-ready={canPlay && word.trim()} onclick={sendWord} disabled={!canPlay || !word.trim()}>
-                <Send size={17} />
-              </button>
-            </div>
-
-            <!-- Ability bar -->
-            {#if abilityButtons.length}
-              <div class="ability-bar">
-                <input
-                  class="ability-target"
-                  bind:value={ability}
-                  placeholder="능력 대상 (필요시)"
-                  disabled={!canPlay}
-                />
-                <div class="ability-grid">
-                  {#each abilityButtons as ab, ai}
-                    <button
-                      class="ab-btn"
-                      style="--ai:{ai}"
-                      onclick={() => useAbility(ab)}
-                      disabled={!canPlay}
-                    >
-                      <Sparkles size={13} />
-                      <span>{ab}</span>
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            {/if}
           </main>
 
           <!-- RIGHT: Control -->
@@ -763,17 +740,61 @@
               </div>
             {/if}
 
-            {#if notices.length}
-              <div class="notice-panel">
-                <div class="col-label">NOTICE</div>
-                {#each notices as item (item.id)}
-                  <div class="notice-item">
-                    <Info size={12} /><pre class="notice-text">{item.text}</pre>
-                  </div>
+            <div class="game-guide-panel">
+              <div class="col-label">GAME</div>
+              <div class="guide-row">
+                <span>시작</span>
+                <strong>{(game.history || []).length ? '진행 중' : '아무나 첫 단어'}</strong>
+              </div>
+              <div class="guide-row">
+                <span>첫 수 제한</span>
+                <strong>한방 · 유도 불가</strong>
+              </div>
+              <div class="guide-actions">
+                <button class="guide-btn" onclick={() => send('1상태')} disabled={busy}>상태</button>
+                <button class="guide-btn" onclick={() => send('1바꾸기')} disabled={busy}>입장</button>
+                <button class="guide-btn" onclick={() => send('1킥')} disabled={busy}>잠수</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="bottom-composer" class:composer-active={canPlay}>
+          {#if abilityButtons.length}
+            <div class="ability-bar">
+              <input
+                class="ability-target"
+                bind:value={ability}
+                placeholder="능력 대상"
+                disabled={!canPlay}
+              />
+              <div class="ability-grid">
+                {#each abilityButtons as ab, ai}
+                  <button
+                    class="ab-btn"
+                    style="--ai:{ai}"
+                    onclick={() => useAbility(ab)}
+                    disabled={!canPlay}
+                  >
+                    <Sparkles size={13} />
+                    <span>{ab}</span>
+                  </button>
                 {/each}
               </div>
-            {/if}
-          </aside>
+            </div>
+          {/if}
+          <form class="input-zone" class:input-active={canPlay} onsubmit={sendWord}>
+            <input
+              class="word-input"
+              bind:value={word}
+              placeholder={canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
+              disabled={!canPlay}
+              autocomplete="off"
+            />
+            <button class="send-btn" class:send-ready={canPlay && word.trim()} type="submit" disabled={!canPlay || !word.trim()}>
+              <Send size={17} />
+            </button>
+          </form>
         </div>
       </div>
     {/if}
@@ -1079,8 +1100,6 @@
   input, select { height: 40px; padding: 0 12px; }
   textarea { padding: 10px 12px; resize: vertical; min-height: 90px; }
   select option { background: #fff; }
-  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
-
   .app { min-height: 100vh; display: flex; flex-direction: column; }
 
   /* ═══════════════════════════════════════════
@@ -1712,7 +1731,13 @@
   /* ═══════════════════════════════════════════
      IN-GAME
   ═══════════════════════════════════════════ */
-  .ingame { flex: 1; display: flex; flex-direction: column; min-height: 0; animation: fadeUp .25s ease both; }
+  .ingame {
+    flex: 1;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: calc(100dvh - 56px);
+    animation: fadeUp .25s ease both;
+  }
 
   /* Syllable Hero */
   .syl-hero {
@@ -1752,10 +1777,10 @@
 
   /* Game columns */
   .game-columns {
-    flex: 1;
     display: grid;
     grid-template-columns: 220px minmax(0,1fr) 260px;
     min-height: 0;
+    overflow: hidden;
   }
   .col-label {
     font-size: 10px;
@@ -1845,7 +1870,6 @@
   .col-board {
     display: flex;
     flex-direction: column;
-    gap: 12px;
     padding: 16px;
     overflow: hidden;
   }
@@ -1899,10 +1923,27 @@
   .bubble-text:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(99,102,241,.15); }
 
   /* Input zone */
+  .bottom-composer {
+    border-top: 1px solid var(--border);
+    background: rgba(255,255,255,.96);
+    backdrop-filter: blur(14px);
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    z-index: 40;
+    box-shadow: 0 -14px 36px rgba(15,23,42,.06);
+  }
+  .bottom-composer.composer-active {
+    border-top-color: rgba(37,99,235,.25);
+  }
   .input-zone {
     display: flex;
     gap: 8px;
     transition: opacity .2s;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
   }
   .word-input {
     flex: 1;
@@ -1936,8 +1977,12 @@
 
   /* Ability bar */
   .ability-bar {
-    display: flex;
-    flex-direction: column;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+    align-items: start;
     gap: 8px;
     animation: fadeUp .3s ease both;
   }
@@ -2085,6 +2130,46 @@
   .notice-panel { display: flex; flex-direction: column; gap: 6px; }
   .notice-panel .notice-item { padding: 8px 10px; font-size: 12px; }
   .notice-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .game-guide-panel {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--bg3);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .guide-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .guide-row strong {
+    color: var(--text);
+    font-size: 12px;
+    text-align: right;
+  }
+  .guide-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .guide-btn {
+    height: 34px;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .guide-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
 
   /* ═══════════════════════════════════════════
      MATCH OVERLAY
@@ -2473,9 +2558,11 @@
     .game-columns { grid-template-columns: 190px minmax(0,1fr) 220px; }
   }
   @media (max-width:800px) {
-    .game-columns { grid-template-columns: 1fr; }
+    .ingame { min-height: calc(100dvh - 104px); }
+    .game-columns { grid-template-columns: 1fr; overflow-y: auto; }
     .col-players { border-right: none; border-bottom: 1px solid var(--border); max-height: 180px; flex-direction: row; flex-wrap: wrap; gap: 8px; }
     .col-control { border-left: none; border-top: 1px solid var(--border); }
+    .col-board { min-height: 300px; }
     .job-pair-row { flex-direction: column; }
     .jp-vs { display: none; }
   }
@@ -2496,5 +2583,9 @@
     .content-page { padding: 16px; }
     .match-title { font-size: 40px; }
     .match-swords { font-size: 64px; }
+    .bottom-composer { padding: 10px; }
+    .ability-bar { grid-template-columns: 1fr; }
+    .ability-grid { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+    .ab-btn { flex: 0 0 auto; }
   }
 </style>

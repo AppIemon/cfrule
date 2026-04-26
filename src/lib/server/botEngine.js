@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import bundledBotSource from '../../../bot.js?raw';
 import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
 
 let enginePromise = null;
@@ -69,7 +70,7 @@ function normalizeLine(text) {
 
 function bootSync() {
   ensureRuntimeDir();
-  const source = readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8')
+  const source = (bundledBotSource || readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8'))
     .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
   const context = createContext();
   vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
