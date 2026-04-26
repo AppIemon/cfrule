@@ -1,7 +1,7 @@
-import { existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import botSource from '../../../bot.js?raw';
 import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
 
 let enginePromise = null;
@@ -69,8 +69,10 @@ function normalizeLine(text) {
 
 function bootSync() {
   ensureRuntimeDir();
+  const source = readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8')
+    .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
   const context = createContext();
-  vm.runInContext(`${botSource}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
 
   const response = context.__response;
   if (typeof response !== 'function') {
@@ -82,23 +84,8 @@ function bootSync() {
   return { context, response, bootLog: out.filter(Boolean) };
 }
 
-async function bootWithMongo() {
-  ensureRuntimeDir();
-  // Restore ratings from MongoDB before the bot reads tierbot_data.json
-  try {
-    const { loadRatings } = await import('./db.js');
-    const ratings = await loadRatings();
-    if (Object.keys(ratings).length > 0) {
-      writeJsonFile(path.join(runtimeDir, 'tierbot_data.json'), ratings);
-    }
-  } catch {
-    // MongoDB unavailable — proceed with existing file (or empty)
-  }
-  return bootSync();
-}
-
 export async function getBotEngine() {
-  if (!enginePromise) enginePromise = bootWithMongo();
+  if (!enginePromise) enginePromise = Promise.resolve().then(() => bootSync());
   return enginePromise;
 }
 
