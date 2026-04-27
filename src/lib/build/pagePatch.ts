@@ -13,7 +13,10 @@ export function patchPageSvelte(code: string): string {
   if (!code.includes("const rawGame")) {
     code = code.replace(
       "const game = $derived(snapshot?.game || null);",
-      `const rawGame = $derived(snapshot?.game || null);
+      `const rawGame = $derived.by(() => {
+    if (snapshot?.room && room && snapshot.room !== room) return lastPlayingGame || null;
+    return snapshot?.game || null;
+  });
   const game = $derived.by(() => {
     if (rawGame?.phase === 'playing') return rawGame;
     if ((holdPlayingSnapshot || cpuThinking) && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
@@ -39,9 +42,17 @@ export function patchPageSvelte(code: string): string {
     /async function refresh\(\) \{\n\s*if \(!room\) return;\n\s*snapshot = await request\(`\/api\/room\?room=\$\{encodeURIComponent\(room\)\}`\);\n\s*\}/,
     `async function refresh() {
     if (!room) return;
+    const targetRoom = room;
     try {
-      const res = await fetch(\`/api/room?room=\${encodeURIComponent(room)}\`, { cache: 'no-store' });
-      if (res.ok) snapshot = await res.json();
+      const res = await fetch(\`/api/room?room=\${encodeURIComponent(targetRoom)}\`, { cache: 'no-store' });
+      if (!res.ok || targetRoom !== room) return;
+      const data = await res.json();
+      if (data?.room && data.room !== targetRoom) return;
+      if ((cpuThinking || holdPlayingSnapshot) && lastPlayingGame?.phase === 'playing' && (!data?.game || data.game.phase === 'waiting' || data.game.phase === 'job_selection')) {
+        snapshot = { ...data, room: targetRoom, game: lastPlayingGame };
+        return;
+      }
+      snapshot = data;
     } catch {}
   }`
   );
@@ -55,6 +66,90 @@ export function patchPageSvelte(code: string): string {
       "async function useAbility(name) {\n    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);\n    ability = '';\n  }",
       `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
   function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
+  const stateKeyLabels = {
+    no_all_batchim_turns: '올받침 금지 남은 턴',
+    no_hanbang_turns: '한방 금지 남은 턴',
+    no_yudo_turns: '유도 금지 남은 턴',
+    no_root_turns: '루트 금지 남은 턴',
+    no_ability_turns: '능력 금지 남은 턴',
+    ability_disabled_turns: '능력 봉쇄 남은 턴',
+    ability_lock_turns: '능력 잠금 남은 턴',
+    skip_turns: '턴 넘김 남은 턴',
+    stun_turns: '기절 남은 턴',
+    silence_turns: '침묵 남은 턴',
+    hallucination_turns: '환각 남은 턴',
+    shield_turns: '보호막 남은 턴',
+    immune_turns: '면역 남은 턴',
+    protected_turns: '보호 남은 턴',
+    cooldown: '쿨타임',
+    cooldowns: '쿨타임',
+    abilityCooldowns: '능력 쿨타임',
+    ability_cooldowns: '능력 쿨타임',
+    abilityUses: '능력 사용 횟수',
+    ability_uses: '능력 사용 횟수',
+    usedAbilities: '사용한 능력',
+    used_abilities: '사용한 능력',
+    forcedSyllable: '강제 음절',
+    forced_syllable: '강제 음절',
+    bannedWords: '금지 단어',
+    banned_words: '금지 단어',
+    wordBan: '단어 금지',
+    word_ban: '단어 금지',
+    lastAbility: '마지막 능력',
+    last_ability: '마지막 능력',
+    stacks: '중첩',
+    stack: '중첩',
+    charges: '충전량',
+    charge: '충전량',
+    money: '보유 자금',
+    stock: '주식',
+    stocks: '주식',
+    combo: '콤보',
+    mode: '모드',
+    stance: '태세',
+    shield: '보호막',
+    passive: '패시브'
+  };
+  function displayStateKey(key) {
+    const raw = String(key || '');
+    if (stateKeyLabels[raw]) return stateKeyLabels[raw];
+    const spaced = raw
+      .replace(/([a-z])([A-Z])/g, '$1_$2')
+      .toLowerCase()
+      .replace(/_/g, ' ');
+    return spaced
+      .replace(/no /g, '금지 ')
+      .replace(/all batchim/g, '올받침')
+      .replace(/hanbang/g, '한방')
+      .replace(/yudo/g, '유도')
+      .replace(/root/g, '루트')
+      .replace(/ability/g, '능력')
+      .replace(/passive/g, '패시브')
+      .replace(/cooldown/g, '쿨타임')
+      .replace(/turns/g, '남은 턴')
+      .replace(/turn/g, '턴')
+      .replace(/count/g, '횟수')
+      .replace(/uses/g, '사용 횟수')
+      .replace(/used/g, '사용됨')
+      .replace(/charge/g, '충전')
+      .replace(/shield/g, '보호막')
+      .replace(/immune/g, '면역')
+      .replace(/stun/g, '기절')
+      .replace(/silence/g, '침묵')
+      .replace(/hallucination/g, '환각')
+      .replace(/forced syllable/g, '강제 음절')
+      .replace(/word ban/g, '단어 금지')
+      .trim() || raw;
+  }
+  function displayStateValue(value) {
+    if (value === true) return '활성';
+    if (value === false) return '비활성';
+    if (Array.isArray(value)) return value.length ? value.join(', ') : '없음';
+    if (value && typeof value === 'object') {
+      return Object.entries(value).map(([k, v]) => displayStateKey(k) + ': ' + displayStateValue(v)).join(' / ');
+    }
+    return String(value);
+  }
   function cooldownEntries(state) {
     if (!state) return [];
     return Object.entries(state).filter(([k,v]) => v && /cool|count|uses|used|charge|turns|stack|쿨|횟수|충전/i.test(k)).map(([key,value]) => ({ key, value }));
@@ -80,8 +175,12 @@ export function patchPageSvelte(code: string): string {
     "cpuThinking = true;\n    try {\n      await send(`0${text}`);\n    } finally {\n      cpuThinking = false;\n    }",
     `cpuThinking = true;
     holdPlayingSnapshot = true;
+    const targetRoom = room;
     try { await send(\`0\${text}\`); }
-    finally { cpuThinking = false; }`
+    finally {
+      cpuThinking = false;
+      if (targetRoom !== room && snapshot?.room === targetRoom) room = targetRoom;
+    }`
   );
 
   code = code.replace(/생각 과정 보기/g, '');
@@ -98,14 +197,14 @@ export function patchPageSvelte(code: string): string {
           <aside class="battle-left-v3">
             <div class="job-core-v3"><b>{myState?.job || '미선택'}</b><span>{jobInitial(myState?.job)}</span></div>
             <div class="ability-list-v3">{#each abilityButtons as name}<button class:chosen={selectedAbility === name} onclick={() => triggerAbility(name)}><b>{name}</b><small>{abilityHint(name)}</small></button>{:else}<div class="empty-box">능력 없음</div>{/each}</div>
-            <div class="passive-list-v3">{#each passiveEntries(myState) as item}<div><b>{item.key}</b><span>{String(item.value)}</span></div>{:else}<div class="empty-box">패시브 없음</div>{/each}</div>
+            <div class="passive-list-v3">{#each passiveEntries(myState) as item}<div><b>{displayStateKey(item.key)}</b><span>{displayStateValue(item.value)}</span></div>{:else}<div class="empty-box">패시브 없음</div>{/each}</div>
           </aside>
           <main class="battle-center-v3">
             <div class="word-stream-v3" bind:this={historyEl}>{#each game.history || [] as item, i}<div class="word-chip-v3" class:right={i % 2 === 1}>{item}</div>{:else}<div class="empty-board-v3">첫 단어 대기</div>{/each}{#if cpuThinking}<div class="thinking-chip-v3">컴퓨터 계산 중...</div>{/if}</div>
             <form class="word-input-v3" onsubmit={sendWord}><input bind:value={word} placeholder={canPlay ? '단어 입력' : '내 차례가 아닙니다'} disabled={!canPlay} /><button disabled={!canPlay || !word.trim() || busy}>입력</button></form>
           </main>
           <aside class="battle-right-v3">{#each game.players || [] as player}{@const state = game.playerStates?.[player]}<div class="status-card-v3" class:active={player === currentPlayer}><div><b>{player}</b><span>{state?.job || '미선택'}</span></div><p>{#each visibleEffects(state) as ef}<em>{ef}</em>{:else}<small>상태 이상 없음</small>{/each}</p></div>{/each}</aside>
-          <section class="battle-bottom-v3"><div class="cooldown-v3">{#each cooldownEntries(myState) as item}<div><b>{item.key}</b><span>{String(item.value)}</span></div>{:else}<div class="empty-box">쿨타임 / 횟수 없음</div>{/each}</div><div class="ability-use-v3"><b>{selectedAbility || '능력 선택'}</b>{#if selectedAbility && abilityRequiresTarget(selectedAbility)}<input bind:value={ability} placeholder="대상 / 단어 / 값" />{/if}<button onclick={submitSelectedAbility} disabled={!selectedAbility || busy}>능력 사용</button></div></section>
+          <section class="battle-bottom-v3"><div class="cooldown-v3">{#each cooldownEntries(myState) as item}<div><b>{displayStateKey(item.key)}</b><span>{displayStateValue(item.value)}</span></div>{:else}<div class="empty-box">쿨타임 / 횟수 없음</div>{/each}</div><div class="ability-use-v3"><b>{selectedAbility || '능력 선택'}</b>{#if selectedAbility && abilityRequiresTarget(selectedAbility)}<input bind:value={ability} placeholder="대상 / 단어 / 값" />{/if}<button onclick={submitSelectedAbility} disabled={!selectedAbility || busy}>능력 사용</button></div></section>
         </div>`;
   if (!code.includes('battle-v3')) code = code.replace('<div class="ingame">', '<div class="ingame ingame-v3">' + battle);
 
