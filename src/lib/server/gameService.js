@@ -9,9 +9,18 @@ const restoredRooms = new Set();
 const restartTimers = new Map();
 
 const QUEST_COUNT = 16;
+const CPU_RANDOM_JOBS = [
+  '해커','투자자','환자','수집가','감시자','뜀틀선수','전우치','시프터','비밀요원','사과','시인','공룡','마법사','사신','수학자','과학자','작곡가','스폰지밥','나이트','생존자','악당','기자','검객','마하트마간디','수리사','우라늄','고죠','스핔이','해달','프로그래머'
+];
 
 function code() {
   return randomBytes(3).toString('hex').toUpperCase();
+}
+
+function pickRandomJob(meta) {
+  if (meta?.cpuJob) return meta.cpuJob;
+  const pool = Array.isArray(meta?.availableJobs) && meta.availableJobs.length ? meta.availableJobs : CPU_RANDOM_JOBS;
+  return pool[Math.floor(Math.random() * pool.length)] || '';
 }
 
 function append(room, sender, msg, replies) {
@@ -122,7 +131,10 @@ function buildJobRanking(ranking) {
 
 function startCommand(meta) {
   const modeText = meta.mode === 1 ? '' : meta.mode;
-  return meta.practice ? `1연습${modeText}${meta.cpuJob ? ` ${meta.cpuJob}` : ''}` : `1채린${modeText}`;
+  if (!meta.practice) return `1채린${modeText}`;
+  const job = pickRandomJob(meta);
+  meta.currentCpuJob = job;
+  return `1연습${modeText}${job ? ` ${job}` : ''}`;
 }
 
 function looksLikeGameEnd(replies) {
