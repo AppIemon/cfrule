@@ -5,8 +5,137 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     %sveltekit.head%
     <title>채린룰</title>
+    <style>
+      .title-badge, .cr-title-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 6px;
+        padding: 2px 7px;
+        border: 1px solid rgba(255, 215, 0, .45);
+        border-radius: 999px;
+        background: linear-gradient(135deg, rgba(255, 215, 0, .18), rgba(255, 255, 255, .05));
+        color: #ffd86b;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+        box-shadow: 0 0 12px rgba(255, 215, 0, .12);
+      }
+      .cr-achievement-rate {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: rgba(80, 180, 255, .14);
+        color: #8fd3ff;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .think-log-panel:not([open]) {
+        display: none !important;
+      }
+      .think-log-panel[open], .think-log-panel.cr-auto-open {
+        display: block !important;
+        animation: crThinkFadeIn .18s ease-out;
+      }
+      .think-log-panel[open] summary {
+        pointer-events: none;
+      }
+      .think-log-panel[open] summary::after {
+        content: ' 자동 표시';
+        opacity: .65;
+        font-size: 11px;
+        margin-left: 6px;
+      }
+      .think-log-entry {
+        line-height: 1.5;
+      }
+      @keyframes crThinkFadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>
+    <script>
+      (() => {
+        const THINK_HIDE_DELAY = 5000;
+        let hideTimer = 0;
+        let lastRankingText = '';
+
+        function openThinkingPanel() {
+          const panel = document.querySelector('.think-log-panel');
+          if (!panel) return;
+          panel.setAttribute('open', '');
+          panel.classList.add('cr-auto-open');
+          clearTimeout(hideTimer);
+          hideTimer = setTimeout(() => {
+            const stillThinking = [...document.querySelectorAll('.think-label')]
+              .some((el) => /생각 중/.test(el.textContent || ''));
+            if (!stillThinking) {
+              panel.removeAttribute('open');
+              panel.classList.remove('cr-auto-open');
+            }
+          }, THINK_HIDE_DELAY);
+        }
+
+        function enhanceThinking() {
+          const hasThinking = [...document.querySelectorAll('.think-label')]
+            .some((el) => /생각 중/.test(el.textContent || ''));
+          const panel = document.querySelector('.think-log-panel');
+          if (hasThinking || panel?.textContent?.includes('생각 과정')) openThinkingPanel();
+        }
+
+        async function enhanceRanking() {
+          const rankBtnActive = [...document.querySelectorAll('button, .nav-btn')]
+            .some((el) => /랭킹/.test(el.textContent || '') && el.className && String(el.className).includes('active'));
+          if (!rankBtnActive && !/랭킹/.test(document.body.textContent || '')) return;
+
+          let data;
+          try {
+            const res = await fetch('/api/ranking', { cache: 'no-store' });
+            if (!res.ok) return;
+            data = await res.json();
+          } catch { return; }
+          const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
+          const sig = JSON.stringify(ranking.map((p) => [p.name, p.equippedTitle, p.achievementRate]));
+          if (sig === lastRankingText) return;
+          lastRankingText = sig;
+
+          for (const player of ranking) {
+            if (!player?.name) continue;
+            const nodes = [...document.querySelectorAll('div, span, td, li')]
+              .filter((el) => (el.childElementCount <= 4) && (el.textContent || '').includes(player.name));
+            for (const node of nodes.slice(0, 3)) {
+              if (player.equippedTitle && !node.querySelector('.cr-title-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'cr-title-badge';
+                badge.textContent = '[' + player.equippedTitle + ']';
+                node.appendChild(badge);
+              }
+              if (Number.isFinite(Number(player.achievementRate)) && !node.querySelector('.cr-achievement-rate')) {
+                const rate = document.createElement('span');
+                rate.className = 'cr-achievement-rate';
+                rate.textContent = '달성률 ' + Number(player.achievementRate) + '%';
+                node.appendChild(rate);
+              }
+            }
+          }
+        }
+
+        const observer = new MutationObserver(() => {
+          enhanceThinking();
+          enhanceRanking();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+        window.addEventListener('load', () => {
+          enhanceThinking();
+          enhanceRanking();
+        });
+      })();
+    </script>
   </body>
 </html>
