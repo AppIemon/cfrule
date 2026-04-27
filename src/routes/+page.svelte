@@ -6,6 +6,44 @@
     Search, Send, Shuffle, Sparkles, Swords, UserRoundPlus, Vote
   } from 'lucide-svelte';
 
+  const TIER_INFO = [
+    { name: '아이언 V',      min: 0,    max: 39,       color: '#9E9E9E' },
+    { name: '아이언 IV',     min: 40,   max: 79,       color: '#9E9E9E' },
+    { name: '아이언 III',    min: 80,   max: 119,      color: '#9E9E9E' },
+    { name: '아이언 II',     min: 120,  max: 159,      color: '#9E9E9E' },
+    { name: '아이언 I',      min: 160,  max: 199,      color: '#9E9E9E' },
+    { name: '브론즈 V',      min: 200,  max: 239,      color: '#CD7F32' },
+    { name: '브론즈 IV',     min: 240,  max: 279,      color: '#CD7F32' },
+    { name: '브론즈 III',    min: 280,  max: 319,      color: '#CD7F32' },
+    { name: '브론즈 II',     min: 320,  max: 359,      color: '#CD7F32' },
+    { name: '브론즈 I',      min: 360,  max: 399,      color: '#CD7F32' },
+    { name: '실버 V',        min: 400,  max: 439,      color: '#B0BEC5' },
+    { name: '실버 IV',       min: 440,  max: 479,      color: '#B0BEC5' },
+    { name: '실버 III',      min: 480,  max: 519,      color: '#B0BEC5' },
+    { name: '실버 II',       min: 520,  max: 559,      color: '#B0BEC5' },
+    { name: '실버 I',        min: 560,  max: 599,      color: '#B0BEC5' },
+    { name: '골드 V',        min: 600,  max: 639,      color: '#FFD700' },
+    { name: '골드 IV',       min: 640,  max: 679,      color: '#FFD700' },
+    { name: '골드 III',      min: 680,  max: 719,      color: '#FFD700' },
+    { name: '골드 II',       min: 720,  max: 759,      color: '#FFD700' },
+    { name: '골드 I',        min: 760,  max: 799,      color: '#FFD700' },
+    { name: '플래티넘 V',    min: 800,  max: 839,      color: '#90CAF9' },
+    { name: '플래티넘 IV',   min: 840,  max: 879,      color: '#90CAF9' },
+    { name: '플래티넘 III',  min: 880,  max: 919,      color: '#90CAF9' },
+    { name: '플래티넘 II',   min: 920,  max: 959,      color: '#90CAF9' },
+    { name: '플래티넘 I',    min: 960,  max: 999,      color: '#90CAF9' },
+    { name: '다이아몬드 V',  min: 1000, max: 1199,     color: '#4FC3F7' },
+    { name: '다이아몬드 IV', min: 1200, max: 1399,     color: '#4FC3F7' },
+    { name: '다이아몬드 III',min: 1400, max: 1599,     color: '#4FC3F7' },
+    { name: '다이아몬드 II', min: 1600, max: 1799,     color: '#4FC3F7' },
+    { name: '다이아몬드 I',  min: 1800, max: Infinity, color: '#4FC3F7' },
+  ];
+
+  function getTierInfo(rating) {
+    const r = Number(rating) || 1000;
+    return TIER_INFO.find(t => r >= t.min && r <= t.max) || TIER_INFO[TIER_INFO.length - 1];
+  }
+
   const ACTIVE_BY_JOB = {
     해커: ['조작', '복제', '초토화'],
     투자자: ['주가 조작'],
@@ -59,6 +97,10 @@
   let searchFilter = $state('전체');
   let snapshot = $state(null);
   let ranking = $state(null);
+  let rankMode = $state('overall');
+  let rankJob = $state('');
+  let matchResult = $state(null);
+  let matchResultTimer;
   let analysisJobA = $state('해커');
   let analysisJobB = $state('사과');
   let analysisSyllable = $state('');
@@ -97,6 +139,35 @@
       item.text?.includes('계산 중')
     )).slice(-5)
   );
+
+  const jobRanking = $derived.by(() => {
+    if (!ranking?.ranking) return {};
+    const jobs = {};
+    for (const player of ranking.ranking) {
+      for (const [job, stats] of Object.entries(player.jobStats || {})) {
+        if ((stats.picks || 0) < 2) continue;
+        if (!jobs[job]) jobs[job] = [];
+        jobs[job].push({
+          name: player.name,
+          rating: player.rating || 1000,
+          wins: stats.wins || 0,
+          losses: stats.losses || 0,
+          picks: stats.picks || 0,
+          winRate: stats.wins / stats.picks
+        });
+      }
+    }
+    for (const job of Object.keys(jobs)) {
+      jobs[job].sort((a, b) => b.wins - a.wins || b.rating - a.rating);
+      jobs[job] = jobs[job].slice(0, 5);
+    }
+    return jobs;
+  });
+
+  const jobRankingList = $derived(
+    Object.entries(jobRanking)
+      .sort((a, b) => (b[1][0]?.wins || 0) - (a[1][0]?.wins || 0))
+  );
   const isBanPhase = $derived(game?.phase === 'job_selection' && game?.banPhase);
   const isBanPicker = $derived(isBanPhase && game?.firstPicker === nickname);
   const isBanWaiting = $derived(isBanPhase && game?.firstPicker && game?.firstPicker !== nickname);
@@ -110,6 +181,28 @@
       showMatchBanner = true;
       clearTimeout(matchBannerTimer);
       matchBannerTimer = setTimeout(() => (showMatchBanner = false), 3200);
+    }
+    if (prevPhase === 'playing' && phase && phase !== 'playing') {
+      const recent = log.filter(item => item.type === 'system').slice(-20);
+      const changes = [];
+      for (const item of recent) {
+        const m = item.text?.match(/^(.+?)\s*:\s*(\d+)에서\s*(\d+)\s*\(([+\-]\d+)\)\s*\/\s*(.+)$/);
+        if (m) {
+          changes.push({
+            name: m[1].replace(/\(.+?\)$/, '').trim(),
+            job: (m[1].match(/\((.+?)\)$/) || [])[1] || '',
+            oldRating: Number(m[2]),
+            newRating: Number(m[3]),
+            delta: Number(m[4]),
+            tierName: m[5].trim()
+          });
+        }
+      }
+      if (changes.length) {
+        matchResult = { changes };
+        clearTimeout(matchResultTimer);
+        matchResultTimer = setTimeout(() => (matchResult = null), 10000);
+      }
     }
     prevPhase = phase;
   });
@@ -828,6 +921,31 @@
       </div>
     {/if}
 
+    <!-- Match result tier overlay -->
+    {#if matchResult}
+      <div class="tier-result-overlay" onclick={() => (matchResult = null)}
+           onkeydown={(e) => e.key === 'Enter' && (matchResult = null)} role="button" tabindex="0">
+        <div class="tier-result-card">
+          <div class="tr-title">매치 결과</div>
+          {#each matchResult.changes as c}
+            {@const ti = getTierInfo(c.newRating)}
+            <div class="tr-row" class:tr-win={c.delta > 0} class:tr-lose={c.delta <= 0}>
+              <div class="tr-player">
+                <span class="tr-name">{c.name}</span>
+                {#if c.job}<span class="tr-job">{c.job}</span>{/if}
+              </div>
+              <div class="tr-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{c.tierName}</div>
+              <div class="tr-rating">{c.newRating}</div>
+              <div class="tr-delta" class:tr-pos={c.delta > 0} class:tr-neg={c.delta <= 0}>
+                {c.delta > 0 ? '+' : ''}{c.delta}
+              </div>
+            </div>
+          {/each}
+          <div class="tr-dismiss">클릭하여 닫기</div>
+        </div>
+      </div>
+    {/if}
+
     <!-- Match found overlay -->
     {#if showMatchBanner}
       <div class="match-overlay" onclick={() => (showMatchBanner = false)} onkeydown={(e) => e.key === 'Enter' && (showMatchBanner = false)} role="button" tabindex="0">
@@ -1061,20 +1179,68 @@
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
   {:else}
     <div class="content-page rank-page">
-      <h2 class="rank-title">랭킹</h2>
-      {#each ranking?.ranking || [] as row, index}
-        <div class="rank-row" style="--ri:{index}">
-          <div class="rank-num" class:rank-top={index < 3}>
-            {#if index === 0}🥇{:else if index === 1}🥈{:else if index === 2}🥉{:else}{index + 1}{/if}
-          </div>
-          <div class="rank-avatar">{row.name[0]}</div>
-          <div class="rank-info">
-            <span class="rank-name">{row.name}</span>
-            <span class="rank-record">{row.wins || 0}W / {row.losses || 0}L</span>
-          </div>
-          <div class="rank-rating">{row.rating || 1000}</div>
+      <div class="rank-header">
+        <h2 class="rank-title">랭킹</h2>
+        <div class="rank-mode-tabs">
+          <button class="rmt" class:rmt-active={rankMode === 'overall'} onclick={() => (rankMode = 'overall', rankJob = '')}>전체 랭킹</button>
+          <button class="rmt" class:rmt-active={rankMode === 'job'} onclick={() => { rankMode = 'job'; if (!rankJob && jobRankingList.length) rankJob = jobRankingList[0][0]; }}>직업별 랭킹</button>
         </div>
-      {/each}
+      </div>
+
+      {#if rankMode === 'overall'}
+        {#each ranking?.ranking || [] as row, index}
+          {@const ti = getTierInfo(row.rating)}
+          <div class="rank-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
+            <div class="rank-num" class:rank-top={index < 3}>
+              {#if index === 0}🥇{:else if index === 1}🥈{:else if index === 2}🥉{:else}{index + 1}{/if}
+            </div>
+            <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66);box-shadow:0 4px 14px {ti.color}55">{row.name[0]}</div>
+            <div class="rank-info">
+              <span class="rank-name">{row.name}</span>
+              <span class="rank-record">{row.wins || 0}승 {row.losses || 0}패</span>
+            </div>
+            <div class="rank-tier-col">
+              <span class="rank-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{ti.name}</span>
+              <span class="rank-rating">{row.rating || 1000}</span>
+            </div>
+          </div>
+        {/each}
+
+      {:else}
+        <!-- 직업별 랭킹 -->
+        <div class="job-rank-selector">
+          {#each jobRankingList.slice(0, 20) as [job]}
+            <button class="jrs-btn" class:jrs-active={rankJob === job} onclick={() => (rankJob = job)}>{job}</button>
+          {/each}
+        </div>
+        {#if rankJob && jobRanking[rankJob]}
+          <div class="job-rank-section">
+            <div class="jr-job-header">
+              <span class="jr-job-name">{rankJob}</span>
+              <span class="jr-job-sub">{jobRanking[rankJob].length}명 · 최소 2게임</span>
+            </div>
+            {#each jobRanking[rankJob] as row, index}
+              {@const ti = getTierInfo(row.rating)}
+              <div class="rank-row jr-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
+                <div class="rank-num" class:rank-top={index < 3}>
+                  {#if index === 0}🥇{:else if index === 1}🥈{:else if index === 2}🥉{:else}{index + 1}{/if}
+                </div>
+                <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66);box-shadow:0 4px 14px {ti.color}55">{row.name[0]}</div>
+                <div class="rank-info">
+                  <span class="rank-name">{row.name}</span>
+                  <span class="rank-record">{row.wins}승 {row.losses}패 (총 {row.picks}게임)</span>
+                </div>
+                <div class="rank-tier-col">
+                  <span class="rank-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{ti.name}</span>
+                  <span class="rank-rating">{row.rating}</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else if rankMode === 'job'}
+          <div class="rank-empty">직업을 선택하세요</div>
+        {/if}
+      {/if}
     </div>
   {/if}
 </div>
@@ -2525,30 +2691,84 @@
 
   /* Ranking */
   .rank-page { max-width: 640px; }
+  .rank-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
   .rank-title { font-size: 24px; font-weight: 900; letter-spacing: -.5px; }
+  .rank-mode-tabs { display: flex; gap: 4px; background: var(--bg3); padding: 3px; border-radius: 10px; }
+  .rmt { padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text2); transition: all .15s; }
+  .rmt-active { background: var(--bg2); color: var(--accent); box-shadow: 0 1px 6px rgba(0,0,0,.1); }
   .rank-row {
     display: flex; align-items: center; gap: 14px;
     border: 1px solid var(--border); border-radius: var(--radius);
     padding: 14px 18px; background: var(--bg2);
     animation: fadeUp .2s ease both;
     animation-delay: calc(var(--ri) * 40ms);
-    transition: border-color .18s;
+    transition: border-color .18s, box-shadow .18s;
   }
-  .rank-row:hover { border-color: var(--border2); }
+  .rank-row:hover { border-color: var(--tc, var(--border2)); box-shadow: 0 0 0 1px var(--tc-glow, transparent); }
   .rank-num { width: 36px; text-align: center; font-size: 18px; font-weight: 900; color: var(--text3); }
   .rank-num.rank-top { font-size: 22px; }
   .rank-avatar {
     width: 40px; height: 40px; border-radius: 50%;
-    background: var(--accent); color: #fff;
+    background: var(--accent); color: #000;
     display: flex; align-items: center; justify-content: center;
     font-size: 17px; font-weight: 900;
-    box-shadow: 0 4px 14px rgba(99,102,241,.3);
     flex-shrink: 0;
   }
   .rank-info { flex: 1; min-width: 0; }
   .rank-name { font-size: 15px; font-weight: 800; display: block; overflow-wrap: anywhere; }
   .rank-record { font-size: 12px; color: var(--text3); }
-  .rank-rating { font-size: 20px; font-weight: 900; color: var(--accent2); letter-spacing: -.5px; }
+  .rank-tier-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .rank-tier-badge {
+    font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px;
+    background: var(--tc-glow, #eee); color: var(--tc, #666);
+    border: 1px solid var(--tc, #ddd); white-space: nowrap;
+  }
+  .rank-rating { font-size: 20px; font-weight: 900; color: var(--tc, var(--accent2)); letter-spacing: -.5px; }
+  .job-rank-selector { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+  .jrs-btn { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); transition: all .14s; }
+  .jrs-btn.jrs-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .job-rank-section { display: flex; flex-direction: column; gap: 8px; }
+  .jr-job-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+  .jr-job-name { font-size: 20px; font-weight: 900; }
+  .jr-job-sub { font-size: 12px; color: var(--text3); }
+  .jr-row { border-left: 3px solid var(--tc, var(--border)); }
+  .rank-empty { padding: 40px; text-align: center; color: var(--text3); font-size: 14px; }
+  /* Tier result overlay */
+  .tier-result-overlay {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center;
+    animation: overlayIn .25s ease;
+    cursor: pointer;
+  }
+  .tier-result-card {
+    background: var(--bg2); border-radius: 18px; padding: 28px 32px;
+    min-width: 300px; max-width: 420px; width: 90%;
+    box-shadow: 0 24px 80px rgba(0,0,0,.4);
+    animation: matchPop .3s cubic-bezier(.34,1.56,.64,1) both;
+    cursor: default;
+  }
+  .tr-title { font-size: 13px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 16px; text-align: center; }
+  .tr-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .tr-row:last-of-type { border-bottom: none; }
+  .tr-win { background: linear-gradient(90deg, #22c55e08 0%, transparent 100%); border-radius: 8px; padding: 10px 8px; }
+  .tr-lose { background: linear-gradient(90deg, #dc262608 0%, transparent 100%); border-radius: 8px; padding: 10px 8px; }
+  .tr-player { flex: 1; min-width: 0; }
+  .tr-name { font-size: 15px; font-weight: 800; display: block; }
+  .tr-job { font-size: 11px; color: var(--text3); }
+  .tr-tier-badge {
+    font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px;
+    background: var(--tc-glow, #eee); color: var(--tc, #666);
+    border: 1.5px solid var(--tc, #ddd); white-space: nowrap;
+    box-shadow: 0 0 10px var(--tc-glow, transparent);
+  }
+  .tr-rating { font-size: 18px; font-weight: 900; color: var(--text); min-width: 42px; text-align: right; }
+  .tr-delta { font-size: 14px; font-weight: 900; min-width: 40px; text-align: right; }
+  .tr-pos { color: var(--green); }
+  .tr-neg { color: var(--red); }
+  .tr-dismiss { text-align: center; font-size: 11px; color: var(--text3); margin-top: 14px; }
 
   /* ═══════════════════════════════════════════
      KEYFRAMES
