@@ -1,3 +1,5 @@
+import vm from 'node:vm';
+
 export function installCpuStrategyPatch(context) {
   if (!context || context.__cpuStrategyPatchInstalled) return;
   context.__cpuStrategyPatchInstalled = true;
@@ -158,6 +160,6 @@ export function installCpuStrategyPatch(context) {
 })();`;
 
   try {
-    context.eval ? context.eval(script) : undefined;
+    vm.runInContext(script, context, { filename: 'cpuStrategyPatch.js' });
   } catch {}
 }
