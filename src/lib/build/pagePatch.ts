@@ -1,16 +1,11 @@
 export function patchPageSvelte(code: string): string {
+  code = code.replace("let ability = $state('');", "let ability = $state('');\n  let selectedAbility = $state('');");
+
   if (!code.includes("let rankLoading")) {
     code = code.replace(
       "let rankMode = $state('overall');\n  let rankJob = $state('');",
       "let rankMode = $state('overall');\n  let rankJob = $state('');\n  let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);\n  const abilityNeedsTarget = new Set(['조작','복제','초토화','포획','사구아','2음절','시적 허용','삼키기','브레스','사형 선고','DNA파괴','쪼개기','체크메이트','교환','울음','거짓 보도','거짓 뉴스','찌르기','가르기','수리','핵분열','무량공처','조개','깨부수기','Backspace','Tab']);"
     );
-  } else {
-    if (!code.includes('let lastPlayingGame')) {
-      code = code.replace(
-        "let rankLoading = $state(false);",
-        "let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);"
-      );
-    }
   }
 
   if (!code.includes("const rawGame")) {
@@ -19,12 +14,10 @@ export function patchPageSvelte(code: string): string {
       `const rawGame = $derived(snapshot?.game || null);
   const game = $derived.by(() => {
     if (rawGame?.phase === 'playing') return rawGame;
-    if (holdPlayingSnapshot && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
-    if (cpuThinking && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
+    if ((holdPlayingSnapshot || cpuThinking) && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
     return rawGame;
   });`
     );
-
     code = code.replace(
       "const maxBanCount = 6;",
       `const maxBanCount = 6;
@@ -40,221 +33,72 @@ export function patchPageSvelte(code: string): string {
     );
   }
 
-  if (!code.includes("const myRankWindow")) {
-    code = code.replace(
-      "const jobRankingList = $derived(\n    Object.entries(jobRanking)\n      .sort((a, b) => (b[1][0]?.wins || 0) - (a[1][0]?.wins || 0))\n  );",
-      `const jobRankingList = $derived(
-    Object.entries(jobRanking)
-      .sort((a, b) => (b[1][0]?.wins || 0) - (a[1][0]?.wins || 0))
-  );
-
-  const overallRankingRows = $derived.by(() => {
-    const rows = (ranking?.ranking || []).map((player, index) => ({ ...player, rank: index + 1 }));
-    const keep = new Map();
-    for (const row of rows.slice(0, 10)) keep.set(row.rank, row);
-    const meIndex = rows.findIndex((row) => row.name === nickname);
-    if (meIndex !== -1) {
-      for (const idx of [meIndex - 1, meIndex, meIndex + 1]) {
-        if (rows[idx]) keep.set(rows[idx].rank, rows[idx]);
-      }
-    }
-    return Array.from(keep.values()).sort((a, b) => a.rank - b.rank);
-  });
-
-  const myRankWindow = $derived.by(() => {
-    const rows = ranking?.ranking || [];
-    const idx = rows.findIndex((row) => row.name === nickname);
-    if (idx === -1) return [];
-    return [rows[idx - 1], rows[idx], rows[idx + 1]].filter(Boolean).map((row) => ({ ...row, rank: rows.indexOf(row) + 1 }));
-  });`
-    );
-  }
-
-  code = code.replace(
-    /async function loadRanking\(\) \{\n\s*ranking = await request\('\/api\/ranking'\);\n\s*\}/,
-    `async function loadRanking() {
-    rankLoading = true;
-    try {
-      ranking = await request('/api/ranking');
-    } finally {
-      rankLoading = false;
-    }
-  }`
-  );
-
-  code = code.replace(
-    /const cpuThinkLog = \$derived\([\s\S]*?\n  \);\n\n  const jobRanking/,
-    "const cpuThinkLog = $derived([]);\n\n  const jobRanking"
-  );
-  code = code.replace(
-    /const cpuThinkLog = \$derived\([\s\S]*?\n  \);\n  const isBanPhase/,
-    "const cpuThinkLog = $derived([]);\n  const isBanPhase"
-  );
-
-  code = code.replace(
-    /\{#if !cpuThinking && cpuThinkLog\.length\}[\s\S]*?\{\/if\}\n\s*<\/main>/,
-    "</main>"
-  );
-
-  code = code.replace(/\{#if cpuThinking\}[\s\S]*?\{\/if\}\n\s*<\/div>\n\s*\{#if !cpuThinking && cpuThinkLog\.length\}/, "</div>\n            {#if false && cpuThinkLog.length}");
-
   if (!code.includes("function abilityRequiresTarget")) {
     code = code.replace(
-      "async function useAbility(name) {\n    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);\n    ability = '';\n  }",
-      `function abilityRequiresTarget(name) {
-    return abilityNeedsTarget.has(name);
+      "async function sendAbility() {\n    await send(`2${ability}`);\n    ability = '';\n  }",
+      `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
+  function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
+  function cooldownEntries(state) {
+    if (!state) return [];
+    return Object.entries(state).filter(([k,v]) => v && /cool|count|uses|used|charge|turns|stack|쿨|횟수|충전/i.test(k)).map(([key,value]) => ({ key, value }));
   }
-
-  async function useAbility(name) {
+  function passiveEntries(state) {
+    if (!state) return [];
+    return Object.entries(state).filter(([k,v]) => v && /passive|immune|bonus|shield|mode|stance|패시브|면역|보호/i.test(k)).map(([key,value]) => ({ key, value }));
+  }
+  async function useAbility(name = selectedAbility) {
+    const abilityName = String(name || '').trim();
+    if (!abilityName) { error = '사용할 능력을 먼저 선택하세요.'; return; }
     const target = ability.trim();
-    if (abilityRequiresTarget(name) && !target) {
-      error = name + ' 능력은 대상이 필요합니다.';
-      return;
-    }
-    await send(\`2\${name}\${target && !target.startsWith(name) ? \` \${target}\` : ''}\`);
+    if (abilityRequiresTarget(abilityName) && !target) { selectedAbility = abilityName; error = abilityName + ' 능력은 대상이 필요합니다.'; return; }
+    await send(\`2\${abilityName}\${target && !target.startsWith(abilityName) ? \` \${target}\` : ''}\`);
     ability = '';
-  }`
+  }
+  async function triggerAbility(name) { selectedAbility = name; if (!abilityRequiresTarget(name)) await useAbility(name); }
+  async function submitSelectedAbility() { await useAbility(selectedAbility); }
+  async function sendAbility() { await submitSelectedAbility(); }`
     );
   }
 
-  // Keep the playing snapshot while CPU is calculating so transient serverless snapshots cannot flip to job selection.
   code = code.replace(
     "cpuThinking = true;\n    try {\n      await send(`0${text}`);\n    } finally {\n      cpuThinking = false;\n    }",
     `cpuThinking = true;
     holdPlayingSnapshot = true;
-    try {
-      await send(\`0\${text}\`);
-    } finally {
-      cpuThinking = false;
-      setTimeout(() => {
-        if (rawGame?.phase === 'playing') holdPlayingSnapshot = true;
-      }, 1200);
-    }`
-  );
-
-  code = code.replace(
-    /<input class="ability-input"[^>]*>/,
-    `{#if abilityButtons.some((name) => abilityRequiresTarget(name))}
-                <input class="ability-input" bind:value={ability} placeholder="능력 대상 / 값" />
-              {/if}`
+    try { await send(\`0\${text}\`); }
+    finally { cpuThinking = false; }`
   );
 
   code = code.replace(/생각 과정 보기/g, '');
+  code = code.replace(/<details class="think-log-panel">[\s\S]*?<\/details>/, '');
 
-  if (!code.includes('native-layout-label')) {
-    code = code.replace(
-      '<!-- Syllable Hero Bar -->',
-      '<div class="native-layout-label native-top-label">현재 게임 / 이을 음절 / 플레이어 / 차례</div>\n        <!-- Syllable Hero Bar -->'
-    );
-    code = code.replace(
-      '<!-- LEFT: Players -->',
-      '<!-- LEFT: Players -->\n          <div class="native-layout-label native-left-label">능력 / 패시브 관련</div>'
-    );
-    code = code.replace(
-      '<!-- CENTER: Board -->',
-      '<!-- CENTER: Board -->\n          <div class="native-layout-label native-center-label">사용된 단어 / 턴 수</div>'
-    );
-    code = code.replace(
-      '<!-- RIGHT: Control -->',
-      '<!-- RIGHT: Control -->\n          <div class="native-layout-label native-right-label">버프 / 디버프 관련</div>'
-    );
-  }
+  const battle = `
+        <div class="battle-v3">
+          <section class="battle-top-v3">
+            <div>ROOM <b>{room}</b></div>
+            <div class="bt-syllable"><span>이을 음절</span><strong>{nextSyllable}</strong></div>
+            <div>TURN <b>{game.turnCount || 1}</b><br />차례 <b>{currentPlayer || '—'}</b></div>
+            <div class="bt-players">{#each game.players || [] as player}<span class:active={player === currentPlayer}>{player}<small>{game.playerStates?.[player]?.job || '미선택'}</small></span>{/each}</div>
+          </section>
+          <aside class="battle-left-v3">
+            <div class="job-core-v3"><b>{myState?.job || '미선택'}</b><span>{jobInitial(myState?.job)}</span></div>
+            <div class="ability-list-v3">{#each abilityButtons as name}<button class:chosen={selectedAbility === name} onclick={() => triggerAbility(name)}><b>{name}</b><small>{abilityHint(name)}</small></button>{:else}<div class="empty-box">능력 없음</div>{/each}</div>
+            <div class="passive-list-v3">{#each passiveEntries(myState) as item}<div><b>{item.key}</b><span>{String(item.value)}</span></div>{:else}<div class="empty-box">패시브 없음</div>{/each}</div>
+          </aside>
+          <main class="battle-center-v3">
+            <div class="word-stream-v3" bind:this={historyEl}>{#each game.history || [] as item, i}<div class="word-chip-v3" class:right={i % 2 === 1}>{item}</div>{:else}<div class="empty-board-v3">첫 단어 대기</div>{/each}{#if cpuThinking}<div class="thinking-chip-v3">컴퓨터 계산 중...</div>{/if}</div>
+            <form class="word-input-v3" onsubmit={sendWord}><input bind:value={word} placeholder={canPlay ? '단어 입력' : '내 차례가 아닙니다'} disabled={!canPlay || busy} /><button disabled={!canPlay || !word.trim() || busy}>입력</button></form>
+          </main>
+          <aside class="battle-right-v3">{#each game.players || [] as player}{@const state = game.playerStates?.[player]}<div class="status-card-v3" class:active={player === currentPlayer}><div><b>{player}</b><span>{state?.job || '미선택'}</span></div><p>{#each visibleEffects(state) as ef}<em>{ef}</em>{:else}<small>상태 이상 없음</small>{/each}</p></div>{/each}</aside>
+          <section class="battle-bottom-v3"><div class="cooldown-v3">{#each cooldownEntries(myState) as item}<div><b>{item.key}</b><span>{String(item.value)}</span></div>{:else}<div class="empty-box">쿨타임 / 횟수 없음</div>{/each}</div><div class="ability-use-v3"><b>{selectedAbility || '능력 선택'}</b>{#if selectedAbility && abilityRequiresTarget(selectedAbility)}<input bind:value={ability} placeholder="대상 / 단어 / 값" />{/if}<button onclick={submitSelectedAbility} disabled={!selectedAbility || busy}>능력 사용</button></div></section>
+        </div>`;
+  if (!code.includes('battle-v3')) code = code.replace('<div class="ingame">', '<div class="ingame ingame-v3">' + battle);
 
-  // Rank tab content patch: append a native Svelte rank panel near existing ranking area if absent.
   if (!code.includes('rank-slim-panel')) {
-    code = code.replace(
-      "{:else if tab === 'analysis'}",
-      `{#if tab === 'rank'}
-    <section class="rank-slim-panel">
-      <div class="rank-slim-head">
-        <h2>랭킹</h2>
-        <button class="accent-btn" onclick={loadRanking}>새로고침</button>
-      </div>
-      {#if rankLoading}
-        <div class="rank-loading">랭킹을 불러오는 중입니다...</div>
-      {:else if !ranking?.ranking?.length}
-        <div class="rank-loading">랭킹 데이터가 아직 없습니다.</div>
-      {:else}
-        <div class="rank-tabs">
-          <button class:active={rankMode === 'overall'} onclick={() => (rankMode = 'overall')}>전체 TOP 10 + 내 순위</button>
-          <button class:active={rankMode === 'job'} onclick={() => (rankMode = 'job')}>직업별</button>
-        </div>
-        {#if rankMode === 'overall'}
-          <div class="rank-list compact-rank">
-            {#each overallRankingRows as player, idx (player.name + player.rank)}
-              {#if idx > 0 && player.rank > overallRankingRows[idx - 1].rank + 1}
-                <div class="rank-gap">···</div>
-              {/if}
-              {@const tier = getTierInfo(player.rating)}
-              <div class="rank-card" class:my-rank={player.name === nickname}>
-                <div class="rank-num">#{player.rank}</div>
-                <div class="rank-main">
-                  <div class="rank-name">{player.name}{#if player.equippedTitle}<span class="rank-title">[{player.equippedTitle}]</span>{/if}</div>
-                  <div class="rank-meta">{player.wins || 0}승 {player.losses || 0}패 · 달성률 {player.achievementRate || 0}%</div>
-                </div>
-                <div class="rank-tier-badge" style="--tier-color:{tier.color}">{tier.name}</div>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div class="job-rank-layout">
-            <select bind:value={rankJob}>
-              <option value="">직업 선택</option>
-              {#each Object.keys(ranking.jobRanking || jobRanking).sort() as job}<option value={job}>{job}</option>{/each}
-            </select>
-            {#if rankJob}
-              <div class="rank-list compact-rank">
-                {#each ((ranking.jobRanking?.[rankJob] || jobRanking[rankJob] || [])).slice(0, 10) as row, i}
-                  <div class="rank-card">
-                    <div class="rank-num">#{i + 1}</div>
-                    <div class="rank-main">
-                      <div class="rank-name">{row.name}{#if row.equippedTitle}<span class="rank-title">[{row.equippedTitle}]</span>{/if}</div>
-                      <div class="rank-meta">{row.wins || 0}승 {row.losses || 0}패 · 승률 {row.winRate || 0}%</div>
-                    </div>
-                    <div class="rank-tier-badge">{row.rating || 0}</div>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-        {/if}
-      {/if}
-    </section>
-  {/if}
-
-    {:else if tab === 'analysis'}`
-    );
+    code = code.replace("{:else if tab === 'analysis'}", `{#if tab === 'rank'}<section class="rank-slim-panel"><div class="rank-slim-head"><h2>랭킹</h2><button class="accent-btn" onclick={loadRanking}>새로고침</button></div>{#if rankLoading}<div class="rank-loading">랭킹을 불러오는 중입니다...</div>{:else if !ranking?.ranking?.length}<div class="rank-loading">랭킹 데이터가 아직 없습니다.</div>{:else}<div class="rank-tabs"><button class:active={rankMode === 'overall'} onclick={() => (rankMode = 'overall')}>전체</button><button class:active={rankMode === 'job'} onclick={() => (rankMode = 'job')}>직업별</button></div>{/if}</section>{/if}\n\n    {:else if tab === 'analysis'}`);
   }
 
-  if (!code.includes('.rank-slim-panel')) {
-    code = code.replace(
-      "</style>",
-      `.rank-slim-panel { max-width: 920px; margin: 28px auto; padding: 22px; border-radius: 24px; background: rgba(255,255,255,.92); border: 1px solid rgba(34,197,94,.18); box-shadow: 0 18px 55px rgba(22,101,52,.10); }
-  .rank-slim-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .rank-loading { padding: 28px; text-align: center; color: #15803d; font-weight: 900; }
-  .rank-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .rank-tabs button { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(34,197,94,.2); background: #f0fdf4; color: #166534; font-weight: 800; cursor: pointer; }
-  .rank-tabs button.active { background: #16a34a; color: white; }
-  .compact-rank { display: flex; flex-direction: column; gap: 8px; }
-  .rank-gap { text-align: center; color: #16a34a; font-weight: 900; padding: 4px; }
-  .rank-card.my-rank { outline: 2px solid rgba(34,197,94,.42); background: #f0fdf4; }
-  .rank-title { margin-left: 6px; color: #a16207; font-size: 11px; }
-  .job-rank-layout select { width: 100%; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(34,197,94,.24); margin-bottom: 14px; }
-  .ingame { display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
-  .syl-hero { grid-row: 1; border-color: rgba(34,197,94,.24) !important; }
-  .game-columns { display: grid !important; grid-template-columns: 260px minmax(0, 1fr) 280px !important; gap: 12px !important; align-items: stretch !important; }
-  .col-players, .col-board, .col-control { min-height: 420px; }
-  .col-players { order: 1; }
-  .col-board { order: 2; }
-  .col-control { order: 3; }
-  .native-layout-label { margin: 0 0 6px; padding: 6px 10px; border-radius: 999px; background: #f0fdf4; border: 1px solid rgba(34,197,94,.18); color: #15803d; font-size: 11px; font-weight: 900; letter-spacing: .04em; }
-  .native-top-label { width: fit-content; }
-  .native-left-label, .native-center-label, .native-right-label { align-self: start; }
-  .word-history::before { content: '중앙: 사용된 단어 / 턴 수'; display: block; margin-bottom: 8px; color: #15803d; font-size: 11px; font-weight: 900; }
-  .col-control::after { content: '아래 영역: 능력 / 패시브 쿨타임 · 사용 횟수 · 능력 사용'; display: block; margin-top: 12px; padding: 10px; border-radius: 14px; background: #f0fdf4; color: #166534; font-size: 12px; font-weight: 800; }
-  @media (max-width: 980px) { .game-columns { grid-template-columns: 1fr !important; } }
-</style>`
-    );
+  if (!code.includes('.battle-v3')) {
+    code = code.replace("</style>", `.ingame-v3 > .syl-hero,.ingame-v3 > .game-columns{display:none!important}.battle-v3{min-height:calc(100vh - 90px);display:grid;grid-template-columns:270px minmax(0,1fr)290px;grid-template-rows:104px minmax(360px,1fr)150px;gap:12px;color:#052e16}.battle-v3 section,.battle-v3 aside,.battle-v3 main{border-radius:24px;background:rgba(255,255,255,.92);border:1px solid rgba(34,197,94,.18);box-shadow:0 16px 48px rgba(22,101,52,.10);overflow:hidden}.battle-top-v3{grid-column:1/4;display:grid;grid-template-columns:150px 220px 180px 1fr;align-items:center;gap:12px;padding:14px 18px}.bt-syllable span{display:block;font-size:11px;color:#16a34a;font-weight:900}.bt-syllable strong{font-size:42px;color:#15803d}.bt-players{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.bt-players span{display:flex;flex-direction:column;padding:7px 10px;border-radius:14px;background:#f0fdf4;font-weight:900}.bt-players span.active{background:#16a34a;color:white}.battle-left-v3{grid-column:1;grid-row:2;padding:14px;display:flex;flex-direction:column;gap:12px}.job-core-v3,.empty-box{padding:12px;border-radius:16px;background:#f0fdf4;color:#166534}.ability-list-v3{display:flex;flex-direction:column;gap:8px;overflow:auto}.ability-list-v3 button{text-align:left;padding:10px 12px;border-radius:15px;border:1px solid rgba(34,197,94,.18);background:#fff;color:#052e16;cursor:pointer}.ability-list-v3 button.chosen{outline:2px solid rgba(34,197,94,.45);background:#f0fdf4}.ability-list-v3 small{display:block;color:#166534;opacity:.72}.passive-list-v3,.cooldown-v3{display:flex;flex-direction:column;gap:7px;overflow:auto}.passive-list-v3 div,.cooldown-v3 div{display:flex;justify-content:space-between;padding:8px 10px;border-radius:13px;background:#f7fff9;border:1px solid rgba(34,197,94,.14);font-size:12px}.battle-center-v3{grid-column:2;grid-row:2;display:grid;grid-template-rows:1fr auto}.word-stream-v3{padding:18px;overflow:auto;display:flex;flex-direction:column;gap:10px}.word-chip-v3{align-self:flex-start;padding:10px 14px;border-radius:18px;background:#f0fdf4;border:1px solid rgba(34,197,94,.16);font-size:20px;font-weight:900}.word-chip-v3.right{align-self:flex-end;background:#ecfdf5}.word-input-v3{display:flex;gap:10px;padding:14px;border-top:1px solid rgba(34,197,94,.14)}.word-input-v3 input,.ability-use-v3 input{flex:1;padding:12px 14px;border-radius:15px;border:1px solid rgba(34,197,94,.22)}.word-input-v3 button,.ability-use-v3 button{padding:12px 16px;border:0;border-radius:15px;background:#16a34a;color:white;font-weight:1000;cursor:pointer}.battle-right-v3{grid-column:3;grid-row:2;padding:14px;overflow:auto;display:flex;flex-direction:column;gap:10px}.status-card-v3{padding:12px;border-radius:17px;background:#fff;border:1px solid rgba(34,197,94,.14)}.status-card-v3.active{background:#f0fdf4;outline:2px solid rgba(34,197,94,.26)}.status-card-v3 div{display:flex;justify-content:space-between}.status-card-v3 em{display:inline-block;margin:2px;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-style:normal;font-weight:800}.battle-bottom-v3{grid-column:1/4;grid-row:3;display:grid;grid-template-columns:1fr 1.25fr;gap:12px;padding:14px}.ability-use-v3{display:flex;align-items:center;gap:10px;padding:10px;border-radius:18px;background:#f0fdf4}@media(max-width:980px){.battle-v3{grid-template-columns:1fr;grid-template-rows:auto}.battle-top-v3,.battle-left-v3,.battle-center-v3,.battle-right-v3,.battle-bottom-v3{grid-column:1;grid-row:auto}.battle-top-v3,.battle-bottom-v3{grid-template-columns:1fr}}</style>`);
   }
 
   return code;
