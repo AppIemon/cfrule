@@ -5,6 +5,8 @@ import { publishRoom } from './realtime.js';
 const logs = new Map();
 const roomMeta = new Map();
 
+const QUEST_COUNT = 16;
+
 function code() {
   return randomBytes(3).toString('hex').toUpperCase();
 }
@@ -17,6 +19,24 @@ function append(room, sender, msg, replies) {
   }
   while (list.length > 160) list.shift();
   logs.set(room, list);
+}
+
+function normalizeRankingRow(row) {
+  const achievements = row?.achievements && typeof row.achievements === 'object' ? row.achievements : {};
+  const titles = Array.isArray(row?.titles) ? row.titles : [];
+  const done = Object.keys(achievements).length;
+  return {
+    ...row,
+    titles,
+    equippedTitle: row?.equippedTitle || titles[0] || '',
+    achievementRate: Number.isFinite(Number(row?.achievementRate))
+      ? Number(row.achievementRate)
+      : Math.round((done / QUEST_COUNT) * 100)
+  };
+}
+
+function normalizeRanking(rows) {
+  return (rows || []).map(normalizeRankingRow);
 }
 
 export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '' }) {
@@ -58,12 +78,12 @@ export async function rankingSnapshot() {
   // Prefer MongoDB as source of truth; fall back to bot in-memory data
   try {
     const { getRatingRanking } = await import('./db.js');
-    const ranking = await getRatingRanking(100);
+    const ranking = normalizeRanking(await getRatingRanking(100));
     if (ranking.length > 0) {
       return { ranking };
     }
   } catch {
     // MongoDB unavailable
   }
-  return { ranking: await botRankings() };
+  return { ranking: normalizeRanking(await botRankings()) };
 }
