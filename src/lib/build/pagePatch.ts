@@ -2,6 +2,52 @@ export function patchPageSvelte(code: string): string {
   if (!code.includes("let selectedAbility = $state")) {
     code = code.replace("let ability = $state('');", "let ability = $state('');\n  let selectedAbility = $state('');");
   }
+  if (!code.includes("let floatingSearchOpen")) {
+    code = code.replace(
+      "let searchFilter = $state('전체');",
+      "let searchFilter = $state('전체');\n  let floatingSearchOpen = $state(false);\n  let floatingSearchText = $state('');\n  let floatingSearchResults = $state([]);\n  let floatingSearchTotal = $state(0);\n  let floatingSearchBusy = $state(false);\n  let hoverJob = $state('');"
+    );
+  }
+
+  if (!code.includes("const JOB_INFO")) {
+    code = code.replace(
+      "const ACTIVE_BY_JOB = {",
+      `const JOB_INFO = {
+    해커: '상대의 규칙과 상태를 조작해 선택지를 무너뜨리는 컨트롤 직업',
+    투자자: '주가 조작으로 장기 이득을 굴리는 성장형 직업',
+    환자: '환각증으로 상대 판단과 규칙 적용을 흔드는 방해형 직업',
+    수집가: '제작과 채굴로 자원을 모아 변수를 만드는 직업',
+    감시자: '탐지로 상대의 선택과 위험을 읽는 정보형 직업',
+    뜀틀선수: '허들 넘기로 불리한 조건을 회피하는 기동형 직업',
+    전우치: '직격뢰로 강하게 압박하는 공격형 직업',
+    시프터: '시프트 계열로 음절과 흐름을 바꾸는 변칙 직업',
+    비밀요원: '포획으로 상대 선택지를 묶는 제압형 직업',
+    사과: '사구아를 중심으로 특수 규칙을 거는 직업',
+    시인: '2음절과 시적 허용으로 단어 조건을 비트는 직업',
+    공룡: '삼키기와 브레스로 직접적인 압박을 넣는 직업',
+    마법사: '공허와 폭발로 판을 크게 흔드는 고위험 직업',
+    사신: '사형 선고와 영혼으로 지연 킬각을 만드는 직업',
+    수학자: 'A/B/C 선택지로 계산형 분기를 만드는 직업',
+    과학자: 'DNA파괴로 상대 능력 구조를 망가뜨리는 직업',
+    작곡가: '쪼개기와 쉼표로 단어 흐름을 분절하는 직업',
+    스폰지밥: '게살버거/감자튀김/보너스로 여러 보조 효과를 쓰는 직업',
+    나이트: '체크메이트와 교환으로 위치 싸움을 하는 직업',
+    생존자: '긴급 구조로 위험 상황을 버티는 직업',
+    악당: '결계와 왜곡으로 상대 행동을 비트는 직업',
+    기자: '거짓 보도와 거짓 뉴스로 상태를 왜곡하는 직업',
+    검객: '찌르기와 가르기로 직접 공격하는 직업',
+    마하트마간디: '억제로 상대 능력을 누르는 직업',
+    수리사: '수리로 손상된 상태를 회복하는 직업',
+    우라늄: '핵분열로 강한 폭발적 변수를 만드는 직업',
+    고죠: '무량공처로 상대를 봉쇄하는 직업',
+    스핔이: '물걸레질과 호박으로 특수 유틸을 쓰는 직업',
+    해달: '조개와 깨부수기로 방어/파괴를 오가는 직업',
+    프로그래머: 'Shift, Caps Lock, Backspace, Tab으로 입력 규칙을 제어하는 직업'
+  };
+
+  const ACTIVE_BY_JOB = {`
+    );
+  }
 
   if (!code.includes("let rankLoading")) {
     code = code.replace(
@@ -66,6 +112,8 @@ export function patchPageSvelte(code: string): string {
       "async function useAbility(name) {\n    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);\n    ability = '';\n  }",
       `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
   function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
+  function jobInfo(job) { return JOB_INFO[job] || ((ACTIVE_BY_JOB[job] || []).length ? '능력: ' + ACTIVE_BY_JOB[job].join(', ') : '직업 정보 없음'); }
+  function jobTooltip(job) { return job + '\n' + jobInfo(job) + '\n능력: ' + ((ACTIVE_BY_JOB[job] || []).join(', ') || '없음'); }
   const stateKeyLabels = {
     no_all_batchim_turns: '올받침 금지 남은 턴',
     no_hanbang_turns: '한방 금지 남은 턴',
@@ -113,41 +161,14 @@ export function patchPageSvelte(code: string): string {
   function displayStateKey(key) {
     const raw = String(key || '');
     if (stateKeyLabels[raw]) return stateKeyLabels[raw];
-    const spaced = raw
-      .replace(/([a-z])([A-Z])/g, '$1_$2')
-      .toLowerCase()
-      .replace(/_/g, ' ');
-    return spaced
-      .replace(/no /g, '금지 ')
-      .replace(/all batchim/g, '올받침')
-      .replace(/hanbang/g, '한방')
-      .replace(/yudo/g, '유도')
-      .replace(/root/g, '루트')
-      .replace(/ability/g, '능력')
-      .replace(/passive/g, '패시브')
-      .replace(/cooldown/g, '쿨타임')
-      .replace(/turns/g, '남은 턴')
-      .replace(/turn/g, '턴')
-      .replace(/count/g, '횟수')
-      .replace(/uses/g, '사용 횟수')
-      .replace(/used/g, '사용됨')
-      .replace(/charge/g, '충전')
-      .replace(/shield/g, '보호막')
-      .replace(/immune/g, '면역')
-      .replace(/stun/g, '기절')
-      .replace(/silence/g, '침묵')
-      .replace(/hallucination/g, '환각')
-      .replace(/forced syllable/g, '강제 음절')
-      .replace(/word ban/g, '단어 금지')
-      .trim() || raw;
+    const spaced = raw.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase().replace(/_/g, ' ');
+    return spaced.replace(/no /g, '금지 ').replace(/all batchim/g, '올받침').replace(/hanbang/g, '한방').replace(/yudo/g, '유도').replace(/root/g, '루트').replace(/ability/g, '능력').replace(/passive/g, '패시브').replace(/cooldown/g, '쿨타임').replace(/turns/g, '남은 턴').replace(/turn/g, '턴').replace(/count/g, '횟수').replace(/uses/g, '사용 횟수').replace(/used/g, '사용됨').replace(/charge/g, '충전').replace(/shield/g, '보호막').replace(/immune/g, '면역').replace(/stun/g, '기절').replace(/silence/g, '침묵').replace(/hallucination/g, '환각').replace(/forced syllable/g, '강제 음절').replace(/word ban/g, '단어 금지').trim() || raw;
   }
   function displayStateValue(value) {
     if (value === true) return '활성';
     if (value === false) return '비활성';
     if (Array.isArray(value)) return value.length ? value.join(', ') : '없음';
-    if (value && typeof value === 'object') {
-      return Object.entries(value).map(([k, v]) => displayStateKey(k) + ': ' + displayStateValue(v)).join(' / ');
-    }
+    if (value && typeof value === 'object') return Object.entries(value).map(([k, v]) => displayStateKey(k) + ': ' + displayStateValue(v)).join(' / ');
     return String(value);
   }
   function cooldownEntries(state) {
@@ -167,7 +188,22 @@ export function patchPageSvelte(code: string): string {
     ability = '';
   }
   async function triggerAbility(name) { selectedAbility = name; if (!abilityRequiresTarget(name)) await useAbility(name); }
-  async function submitSelectedAbility() { await useAbility(selectedAbility); }`
+  async function submitSelectedAbility() { await useAbility(selectedAbility); }
+  async function searchFloatingWords() {
+    floatingSearchBusy = true;
+    try {
+      const used = encodeURIComponent((game?.history || []).join(','));
+      const res = await fetch(\`/api/word-search?q=\${encodeURIComponent(floatingSearchText)}&start=\${encodeURIComponent(nextSyllable === '자유' ? '' : nextSyllable[0])}&used=\${used}\`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('검색 실패');
+      const data = await res.json();
+      floatingSearchResults = data.results || [];
+      floatingSearchTotal = data.total || 0;
+    } catch (err) {
+      error = err?.message || '검색 실패';
+    } finally {
+      floatingSearchBusy = false;
+    }
+  }`
     );
   }
 
@@ -183,11 +219,34 @@ export function patchPageSvelte(code: string): string {
     }`
   );
 
+  // Add hover metadata to existing job cards/buttons in the original selection screen.
+  code = code.replace(/<button([^>]*class="job-card"[^>]*)>/g, '<button$1 title={jobTooltip(job)} onmouseenter={() => (hoverJob = job)} onmouseleave={() => (hoverJob = \'\')}>');
+  code = code.replace(/<button([^>]*class="job-btn"[^>]*)>/g, '<button$1 title={jobTooltip(job)} onmouseenter={() => (hoverJob = job)} onmouseleave={() => (hoverJob = \'\')}>');
+  code = code.replace(/<div class="job-grid">/, '<div class="job-grid">\n          {#if hoverJob}<div class="job-hover-panel"><b>{hoverJob}</b><span>{jobInfo(hoverJob)}</span><small>{(ACTIVE_BY_JOB[hoverJob] || []).join(\', \') || \'능력 없음\'}</small></div>{/if}');
+
   code = code.replace(/생각 과정 보기/g, '');
   code = code.replace(/<details class="think-log-panel">[\s\S]*?<\/details>/, '');
 
   const battle = `
         <div class="battle-v3">
+          <button class="floating-search-toggle" type="button" onclick={() => (floatingSearchOpen = !floatingSearchOpen)}>단어 검색</button>
+          {#if floatingSearchOpen}
+            <div class="floating-word-search">
+              <div class="fws-head"><b>인게임 단어 검색</b><button type="button" onclick={() => (floatingSearchOpen = false)}>×</button></div>
+              <form class="fws-form" onsubmit={(e) => { e.preventDefault(); searchFloatingWords(); }}>
+                <input bind:value={floatingSearchText} placeholder="검색어 / 비우면 현재 음절 후보" />
+                <button disabled={floatingSearchBusy}>{floatingSearchBusy ? '검색 중' : '검색'}</button>
+              </form>
+              <div class="fws-meta">현재 음절: {nextSyllable} · 결과 {floatingSearchTotal}개</div>
+              <div class="fws-list">
+                {#each floatingSearchResults as row}
+                  <button type="button" onclick={() => (word = row.word)}><b>{row.word}</b><span>{row.kind} · 끝 {row.end} · 응답 {row.replyCount}</span></button>
+                {:else}
+                  <p>검색 결과 없음</p>
+                {/each}
+              </div>
+            </div>
+          {/if}
           <section class="battle-top-v3">
             <div>ROOM <b>{room}</b></div>
             <div class="bt-syllable"><span>이을 음절</span><strong>{nextSyllable}</strong></div>
@@ -213,7 +272,7 @@ export function patchPageSvelte(code: string): string {
   }
 
   if (!code.includes('.battle-v3')) {
-    code = code.replace("</style>", `.ingame-v3 > .syl-hero,.ingame-v3 > .game-columns{display:none!important}.battle-v3{min-height:calc(100vh - 90px);display:grid;grid-template-columns:270px minmax(0,1fr)290px;grid-template-rows:104px minmax(360px,1fr)150px;gap:12px;color:#052e16}.battle-v3 section,.battle-v3 aside,.battle-v3 main{border-radius:24px;background:rgba(255,255,255,.92);border:1px solid rgba(34,197,94,.18);box-shadow:0 16px 48px rgba(22,101,52,.10);overflow:hidden}.battle-top-v3{grid-column:1/4;display:grid;grid-template-columns:150px 220px 180px 1fr;align-items:center;gap:12px;padding:14px 18px}.bt-syllable span{display:block;font-size:11px;color:#16a34a;font-weight:900}.bt-syllable strong{font-size:42px;color:#15803d}.bt-players{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.bt-players span{display:flex;flex-direction:column;padding:7px 10px;border-radius:14px;background:#f0fdf4;font-weight:900}.bt-players span.active{background:#16a34a;color:white}.battle-left-v3{grid-column:1;grid-row:2;padding:14px;display:flex;flex-direction:column;gap:12px}.job-core-v3,.empty-box{padding:12px;border-radius:16px;background:#f0fdf4;color:#166534}.ability-list-v3{display:flex;flex-direction:column;gap:8px;overflow:auto}.ability-list-v3 button{text-align:left;padding:10px 12px;border-radius:15px;border:1px solid rgba(34,197,94,.18);background:#fff;color:#052e16;cursor:pointer}.ability-list-v3 button.chosen{outline:2px solid rgba(34,197,94,.45);background:#f0fdf4}.ability-list-v3 small{display:block;color:#166534;opacity:.72}.passive-list-v3,.cooldown-v3{display:flex;flex-direction:column;gap:7px;overflow:auto}.passive-list-v3 div,.cooldown-v3 div{display:flex;justify-content:space-between;padding:8px 10px;border-radius:13px;background:#f7fff9;border:1px solid rgba(34,197,94,.14);font-size:12px}.battle-center-v3{grid-column:2;grid-row:2;display:grid;grid-template-rows:1fr auto}.word-stream-v3{padding:18px;overflow:auto;display:flex;flex-direction:column;gap:10px}.word-chip-v3{align-self:flex-start;padding:10px 14px;border-radius:18px;background:#f0fdf4;border:1px solid rgba(34,197,94,.16);font-size:20px;font-weight:900}.word-chip-v3.right{align-self:flex-end;background:#ecfdf5}.word-input-v3{display:flex;gap:10px;padding:14px;border-top:1px solid rgba(34,197,94,.14)}.word-input-v3 input,.ability-use-v3 input{flex:1;padding:12px 14px;border-radius:15px;border:1px solid rgba(34,197,94,.22)}.word-input-v3 button,.ability-use-v3 button{padding:12px 16px;border:0;border-radius:15px;background:#16a34a;color:white;font-weight:1000;cursor:pointer}.battle-right-v3{grid-column:3;grid-row:2;padding:14px;overflow:auto;display:flex;flex-direction:column;gap:10px}.status-card-v3{padding:12px;border-radius:17px;background:#fff;border:1px solid rgba(34,197,94,.14)}.status-card-v3.active{background:#f0fdf4;outline:2px solid rgba(34,197,94,.26)}.status-card-v3 div{display:flex;justify-content:space-between}.status-card-v3 em{display:inline-block;margin:2px;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-style:normal;font-weight:800}.battle-bottom-v3{grid-column:1/4;grid-row:3;display:grid;grid-template-columns:1fr 1.25fr;gap:12px;padding:14px}.ability-use-v3{display:flex;align-items:center;gap:10px;padding:10px;border-radius:18px;background:#f0fdf4}@media(max-width:980px){.battle-v3{grid-template-columns:1fr;grid-template-rows:auto}.battle-top-v3,.battle-left-v3,.battle-center-v3,.battle-right-v3,.battle-bottom-v3{grid-column:1;grid-row:auto}.battle-top-v3,.battle-bottom-v3{grid-template-columns:1fr}}</style>`);
+    code = code.replace("</style>", `.ingame-v3 > .syl-hero,.ingame-v3 > .game-columns{display:none!important}.battle-v3{position:relative;min-height:calc(100vh - 90px);display:grid;grid-template-columns:270px minmax(0,1fr)290px;grid-template-rows:104px minmax(360px,1fr)150px;gap:12px;color:#052e16}.battle-v3 section,.battle-v3 aside,.battle-v3 main{border-radius:24px;background:rgba(255,255,255,.92);border:1px solid rgba(34,197,94,.18);box-shadow:0 16px 48px rgba(22,101,52,.10);overflow:hidden}.battle-top-v3{grid-column:1/4;display:grid;grid-template-columns:150px 220px 180px 1fr;align-items:center;gap:12px;padding:14px 18px}.bt-syllable span{display:block;font-size:11px;color:#16a34a;font-weight:900}.bt-syllable strong{font-size:42px;color:#15803d}.bt-players{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.bt-players span{display:flex;flex-direction:column;padding:7px 10px;border-radius:14px;background:#f0fdf4;font-weight:900}.bt-players span.active{background:#16a34a;color:white}.battle-left-v3{grid-column:1;grid-row:2;padding:14px;display:flex;flex-direction:column;gap:12px}.job-core-v3,.empty-box{padding:12px;border-radius:16px;background:#f0fdf4;color:#166534}.ability-list-v3{display:flex;flex-direction:column;gap:8px;overflow:auto}.ability-list-v3 button{text-align:left;padding:10px 12px;border-radius:15px;border:1px solid rgba(34,197,94,.18);background:#fff;color:#052e16;cursor:pointer}.ability-list-v3 button.chosen{outline:2px solid rgba(34,197,94,.45);background:#f0fdf4}.ability-list-v3 small{display:block;color:#166534;opacity:.72}.passive-list-v3,.cooldown-v3{display:flex;flex-direction:column;gap:7px;overflow:auto}.passive-list-v3 div,.cooldown-v3 div{display:flex;justify-content:space-between;padding:8px 10px;border-radius:13px;background:#f7fff9;border:1px solid rgba(34,197,94,.14);font-size:12px}.battle-center-v3{grid-column:2;grid-row:2;display:grid;grid-template-rows:1fr auto}.word-stream-v3{padding:18px;overflow:auto;display:flex;flex-direction:column;gap:10px}.word-chip-v3{align-self:flex-start;padding:10px 14px;border-radius:18px;background:#f0fdf4;border:1px solid rgba(34,197,94,.16);font-size:20px;font-weight:900}.word-chip-v3.right{align-self:flex-end;background:#ecfdf5}.word-input-v3{display:flex;gap:10px;padding:14px;border-top:1px solid rgba(34,197,94,.14)}.word-input-v3 input,.ability-use-v3 input{flex:1;padding:12px 14px;border-radius:15px;border:1px solid rgba(34,197,94,.22)}.word-input-v3 button,.ability-use-v3 button,.floating-search-toggle,.fws-form button{padding:12px 16px;border:0;border-radius:15px;background:#16a34a;color:white;font-weight:1000;cursor:pointer}.floating-search-toggle{position:absolute;right:14px;top:116px;z-index:10;box-shadow:0 10px 24px rgba(22,101,52,.18)}.floating-word-search{position:absolute;right:14px;top:166px;z-index:20;width:min(420px,calc(100vw - 32px));max-height:520px;display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:22px;background:rgba(255,255,255,.96);border:1px solid rgba(34,197,94,.22);box-shadow:0 24px 70px rgba(22,101,52,.22);backdrop-filter:blur(12px)}.fws-head{display:flex;justify-content:space-between;align-items:center}.fws-head button{border:0;background:#f0fdf4;color:#166534;border-radius:999px;width:28px;height:28px;font-weight:1000}.fws-form{display:flex;gap:8px}.fws-form input{flex:1;padding:10px 12px;border-radius:14px;border:1px solid rgba(34,197,94,.22)}.fws-meta{font-size:12px;color:#166534;font-weight:800}.fws-list{overflow:auto;display:flex;flex-direction:column;gap:7px}.fws-list button{text-align:left;padding:9px 10px;border-radius:14px;border:1px solid rgba(34,197,94,.16);background:#f7fff9;color:#052e16}.fws-list b,.fws-list span{display:block}.fws-list span{font-size:11px;color:#166534;opacity:.78}.battle-right-v3{grid-column:3;grid-row:2;padding:14px;overflow:auto;display:flex;flex-direction:column;gap:10px}.status-card-v3{padding:12px;border-radius:17px;background:#fff;border:1px solid rgba(34,197,94,.14)}.status-card-v3.active{background:#f0fdf4;outline:2px solid rgba(34,197,94,.26)}.status-card-v3 div{display:flex;justify-content:space-between}.status-card-v3 em{display:inline-block;margin:2px;padding:5px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-style:normal;font-weight:800}.battle-bottom-v3{grid-column:1/4;grid-row:3;display:grid;grid-template-columns:1fr 1.25fr;gap:12px;padding:14px}.ability-use-v3{display:flex;align-items:center;gap:10px;padding:10px;border-radius:18px;background:#f0fdf4}.job-hover-panel{grid-column:1/-1;margin-bottom:10px;padding:12px 14px;border-radius:18px;background:#f0fdf4;border:1px solid rgba(34,197,94,.22);color:#052e16;box-shadow:0 12px 32px rgba(22,101,52,.10)}.job-hover-panel b,.job-hover-panel span,.job-hover-panel small{display:block}.job-hover-panel span{margin-top:4px;color:#166534}.job-hover-panel small{margin-top:6px;opacity:.75}@media(max-width:980px){.battle-v3{grid-template-columns:1fr;grid-template-rows:auto}.battle-top-v3,.battle-left-v3,.battle-center-v3,.battle-right-v3,.battle-bottom-v3{grid-column:1;grid-row:auto}.battle-top-v3,.battle-bottom-v3{grid-template-columns:1fr}.floating-search-toggle{position:fixed;right:12px;bottom:12px;top:auto}.floating-word-search{position:fixed;right:12px;left:12px;top:auto;bottom:64px;width:auto}}</style>`);
   }
 
   return code;
