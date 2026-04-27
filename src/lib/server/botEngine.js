@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import bundledBotSource from '../../../bot.js?raw';
 import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
 import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
+import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
 let enginePromise = null;
 
@@ -27,14 +28,9 @@ const QUESTS = [
   { id: 'beat_rank1', title: '랭킹 1위 격파', reward: '왕좌 파괴자', desc: '경기 시작 전 전체 랭킹 1위에게 승리', target: 1, progress: (p) => p.beatRank1 ? 1 : 0 }
 ];
 
-// Fire-and-forget: persist tier data to MongoDB whenever the bot saves it
-async function syncRatingsToMongo(data) {
-  try {
-    const { saveRatings } = await import('./db.js');
-    await saveRatings(data);
-  } catch {
-    // MongoDB unavailable — file-based data is the fallback
-  }
+// Queue DB sync whenever bot JSON data is saved. The queue is flushed before API responses return.
+function syncRatingsToMongo(data) {
+  queueRatingSync(data);
 }
 
 function createContext() {
@@ -53,8 +49,8 @@ function createContext() {
       },
       writeJson(inputPath, value) {
         writeJsonFile(resolveBotDataPath(inputPath), value);
-        if (path.basename(String(inputPath || '')) === 'tierbot_data.json') {
-          syncRatingsToMongo(value).catch(() => {});
+        if (isRatingJsonPath(inputPath)) {
+          syncRatingsToMongo(value);
         }
       }
     },
@@ -199,7 +195,7 @@ function persistTierData(context) {
     if (typeof context.saveTierData === 'function') context.saveTierData();
     else if (typeof context.FileStream?.writeJson === 'function') context.FileStream.writeJson(context.TIER_PLAYER_PATH || 'tierbot_data.json', players);
   } catch {}
-  syncRatingsToMongo(players).catch(() => {});
+  syncRatingsToMongo(players);
 }
 
 function questStatusText(context, playerName) {
@@ -279,8 +275,16 @@ export async function dispatchBotMessage(room, msg, sender) {
   const beforeLeader = rankLeaderName(players);
   const cleanMsg = String(msg || '').trim();
 
-  if (/^1퀘스트/.test(cleanMsg)) return [questStatusText(context, String(sender))];
-  if (/^1칭호/.test(cleanMsg)) return [titleText(context, String(sender), cleanMsg.replace(/^1칭호/, ''))];
+  if (/^1퀘스트/.test(cleanMsg)) {
+    const result = [questStatusText(context, String(sender))];
+    await flushRatingSyncs();
+    return result;
+  }
+  if (/^1칭호/.test(cleanMsg)) {
+    const result = [titleText(context, String(sender), cleanMsg.replace(/^1칭호/, ''))];
+    await flushRatingSyncs();
+    return result;
+  }
 
   const replies = [];
   const thoughtLines = buildCpuThoughtLines(bot, room, cleanMsg);
@@ -309,6 +313,8 @@ export async function dispatchBotMessage(room, msg, sender) {
     persistTierData(context);
     replies.push(...unlockLines);
   }
+  syncRatingsToMongo(getTierPlayers(context));
+  await flushRatingSyncs();
   return replies;
 }
 
@@ -337,6 +343,8 @@ export async function botRankings() {
     normalizePlayerRecord(players[name]);
     checkAchievementsFor(bot.context, name);
   }
+  syncRatingsToMongo(players);
+  await flushRatingSyncs();
   return Object.entries(players)
     .map(([name, value]) => ({ name, ...value, achievementRate: achievementRate(value) }))
     .sort((a, b) => (b.rating || 0) - (a.rating || 0))
