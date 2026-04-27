@@ -1,5 +1,7 @@
 export function patchPageSvelte(code: string): string {
-  code = code.replace("let ability = $state('');", "let ability = $state('');\n  let selectedAbility = $state('');");
+  if (!code.includes("let selectedAbility = $state")) {
+    code = code.replace("let ability = $state('');", "let ability = $state('');\n  let selectedAbility = $state('');");
+  }
 
   if (!code.includes("let rankLoading")) {
     code = code.replace(
@@ -36,6 +38,10 @@ export function patchPageSvelte(code: string): string {
   if (!code.includes("function abilityRequiresTarget")) {
     code = code.replace(
       "async function sendAbility() {\n    await send(`2${ability}`);\n    ability = '';\n  }",
+      "async function sendAbility() {\n    await submitSelectedAbility();\n  }"
+    );
+    code = code.replace(
+      "async function useAbility(name) {\n    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);\n    ability = '';\n  }",
       `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
   function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
   function cooldownEntries(state) {
@@ -55,8 +61,7 @@ export function patchPageSvelte(code: string): string {
     ability = '';
   }
   async function triggerAbility(name) { selectedAbility = name; if (!abilityRequiresTarget(name)) await useAbility(name); }
-  async function submitSelectedAbility() { await useAbility(selectedAbility); }
-  async function sendAbility() { await submitSelectedAbility(); }`
+  async function submitSelectedAbility() { await useAbility(selectedAbility); }`
     );
   }
 
