@@ -4,6 +4,8 @@ import { publishRoom } from './realtime.js';
 
 const logs = new Map();
 const roomMeta = new Map();
+const commandHistory = new Map();
+const restoredRooms = new Set();
 const restartTimers = new Map();
 
 const QUEST_COUNT = 16;
@@ -20,6 +22,55 @@ function append(room, sender, msg, replies) {
   }
   while (list.length > 160) list.shift();
   logs.set(room, list);
+}
+
+async function persistRoom(room, stateOverride = null) {
+  try {
+    const { saveRoomSnapshot } = await import('./db.js');
+    const state = stateOverride || await buildRoomSnapshot(room, false);
+    await saveRoomSnapshot(room, {
+      meta: roomMeta.get(room) || null,
+      log: logs.get(room) || [],
+      commands: commandHistory.get(room) || [],
+      snapshot: state,
+      lastGame: state?.game || null
+    });
+  } catch {
+    // Mongo unavailable; in-memory room still works in local/dev.
+  }
+}
+
+async function loadPersistedRoom(room) {
+  try {
+    const { loadRoomSnapshot } = await import('./db.js');
+    return await loadRoomSnapshot(room);
+  } catch {
+    return null;
+  }
+}
+
+async function restoreRoom(room) {
+  if (restoredRooms.has(room)) return;
+  restoredRooms.add(room);
+  const persisted = await loadPersistedRoom(room);
+  if (!persisted) return;
+  if (persisted.meta) roomMeta.set(room, persisted.meta);
+  if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
+  if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
+
+  // Best effort replay for active rooms. This keeps the VM game object alive after a serverless cold start.
+  // Rating-changing commands are not replayed after a finished game because persisted.snapshot is used instead.
+  const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
+  const replayable = lastPhase && lastPhase !== 'ended' && lastPhase !== 'finished' && !/종료|승리|패배/.test((persisted.log || []).slice(-8).map((x) => x.text).join('\n'));
+  if (!replayable) return;
+  const commands = (persisted.commands || []).slice(-120);
+  for (const item of commands) {
+    try {
+      await dispatchBotMessage(room, item.command, item.sender);
+    } catch {
+      break;
+    }
+  }
 }
 
 function normalizeRankingRow(row) {
@@ -89,21 +140,33 @@ function scheduleAutoRestart(room, sender, replies) {
     try {
       const command = startCommand(meta);
       const restartReplies = await dispatchBotMessage(room, command, sender || meta.owner || 'player');
+      rememberCommand(room, sender || meta.owner || 'player', command);
       append(room, sender || meta.owner || 'system', command, restartReplies);
-      publishRoom(room, await getRoomSnapshot(room));
+      const state = await getRoomSnapshot(room);
+      await persistRoom(room, state);
+      publishRoom(room, state);
     } catch {}
   }, 900);
   restartTimers.set(room, timer);
+}
+
+function rememberCommand(room, sender, command) {
+  const list = commandHistory.get(room) || [];
+  list.push({ sender, command, at: Date.now() });
+  while (list.length > 140) list.shift();
+  commandHistory.set(room, list);
 }
 
 export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '' }) {
   const room = code();
   roomMeta.set(room, { createdAt: Date.now(), mode, practice, cpuJob, owner: String(nickname || '').trim() || 'player', practiceGuest: null });
   logs.set(room, []);
+  commandHistory.set(room, []);
   return sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
 }
 
 export async function joinRoom({ room, nickname }) {
+  await restoreRoom(room);
   const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false, owner: String(nickname || '').trim() || 'player', practiceGuest: null };
   const sender = String(nickname || '').trim() || 'player';
   if (meta.practice && meta.owner && meta.owner !== sender) {
@@ -112,6 +175,7 @@ export async function joinRoom({ room, nickname }) {
     roomMeta.set(room, meta);
     append(room, 'system', '', [`[시스템]: 연습방 알림: ${sender}님이 방 코드로 들어왔습니다. 연습 종료 버튼을 눌러 일반 방으로 전환할 수 있습니다.`]);
     const state = await getRoomSnapshot(room);
+    await persistRoom(room, state);
     publishRoom(room, state);
     return state;
   }
@@ -120,24 +184,48 @@ export async function joinRoom({ room, nickname }) {
 }
 
 export async function sendCommand({ room, nickname, command }) {
+  await restoreRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   const msg = String(command || '').trim();
   const replies = msg ? await dispatchBotMessage(room, msg, sender) : [];
+  if (msg) rememberCommand(room, sender, msg);
   append(room, sender, msg, replies);
   scheduleAutoRestart(room, sender, replies);
   const state = await getRoomSnapshot(room);
+  await persistRoom(room, state);
   publishRoom(room, state);
   return state;
 }
 
-export async function getRoomSnapshot(room) {
-  return {
+async function buildRoomSnapshot(room, allowPersistedFallback = true) {
+  const game = await botRoomState(room);
+  const state = {
     room,
     meta: roomMeta.get(room) || null,
     status: await botBootStatus(),
-    game: await botRoomState(room),
+    game,
     log: logs.get(room) || []
   };
+  if ((!state.game || !state.meta) && allowPersistedFallback) {
+    const persisted = await loadPersistedRoom(room);
+    if (persisted?.snapshot) {
+      return {
+        ...persisted.snapshot,
+        room,
+        meta: state.meta || persisted.snapshot.meta || persisted.meta || null,
+        game: state.game || persisted.snapshot.game || persisted.lastGame || null,
+        log: state.log.length ? state.log : (persisted.snapshot.log || persisted.log || [])
+      };
+    }
+  }
+  return state;
+}
+
+export async function getRoomSnapshot(room) {
+  await restoreRoom(room);
+  const state = await buildRoomSnapshot(room, true);
+  if (state.game || state.meta) persistRoom(room, state).catch(() => {});
+  return state;
 }
 
 export async function rankingSnapshot() {
