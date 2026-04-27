@@ -18,9 +18,7 @@
           radial-gradient(circle at 85% 12%, rgba(132,204,22,.10), transparent 26%),
           #f8fff9 !important;
       }
-      .brand-gem, .lobby-gem, .sel-gem {
-        color: #16a34a !important;
-      }
+      .brand-gem, .lobby-gem, .sel-gem { color: #16a34a !important; }
       .accent, .accent-btn, .lobby-cta, .join-btn, .ban-btn.primary, .nav-active {
         background: linear-gradient(135deg, #22c55e, #16a34a) !important;
         border-color: rgba(22, 163, 74, .36) !important;
@@ -29,55 +27,37 @@
       .syl-glow, .my-turn-hero, .player-active, .job-selected {
         box-shadow: 0 0 0 1px rgba(34, 197, 94, .28), 0 18px 45px rgba(34, 197, 94, .16) !important;
       }
-      .think-log-panel, .cpu-thinking-row {
-        display: none !important;
+      .think-log-panel, .cpu-thinking-row, .notice-list { display: none !important; }
+      .cr-toast-stack { position: fixed; right: 18px; top: 76px; z-index: 99998; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+      .cr-toast {
+        min-width: 220px; max-width: 380px; padding: 12px 14px; border-radius: 15px;
+        color: #052e16; background: rgba(240,253,244,.96); border: 1px solid rgba(34,197,94,.32);
+        box-shadow: 0 14px 45px rgba(22,101,52,.22); font-size: 13px; line-height: 1.45;
+        animation: crToastIn .2s ease-out; backdrop-filter: blur(10px);
       }
-      .notice-list {
-        display: none !important;
-      }
-      .toast-error, .cr-toast {
-        border-color: rgba(34,197,94,.32) !important;
-      }
+      .cr-toast strong { display: block; margin-bottom: 3px; color: #15803d; font-size: 12px; letter-spacing: .08em; }
+      .toast-error { border-color: rgba(34,197,94,.32) !important; }
       .cr-tier-burst {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        display: grid;
-        place-items: center;
-        pointer-events: none;
-        background: radial-gradient(circle, rgba(34,197,94,.20), transparent 58%);
-        animation: crBurstOut 2.2s ease forwards;
+        position: fixed; inset: 0; z-index: 99999; display: grid; place-items: center; pointer-events: none;
+        background: radial-gradient(circle, rgba(34,197,94,.20), transparent 58%); animation: crBurstOut 2.2s ease forwards;
       }
       .cr-tier-card {
-        padding: 28px 36px;
-        border-radius: 28px;
-        color: #052e16;
-        text-align: center;
+        padding: 28px 36px; border-radius: 28px; color: #052e16; text-align: center;
         background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(187,247,208,.92));
-        border: 1px solid rgba(34,197,94,.35);
-        box-shadow: 0 0 90px rgba(34,197,94,.35);
+        border: 1px solid rgba(34,197,94,.35); box-shadow: 0 0 90px rgba(34,197,94,.35);
         animation: crTierPop .55s cubic-bezier(.2,1.55,.3,1);
       }
-      .cr-tier-card strong {
-        display: block;
-        color: #15803d;
-        font-size: 32px;
-        letter-spacing: .04em;
+      .cr-tier-card strong { display: block; color: #15803d; font-size: 32px; letter-spacing: .04em; }
+      .cr-tier-card span { display: block; margin-top: 6px; color: #166534; font-size: 14px; }
+      .cr-practice-guest {
+        position: fixed; left: 18px; bottom: 18px; z-index: 99997; padding: 13px 15px; border-radius: 16px;
+        background: rgba(240,253,244,.96); border: 1px solid rgba(34,197,94,.30); color: #052e16;
+        box-shadow: 0 14px 45px rgba(22,101,52,.18); font-size: 13px;
       }
-      .cr-tier-card span {
-        display: block;
-        margin-top: 6px;
-        color: #166534;
-        font-size: 14px;
-      }
-      @keyframes crTierPop {
-        from { opacity: 0; transform: scale(.72) rotate(-2deg); }
-        to { opacity: 1; transform: scale(1) rotate(0); }
-      }
-      @keyframes crBurstOut {
-        0%, 76% { opacity: 1; }
-        100% { opacity: 0; }
-      }
+      .cr-practice-guest button { margin-top: 8px; padding: 8px 12px; border-radius: 999px; border: 0; background: #16a34a; color: white; font-weight: 800; cursor: pointer; }
+      @keyframes crToastIn { from { opacity: 0; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+      @keyframes crTierPop { from { opacity: 0; transform: scale(.72) rotate(-2deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+      @keyframes crBurstOut { 0%, 76% { opacity: 1; } 100% { opacity: 0; } }
     </style>
   </head>
   <body data-sveltekit-preload-data="hover">
@@ -85,24 +65,55 @@
     <script>
       (() => {
         let lastTierText = '';
+        const shownToasts = new Set();
+        const targetRequired = new Set(['조작','복제','초토화','포획','사구아','2음절','시적 허용','삼키기','브레스','사형 선고','DNA파괴','쪼개기','체크메이트','교환','울음','거짓 보도','거짓 뉴스','찌르기','가르기','수리','핵분열','무량공처','조개','깨부수기','Backspace','Tab']);
+        function toast(title, detail) {
+          const key = title + '|' + detail;
+          if (shownToasts.has(key)) return;
+          shownToasts.add(key);
+          let stack = document.querySelector('.cr-toast-stack');
+          if (!stack) { stack = document.createElement('div'); stack.className = 'cr-toast-stack'; document.body.appendChild(stack); }
+          const box = document.createElement('div'); box.className = 'cr-toast';
+          box.innerHTML = '<strong></strong><span></span>';
+          box.querySelector('strong').textContent = title;
+          box.querySelector('span').textContent = detail;
+          stack.appendChild(box);
+          setTimeout(() => box.remove(), 3800);
+          setTimeout(() => shownToasts.delete(key), 10000);
+        }
         function burst(title, detail) {
-          const old = document.querySelector('.cr-tier-burst');
-          if (old) old.remove();
-          const root = document.createElement('div');
-          root.className = 'cr-tier-burst';
+          const old = document.querySelector('.cr-tier-burst'); if (old) old.remove();
+          const root = document.createElement('div'); root.className = 'cr-tier-burst';
           root.innerHTML = '<div class="cr-tier-card"><strong></strong><span></span></div>';
-          root.querySelector('strong').textContent = title;
-          root.querySelector('span').textContent = detail;
-          document.body.appendChild(root);
-          setTimeout(() => root.remove(), 2300);
+          root.querySelector('strong').textContent = title; root.querySelector('span').textContent = detail;
+          document.body.appendChild(root); setTimeout(() => root.remove(), 2300);
+        }
+        function syncAbilityTargetHint() {
+          const control = document.querySelector('.col-control'); if (!control) return;
+          const text = control.innerText || '';
+          const abilityInput = [...control.querySelectorAll('input')].find((el) => /능력|대상|값|입력/.test(el.placeholder || '') || el.value);
+          if (!abilityInput) return;
+          const needsTarget = [...targetRequired].some((name) => text.includes(name));
+          abilityInput.placeholder = needsTarget ? '능력 대상 / 값 입력' : '대상이 필요 없는 능력은 비워두세요';
+        }
+        function practiceGuestNotice() {
+          const body = document.body.innerText || '';
+          const roomMatch = body.match(/ROOM\s+([A-F0-9]{6})|방 코드\s+([A-F0-9]{6})/);
+          const players = [...body.matchAll(/PLAYERS|미선택|현재 차례/g)].length;
+          if (/연습/.test(body) && roomMatch && /상대|참가|입장|players/i.test(body) && players > 1 && !document.querySelector('.cr-practice-guest')) {
+            const box = document.createElement('div'); box.className = 'cr-practice-guest';
+            box.innerHTML = '<strong>연습방 입장 알림</strong><br>누군가 연습방에 들어온 것 같습니다.<br><button type="button">연습 종료</button>';
+            box.querySelector('button').onclick = () => { const btn = [...document.querySelectorAll('button')].find((b) => /나가기|종료|기권|취소/.test(b.innerText || '')); if (btn) btn.click(); else box.remove(); };
+            document.body.appendChild(box);
+          }
         }
         setInterval(() => {
-          const lines = (document.body.innerText || '').split('\n').map((v) => v.trim()).filter(Boolean);
-          const result = lines.slice(-18).find((line) => /승리|패배|레이팅|티어|퀘스트 완료|칭호/.test(line));
-          if (result && result !== lastTierText) {
-            lastTierText = result;
-            if (/승리|레이팅|티어/.test(result)) burst('TIER RESULT', result.slice(0, 80));
-          }
+          const allText = document.body.innerText || '';
+          const hiddenNoticeTexts = [...document.querySelectorAll('.notice-item, .notice-list')].map((el) => el.textContent.trim()).filter(Boolean);
+          for (const line of hiddenNoticeTexts.slice(-3)) toast('SYSTEM', line.slice(0, 140));
+          const result = allText.split('\n').map((v) => v.trim()).filter(Boolean).slice(-22).find((line) => /승리|패배|레이팅|티어|퀘스트 완료|칭호/.test(line));
+          if (result && result !== lastTierText) { lastTierText = result; if (/승리|레이팅|티어/.test(result)) burst('TIER RESULT', result.slice(0, 80)); }
+          syncAbilityTargetHint(); practiceGuestNotice();
         }, 1200);
       })();
     </script>
