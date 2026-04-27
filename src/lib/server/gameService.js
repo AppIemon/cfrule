@@ -4,6 +4,7 @@ import { publishRoom } from './realtime.js';
 
 const logs = new Map();
 const roomMeta = new Map();
+const restartTimers = new Map();
 
 const QUEST_COUNT = 16;
 
@@ -68,19 +69,54 @@ function buildJobRanking(ranking) {
   return byJob;
 }
 
+function startCommand(meta) {
+  const modeText = meta.mode === 1 ? '' : meta.mode;
+  return meta.practice ? `1연습${modeText}${meta.cpuJob ? ` ${meta.cpuJob}` : ''}` : `1채린${modeText}`;
+}
+
+function looksLikeGameEnd(replies) {
+  const text = (replies || []).join('\n');
+  return /승리|패배|레이팅|티어 변경|경기 종료|게임 종료/.test(text);
+}
+
+function scheduleAutoRestart(room, sender, replies) {
+  const meta = roomMeta.get(room);
+  if (!meta || !looksLikeGameEnd(replies)) return;
+  if (restartTimers.has(room)) clearTimeout(restartTimers.get(room));
+  append(room, 'system', '', ['[시스템]: 사람이 충분하다고 보고 다음 게임을 자동으로 준비합니다.']);
+  const timer = setTimeout(async () => {
+    restartTimers.delete(room);
+    try {
+      const command = startCommand(meta);
+      const restartReplies = await dispatchBotMessage(room, command, sender || meta.owner || 'player');
+      append(room, sender || meta.owner || 'system', command, restartReplies);
+      publishRoom(room, await getRoomSnapshot(room));
+    } catch {}
+  }, 900);
+  restartTimers.set(room, timer);
+}
+
 export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '' }) {
   const room = code();
-  roomMeta.set(room, { createdAt: Date.now(), mode, practice });
+  roomMeta.set(room, { createdAt: Date.now(), mode, practice, cpuJob, owner: String(nickname || '').trim() || 'player', practiceGuest: null });
   logs.set(room, []);
-  const command = practice ? `1연습${mode === 1 ? '' : mode}${cpuJob ? ` ${cpuJob}` : ''}` : `1채린${mode === 1 ? '' : mode}`;
-  return sendCommand({ room, nickname, command });
+  return sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
 }
 
 export async function joinRoom({ room, nickname }) {
-  const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false };
+  const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false, owner: String(nickname || '').trim() || 'player', practiceGuest: null };
+  const sender = String(nickname || '').trim() || 'player';
+  if (meta.practice && meta.owner && meta.owner !== sender) {
+    meta.practiceGuest = sender;
+    meta.practiceGuestAt = Date.now();
+    roomMeta.set(room, meta);
+    append(room, 'system', '', [`[시스템]: 연습방 알림: ${sender}님이 방 코드로 들어왔습니다. 연습 종료 버튼을 눌러 일반 방으로 전환할 수 있습니다.`]);
+    const state = await getRoomSnapshot(room);
+    publishRoom(room, state);
+    return state;
+  }
   roomMeta.set(room, meta);
-  const command = meta.practice ? `1연습${meta.mode === 1 ? '' : meta.mode}` : `1채린${meta.mode === 1 ? '' : meta.mode}`;
-  return sendCommand({ room, nickname, command });
+  return sendCommand({ room, nickname, command: startCommand(meta) });
 }
 
 export async function sendCommand({ room, nickname, command }) {
@@ -88,6 +124,7 @@ export async function sendCommand({ room, nickname, command }) {
   const msg = String(command || '').trim();
   const replies = msg ? await dispatchBotMessage(room, msg, sender) : [];
   append(room, sender, msg, replies);
+  scheduleAutoRestart(room, sender, replies);
   const state = await getRoomSnapshot(room);
   publishRoom(room, state);
   return state;
