@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import bundledBotSource from '../../../bot.js?raw';
 import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
 
 let enginePromise = null;
 
@@ -93,6 +94,7 @@ function bootSync() {
     .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
   const context = createContext();
   vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  installCpuStrategyPatch(context);
 
   const response = context.__response;
   if (typeof response !== 'function') {
@@ -271,6 +273,7 @@ function buildCpuThoughtLines(bot, room, msg) {
 export async function dispatchBotMessage(room, msg, sender) {
   const bot = await getBotEngine();
   const context = bot.context;
+  installCpuStrategyPatch(context);
   const players = getTierPlayers(context);
   const before = snapshotPlayerStats(players);
   const beforeLeader = rankLeaderName(players);
