@@ -2,7 +2,41 @@ export function patchPageSvelte(code: string): string {
   if (!code.includes("let rankLoading")) {
     code = code.replace(
       "let rankMode = $state('overall');\n  let rankJob = $state('');",
-      "let rankMode = $state('overall');\n  let rankJob = $state('');\n  let rankLoading = $state(false);\n  const abilityNeedsTarget = new Set(['조작','복제','초토화','포획','사구아','2음절','시적 허용','삼키기','브레스','사형 선고','DNA파괴','쪼개기','체크메이트','교환','울음','거짓 보도','거짓 뉴스','찌르기','가르기','수리','핵분열','무량공처','조개','깨부수기','Backspace','Tab']);"
+      "let rankMode = $state('overall');\n  let rankJob = $state('');\n  let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);\n  const abilityNeedsTarget = new Set(['조작','복제','초토화','포획','사구아','2음절','시적 허용','삼키기','브레스','사형 선고','DNA파괴','쪼개기','체크메이트','교환','울음','거짓 보도','거짓 뉴스','찌르기','가르기','수리','핵분열','무량공처','조개','깨부수기','Backspace','Tab']);"
+    );
+  } else {
+    if (!code.includes('let lastPlayingGame')) {
+      code = code.replace(
+        "let rankLoading = $state(false);",
+        "let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);"
+      );
+    }
+  }
+
+  if (!code.includes("const rawGame")) {
+    code = code.replace(
+      "const game = $derived(snapshot?.game || null);",
+      `const rawGame = $derived(snapshot?.game || null);
+  const game = $derived.by(() => {
+    if (rawGame?.phase === 'playing') return rawGame;
+    if (holdPlayingSnapshot && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
+    if (cpuThinking && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
+    return rawGame;
+  });`
+    );
+
+    code = code.replace(
+      "const maxBanCount = 6;",
+      `const maxBanCount = 6;
+
+  $effect(() => {
+    if (rawGame?.phase === 'playing') {
+      lastPlayingGame = rawGame;
+      holdPlayingSnapshot = true;
+    } else if (rawGame && rawGame.phase !== 'waiting' && rawGame.phase !== 'job_selection') {
+      holdPlayingSnapshot = false;
+    }
+  });`
     );
   }
 
@@ -49,6 +83,10 @@ export function patchPageSvelte(code: string): string {
   );
 
   code = code.replace(
+    /const cpuThinkLog = \$derived\([\s\S]*?\n  \);\n\n  const jobRanking/,
+    "const cpuThinkLog = $derived([]);\n\n  const jobRanking"
+  );
+  code = code.replace(
     /const cpuThinkLog = \$derived\([\s\S]*?\n  \);\n  const isBanPhase/,
     "const cpuThinkLog = $derived([]);\n  const isBanPhase"
   );
@@ -79,6 +117,21 @@ export function patchPageSvelte(code: string): string {
     );
   }
 
+  // Keep the playing snapshot while CPU is calculating so transient serverless snapshots cannot flip to job selection.
+  code = code.replace(
+    "cpuThinking = true;\n    try {\n      await send(`0${text}`);\n    } finally {\n      cpuThinking = false;\n    }",
+    `cpuThinking = true;
+    holdPlayingSnapshot = true;
+    try {
+      await send(\`0\${text}\`);
+    } finally {
+      cpuThinking = false;
+      setTimeout(() => {
+        if (rawGame?.phase === 'playing') holdPlayingSnapshot = true;
+      }, 1200);
+    }`
+  );
+
   code = code.replace(
     /<input class="ability-input"[^>]*>/,
     `{#if abilityButtons.some((name) => abilityRequiresTarget(name))}
@@ -87,6 +140,25 @@ export function patchPageSvelte(code: string): string {
   );
 
   code = code.replace(/생각 과정 보기/g, '');
+
+  if (!code.includes('native-layout-label')) {
+    code = code.replace(
+      '<!-- Syllable Hero Bar -->',
+      '<div class="native-layout-label native-top-label">현재 게임 / 이을 음절 / 플레이어 / 차례</div>\n        <!-- Syllable Hero Bar -->'
+    );
+    code = code.replace(
+      '<!-- LEFT: Players -->',
+      '<!-- LEFT: Players -->\n          <div class="native-layout-label native-left-label">능력 / 패시브 관련</div>'
+    );
+    code = code.replace(
+      '<!-- CENTER: Board -->',
+      '<!-- CENTER: Board -->\n          <div class="native-layout-label native-center-label">사용된 단어 / 턴 수</div>'
+    );
+    code = code.replace(
+      '<!-- RIGHT: Control -->',
+      '<!-- RIGHT: Control -->\n          <div class="native-layout-label native-right-label">버프 / 디버프 관련</div>'
+    );
+  }
 
   // Rank tab content patch: append a native Svelte rank panel near existing ranking area if absent.
   if (!code.includes('rank-slim-panel')) {
@@ -168,6 +240,19 @@ export function patchPageSvelte(code: string): string {
   .rank-card.my-rank { outline: 2px solid rgba(34,197,94,.42); background: #f0fdf4; }
   .rank-title { margin-left: 6px; color: #a16207; font-size: 11px; }
   .job-rank-layout select { width: 100%; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(34,197,94,.24); margin-bottom: 14px; }
+  .ingame { display: grid; grid-template-rows: auto 1fr auto; gap: 12px; }
+  .syl-hero { grid-row: 1; border-color: rgba(34,197,94,.24) !important; }
+  .game-columns { display: grid !important; grid-template-columns: 260px minmax(0, 1fr) 280px !important; gap: 12px !important; align-items: stretch !important; }
+  .col-players, .col-board, .col-control { min-height: 420px; }
+  .col-players { order: 1; }
+  .col-board { order: 2; }
+  .col-control { order: 3; }
+  .native-layout-label { margin: 0 0 6px; padding: 6px 10px; border-radius: 999px; background: #f0fdf4; border: 1px solid rgba(34,197,94,.18); color: #15803d; font-size: 11px; font-weight: 900; letter-spacing: .04em; }
+  .native-top-label { width: fit-content; }
+  .native-left-label, .native-center-label, .native-right-label { align-self: start; }
+  .word-history::before { content: '중앙: 사용된 단어 / 턴 수'; display: block; margin-bottom: 8px; color: #15803d; font-size: 11px; font-weight: 900; }
+  .col-control::after { content: '아래 영역: 능력 / 패시브 쿨타임 · 사용 횟수 · 능력 사용'; display: block; margin-top: 12px; padding: 10px; border-radius: 14px; background: #f0fdf4; color: #166534; font-size: 12px; font-weight: 800; }
+  @media (max-width: 980px) { .game-columns { grid-template-columns: 1fr !important; } }
 </style>`
     );
   }
