@@ -69,6 +69,7 @@
   let analysisBusy = $state(false);
   let tab = $state('game');
   let busy = $state(false);
+  let cpuThinking = $state(false);
   let error = $state('');
   let poller;
   let socket;
@@ -89,6 +90,13 @@
   const log = $derived(snapshot?.log || []);
   const notices = $derived(log.filter((item) => item.type === 'system' && !isGuiOnlyNotice(item.text)).slice(-4).reverse());
   const abilityButtons = $derived(ACTIVE_BY_JOB[myState?.job] || []);
+  const cpuThinkLog = $derived(
+    log.filter(item => item.type === 'system' && (
+      item.text?.includes('생각 중이다') ||
+      item.text?.includes('분석하며') ||
+      item.text?.includes('계산 중')
+    )).slice(-5)
+  );
   const isBanPhase = $derived(game?.phase === 'job_selection' && game?.banPhase);
   const isBanPicker = $derived(isBanPhase && game?.firstPicker === nickname);
   const isBanWaiting = $derived(isBanPhase && game?.firstPicker && game?.firstPicker !== nickname);
@@ -230,8 +238,13 @@
     event?.preventDefault?.();
     const text = word.trim();
     if (!text || !canPlay) return;
-    await send(`0${text}`);
     word = '';
+    cpuThinking = true;
+    try {
+      await send(`0${text}`);
+    } finally {
+      cpuThinking = false;
+    }
   }
 
   async function sendAbility() {
@@ -696,7 +709,23 @@
                   <span class="bubble-text">{item}</span>
                 </div>
               {/each}
+              {#if cpuThinking}
+                <div class="cpu-thinking-row">
+                  <span class="think-dot"></span>
+                  <span class="think-dot"></span>
+                  <span class="think-dot"></span>
+                  <span class="think-label">컴퓨터가 생각 중입니다...</span>
+                </div>
+              {/if}
             </div>
+            {#if !cpuThinking && cpuThinkLog.length}
+              <details class="think-log-panel">
+                <summary>생각 과정 보기</summary>
+                {#each cpuThinkLog as item (item.id)}
+                  <div class="think-log-entry">{item.text}</div>
+                {/each}
+              </details>
+            {/if}
           </main>
 
           <!-- RIGHT: Control -->
@@ -2339,6 +2368,16 @@
   .batch-run { height: 48px; padding: 0 28px; font-size: 15px; align-self: flex-start; }
   .analysis-spinner { display: flex; align-items: center; gap: 14px; padding: 32px; justify-content: center; color: var(--text2); font-size: 14px; }
   .spin-ring { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--border2); border-top-color: var(--accent); animation: spin .7s linear infinite; }
+  .cpu-thinking-row { display: flex; align-items: center; gap: 5px; padding: 12px 16px; justify-content: center; }
+  .think-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: 0.3; animation: think-pulse .9s ease-in-out infinite; }
+  .think-dot:nth-child(2) { animation-delay: .2s; }
+  .think-dot:nth-child(3) { animation-delay: .4s; }
+  .think-label { font-size: 13px; color: var(--text2); margin-left: 8px; }
+  @keyframes think-pulse { 0%,100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
+  .think-log-panel { margin: 4px 8px 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; font-size: 12px; }
+  .think-log-panel summary { padding: 6px 12px; cursor: pointer; color: var(--text2); background: var(--bg2); user-select: none; }
+  .think-log-panel summary:hover { color: var(--accent); }
+  .think-log-entry { padding: 4px 14px; color: var(--text2); border-top: 1px solid var(--border); background: var(--bg); }
   .force-bar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 10px 14px;

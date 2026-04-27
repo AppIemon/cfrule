@@ -991,6 +991,16 @@ with (Bot.scope) {
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
   };
+  (function () {
+    var _orig = decomposeSyllable;
+    var _cache = new Map();
+    decomposeSyllable = function decomposeSyllable(char) {
+      if (_cache.has(char)) return _cache.get(char);
+      var r = _orig.call(this, char);
+      if (char) _cache.set(char, r);
+      return r;
+    };
+  })();
   composeSyllable = function composeSyllable(ci, ji, gi) {
     let __botResult = function () {
       return String.fromCharCode(0xac00 + ci * 588 + ji * 28 + gi);
@@ -998,6 +1008,17 @@ with (Bot.scope) {
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
   };
+  (function () {
+    var _orig = composeSyllable;
+    var _cache = {};
+    composeSyllable = function composeSyllable(ci, ji, gi) {
+      var k = ci + '|' + ji + '|' + gi;
+      if (_cache[k] !== undefined) return _cache[k];
+      var r = _orig.call(this, ci, ji, gi);
+      _cache[k] = r;
+      return r;
+    };
+  })();
   shiftSyllableVowel = function shiftSyllableVowel(char, amount) {
     let __botResult = function () {
       const vowelSeq = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
@@ -1011,6 +1032,17 @@ with (Bot.scope) {
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
   };
+  (function () {
+    var _orig = shiftSyllableVowel;
+    var _cache = {};
+    shiftSyllableVowel = function shiftSyllableVowel(char, amount) {
+      var k = char + '|' + amount;
+      if (_cache[k] !== undefined) return _cache[k];
+      var r = _orig.call(this, char, amount);
+      _cache[k] = r;
+      return r;
+    };
+  })();
   getSwordsmanSliceEdges = function getSwordsmanSliceEdges(word) {
     let __botResult = function () {
       if (!word || word.length === 0) return null;
@@ -1746,36 +1778,7 @@ with (Bot.scope) {
   startCpuThinkingProgress = function startCpuThinkingProgress(room, cpuName, token, fallbackReplier) {
     let __botResult = function () {
       try {
-        let thread = new java.lang.Thread({
-          run: function () {
-            let __botResult = function () {
-              let percent = 0;
-              {
-                let __botLoop18 = Bot.functions.whileLoop(function () {
-                  return true;
-                }, function () {
-                  let waitSec = 70 + Math.floor(Math.random() * 61);
-                  try {
-                    java.lang.Thread.sleep(waitSec * 1000);
-                  } catch (sleepErr) {
-                    return Bot.functions.control("return", undefined);
-                  }
-                  let game = games[room];
-                  if (!game || !game.isPractice || game.phase !== "playing") return Bot.functions.control("return", undefined);
-                  if ((game.cpuThinkToken || 0) !== token) return Bot.functions.control("return", undefined);
-                  if (game.currentTurnIndex === -1) return Bot.functions.control("return", undefined);
-                  if (game.players[game.currentTurnIndex] !== cpuName) return Bot.functions.control("return", undefined);
-                  percent = Math.min(95, percent + 15 + Math.floor(Math.random() * 21));
-                  safeReplyRoom(room, systemLine(cpuName + "이 생각 중이다... " + percent + "%"), fallbackReplier);
-                });
-                if (__botLoop18) return __botLoop18;
-              }
-            }.call(this);
-            if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
-            return __botResult;
-          }
-        });
-        thread.start();
+        safeReplyRoom(room, systemLine(cpuName + "이 생각 중이다..."), fallbackReplier);
       } catch (e) {}
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
