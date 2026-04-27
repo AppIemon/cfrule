@@ -35,6 +35,17 @@ export function patchPageSvelte(code: string): string {
     );
   }
 
+  code = code.replace(
+    /async function refresh\(\) \{\n\s*if \(!room\) return;\n\s*snapshot = await request\(`\/api\/room\?room=\$\{encodeURIComponent\(room\)\}`\);\n\s*\}/,
+    `async function refresh() {
+    if (!room) return;
+    try {
+      const res = await fetch(\`/api/room?room=\${encodeURIComponent(room)}\`, { cache: 'no-store' });
+      if (res.ok) snapshot = await res.json();
+    } catch {}
+  }`
+  );
+
   if (!code.includes("function abilityRequiresTarget")) {
     code = code.replace(
       "async function sendAbility() {\n    await send(`2${ability}`);\n    ability = '';\n  }",
@@ -91,7 +102,7 @@ export function patchPageSvelte(code: string): string {
           </aside>
           <main class="battle-center-v3">
             <div class="word-stream-v3" bind:this={historyEl}>{#each game.history || [] as item, i}<div class="word-chip-v3" class:right={i % 2 === 1}>{item}</div>{:else}<div class="empty-board-v3">첫 단어 대기</div>{/each}{#if cpuThinking}<div class="thinking-chip-v3">컴퓨터 계산 중...</div>{/if}</div>
-            <form class="word-input-v3" onsubmit={sendWord}><input bind:value={word} placeholder={canPlay ? '단어 입력' : '내 차례가 아닙니다'} disabled={!canPlay || busy} /><button disabled={!canPlay || !word.trim() || busy}>입력</button></form>
+            <form class="word-input-v3" onsubmit={sendWord}><input bind:value={word} placeholder={canPlay ? '단어 입력' : '내 차례가 아닙니다'} disabled={!canPlay} /><button disabled={!canPlay || !word.trim() || busy}>입력</button></form>
           </main>
           <aside class="battle-right-v3">{#each game.players || [] as player}{@const state = game.playerStates?.[player]}<div class="status-card-v3" class:active={player === currentPlayer}><div><b>{player}</b><span>{state?.job || '미선택'}</span></div><p>{#each visibleEffects(state) as ef}<em>{ef}</em>{:else}<small>상태 이상 없음</small>{/each}</p></div>{/each}</aside>
           <section class="battle-bottom-v3"><div class="cooldown-v3">{#each cooldownEntries(myState) as item}<div><b>{item.key}</b><span>{String(item.value)}</span></div>{:else}<div class="empty-box">쿨타임 / 횟수 없음</div>{/each}</div><div class="ability-use-v3"><b>{selectedAbility || '능력 선택'}</b>{#if selectedAbility && abilityRequiresTarget(selectedAbility)}<input bind:value={ability} placeholder="대상 / 단어 / 값" />{/if}<button onclick={submitSelectedAbility} disabled={!selectedAbility || busy}>능력 사용</button></div></section>
