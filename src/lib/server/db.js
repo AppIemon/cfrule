@@ -41,7 +41,9 @@ export async function ensureIndexes() {
     db.collection('users').createIndex({ username: 1 }, { unique: true }),
     db.collection('sessions').createIndex({ tokenHash: 1 }, { unique: true }),
     db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
-    db.collection('rating').createIndex({ name: 1 }, { unique: true })
+    db.collection('rating').createIndex({ name: 1 }, { unique: true }),
+    db.collection('rooms').createIndex({ room: 1 }, { unique: true }),
+    db.collection('rooms').createIndex({ updatedAt: 1 }, { expireAfterSeconds: 60 * 60 * 6 })
   ]);
 }
 
@@ -77,4 +79,21 @@ export async function getRatingRanking(limit = 100) {
     .sort({ rating: -1 })
     .limit(limit)
     .toArray();
+}
+
+export async function saveRoomSnapshot(room, data) {
+  if (!room || !data) return;
+  const db = await getDb();
+  await db.collection('rooms').updateOne(
+    { room },
+    { $set: { room, ...data, updatedAt: new Date() } },
+    { upsert: true }
+  );
+}
+
+export async function loadRoomSnapshot(room) {
+  if (!room) return null;
+  const db = await getDb();
+  const doc = await db.collection('rooms').findOne({ room }, { projection: { _id: 0 } });
+  return doc || null;
 }
