@@ -39,6 +39,35 @@ function normalizeRanking(rows) {
   return (rows || []).map(normalizeRankingRow);
 }
 
+function buildJobRanking(ranking) {
+  const byJob = {};
+  for (const player of ranking || []) {
+    const stats = player?.jobStats || {};
+    for (const [job, stat] of Object.entries(stats)) {
+      const wins = Number(stat?.wins || 0);
+      const losses = Number(stat?.losses || 0);
+      const picks = Number(stat?.picks || 0);
+      const games = Math.max(picks, wins + losses);
+      if (!games) continue;
+      if (!byJob[job]) byJob[job] = [];
+      byJob[job].push({
+        job,
+        name: player.name,
+        rating: Number(player.rating || 0),
+        wins,
+        losses,
+        games,
+        winRate: Math.round((wins / Math.max(1, wins + losses)) * 100),
+        equippedTitle: player.equippedTitle || '',
+        achievementRate: Number(player.achievementRate || 0),
+        score: wins * 100000 + Number(player.rating || 0)
+      });
+    }
+  }
+  for (const rows of Object.values(byJob)) rows.sort((a, b) => b.score - a.score || b.winRate - a.winRate);
+  return byJob;
+}
+
 export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '' }) {
   const room = code();
   roomMeta.set(room, { createdAt: Date.now(), mode, practice });
@@ -80,10 +109,11 @@ export async function rankingSnapshot() {
     const { getRatingRanking } = await import('./db.js');
     const ranking = normalizeRanking(await getRatingRanking(100));
     if (ranking.length > 0) {
-      return { ranking };
+      return { ranking, jobRanking: buildJobRanking(ranking) };
     }
   } catch {
     // MongoDB unavailable
   }
-  return { ranking: normalizeRanking(await botRankings()) };
+  const ranking = normalizeRanking(await botRankings());
+  return { ranking, jobRanking: buildJobRanking(ranking) };
 }
