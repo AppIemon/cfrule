@@ -35,7 +35,7 @@ server.on('upgrade', (request, socket, head) => {
     const game = await loadGameModule();
     const getRoomSnapshot = game.getRoomSnapshot || game.g;
     if (!getRoomSnapshot) throw new Error('Built gameService snapshot export was not found.');
-    const sendSnapshot = () => send(getRoomSnapshot(room));
+    const sendSnapshot = () => getRoomSnapshot(room).then(send).catch(() => {});
     sendSnapshot();
     const interval = setInterval(sendSnapshot, 1000);
     ws.on('close', () => clearInterval(interval));
