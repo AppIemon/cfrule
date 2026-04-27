@@ -6,55 +6,77 @@
     %sveltekit.head%
     <title>채린룰</title>
     <style>
-      .title-badge, .cr-title-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        margin-left: 6px;
-        padding: 2px 7px;
-        border: 1px solid rgba(255, 215, 0, .45);
-        border-radius: 999px;
-        background: linear-gradient(135deg, rgba(255, 215, 0, .18), rgba(255, 255, 255, .05));
-        color: #ffd86b;
-        font-size: 11px;
-        font-weight: 800;
-        white-space: nowrap;
-        box-shadow: 0 0 12px rgba(255, 215, 0, .12);
+      :root {
+        --accent: #16a34a !important;
+        --accent2: #22c55e !important;
+        --accent3: #86efac !important;
+        --green-glow: rgba(34, 197, 94, .26);
       }
-      .cr-achievement-rate {
-        display: inline-flex;
-        align-items: center;
-        margin-left: 6px;
-        padding: 2px 6px;
-        border-radius: 999px;
-        background: rgba(80, 180, 255, .14);
-        color: #8fd3ff;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
+      body {
+        background:
+          radial-gradient(circle at 20% 10%, rgba(34,197,94,.14), transparent 28%),
+          radial-gradient(circle at 85% 12%, rgba(132,204,22,.10), transparent 26%),
+          #f8fff9 !important;
       }
-      .think-log-panel:not([open]) {
+      .brand-gem, .lobby-gem, .sel-gem {
+        color: #16a34a !important;
+      }
+      .accent, .accent-btn, .lobby-cta, .join-btn, .ban-btn.primary, .nav-active {
+        background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+        border-color: rgba(22, 163, 74, .36) !important;
+        box-shadow: 0 10px 28px rgba(34, 197, 94, .24) !important;
+      }
+      .syl-glow, .my-turn-hero, .player-active, .job-selected {
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, .28), 0 18px 45px rgba(34, 197, 94, .16) !important;
+      }
+      .think-log-panel, .cpu-thinking-row {
         display: none !important;
       }
-      .think-log-panel[open], .think-log-panel.cr-auto-open {
-        display: block !important;
-        animation: crThinkFadeIn .18s ease-out;
+      .notice-list {
+        display: none !important;
       }
-      .think-log-panel[open] summary {
+      .toast-error, .cr-toast {
+        border-color: rgba(34,197,94,.32) !important;
+      }
+      .cr-tier-burst {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: grid;
+        place-items: center;
         pointer-events: none;
+        background: radial-gradient(circle, rgba(34,197,94,.20), transparent 58%);
+        animation: crBurstOut 2.2s ease forwards;
       }
-      .think-log-panel[open] summary::after {
-        content: ' 자동 표시';
-        opacity: .65;
-        font-size: 11px;
-        margin-left: 6px;
+      .cr-tier-card {
+        padding: 28px 36px;
+        border-radius: 28px;
+        color: #052e16;
+        text-align: center;
+        background: linear-gradient(135deg, rgba(236,253,245,.96), rgba(187,247,208,.92));
+        border: 1px solid rgba(34,197,94,.35);
+        box-shadow: 0 0 90px rgba(34,197,94,.35);
+        animation: crTierPop .55s cubic-bezier(.2,1.55,.3,1);
       }
-      .think-log-entry {
-        line-height: 1.5;
+      .cr-tier-card strong {
+        display: block;
+        color: #15803d;
+        font-size: 32px;
+        letter-spacing: .04em;
       }
-      @keyframes crThinkFadeIn {
-        from { opacity: 0; transform: translateY(5px); }
-        to { opacity: 1; transform: translateY(0); }
+      .cr-tier-card span {
+        display: block;
+        margin-top: 6px;
+        color: #166534;
+        font-size: 14px;
+      }
+      @keyframes crTierPop {
+        from { opacity: 0; transform: scale(.72) rotate(-2deg); }
+        to { opacity: 1; transform: scale(1) rotate(0); }
+      }
+      @keyframes crBurstOut {
+        0%, 76% { opacity: 1; }
+        100% { opacity: 0; }
       }
     </style>
   </head>
@@ -62,79 +84,26 @@
     <div style="display: contents">%sveltekit.body%</div>
     <script>
       (() => {
-        const THINK_HIDE_DELAY = 5000;
-        let hideTimer = 0;
-        let lastRankingText = '';
-
-        function openThinkingPanel() {
-          const panel = document.querySelector('.think-log-panel');
-          if (!panel) return;
-          panel.setAttribute('open', '');
-          panel.classList.add('cr-auto-open');
-          clearTimeout(hideTimer);
-          hideTimer = setTimeout(() => {
-            const stillThinking = [...document.querySelectorAll('.think-label')]
-              .some((el) => /생각 중/.test(el.textContent || ''));
-            if (!stillThinking) {
-              panel.removeAttribute('open');
-              panel.classList.remove('cr-auto-open');
-            }
-          }, THINK_HIDE_DELAY);
+        let lastTierText = '';
+        function burst(title, detail) {
+          const old = document.querySelector('.cr-tier-burst');
+          if (old) old.remove();
+          const root = document.createElement('div');
+          root.className = 'cr-tier-burst';
+          root.innerHTML = '<div class="cr-tier-card"><strong></strong><span></span></div>';
+          root.querySelector('strong').textContent = title;
+          root.querySelector('span').textContent = detail;
+          document.body.appendChild(root);
+          setTimeout(() => root.remove(), 2300);
         }
-
-        function enhanceThinking() {
-          const hasThinking = [...document.querySelectorAll('.think-label')]
-            .some((el) => /생각 중/.test(el.textContent || ''));
-          const panel = document.querySelector('.think-log-panel');
-          if (hasThinking || panel?.textContent?.includes('생각 과정')) openThinkingPanel();
-        }
-
-        async function enhanceRanking() {
-          const rankBtnActive = [...document.querySelectorAll('button, .nav-btn')]
-            .some((el) => /랭킹/.test(el.textContent || '') && el.className && String(el.className).includes('active'));
-          if (!rankBtnActive && !/랭킹/.test(document.body.textContent || '')) return;
-
-          let data;
-          try {
-            const res = await fetch('/api/ranking', { cache: 'no-store' });
-            if (!res.ok) return;
-            data = await res.json();
-          } catch { return; }
-          const ranking = Array.isArray(data?.ranking) ? data.ranking : [];
-          const sig = JSON.stringify(ranking.map((p) => [p.name, p.equippedTitle, p.achievementRate]));
-          if (sig === lastRankingText) return;
-          lastRankingText = sig;
-
-          for (const player of ranking) {
-            if (!player?.name) continue;
-            const nodes = [...document.querySelectorAll('div, span, td, li')]
-              .filter((el) => (el.childElementCount <= 4) && (el.textContent || '').includes(player.name));
-            for (const node of nodes.slice(0, 3)) {
-              if (player.equippedTitle && !node.querySelector('.cr-title-badge')) {
-                const badge = document.createElement('span');
-                badge.className = 'cr-title-badge';
-                badge.textContent = '[' + player.equippedTitle + ']';
-                node.appendChild(badge);
-              }
-              if (Number.isFinite(Number(player.achievementRate)) && !node.querySelector('.cr-achievement-rate')) {
-                const rate = document.createElement('span');
-                rate.className = 'cr-achievement-rate';
-                rate.textContent = '달성률 ' + Number(player.achievementRate) + '%';
-                node.appendChild(rate);
-              }
-            }
+        setInterval(() => {
+          const lines = (document.body.innerText || '').split('\n').map((v) => v.trim()).filter(Boolean);
+          const result = lines.slice(-18).find((line) => /승리|패배|레이팅|티어|퀘스트 완료|칭호/.test(line));
+          if (result && result !== lastTierText) {
+            lastTierText = result;
+            if (/승리|레이팅|티어/.test(result)) burst('TIER RESULT', result.slice(0, 80));
           }
-        }
-
-        const observer = new MutationObserver(() => {
-          enhanceThinking();
-          enhanceRanking();
-        });
-        observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-        window.addEventListener('load', () => {
-          enhanceThinking();
-          enhanceRanking();
-        });
+        }, 1200);
       })();
     </script>
   </body>
