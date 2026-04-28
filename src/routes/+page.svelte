@@ -307,7 +307,10 @@
 
   async function refresh() {
     if (!room) return;
-    snapshot = await request(`/api/room?room=${encodeURIComponent(room)}`);
+    try {
+      const res = await fetch(`/api/room?room=${encodeURIComponent(room)}`, { cache: 'no-store' });
+      if (res.ok) snapshot = await res.json();
+    } catch {}
   }
 
   function startPolling() {

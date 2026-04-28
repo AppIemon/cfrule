@@ -52,7 +52,7 @@ export function patchPageSvelte(code: string): string {
   if (!code.includes("let rankLoading")) {
     code = code.replace(
       "let rankMode = $state('overall');\n  let rankJob = $state('');",
-      "let rankMode = $state('overall');\n  let rankJob = $state('');\n  let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);\n  const abilityNeedsTarget = new Set(['조작','복제','초토화','포획','사구아','2음절','시적 허용','삼키기','브레스','사형 선고','DNA파괴','쪼개기','체크메이트','교환','울음','거짓 보도','거짓 뉴스','찌르기','가르기','수리','핵분열','무량공처','조개','깨부수기','Backspace','Tab']);"
+      "let rankMode = $state('overall');\n  let rankJob = $state('');\n  let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);\n  const abilityNeedsTarget = new Set(['제작','직격뢰','포획','DNA파괴']);"
     );
   }
 
