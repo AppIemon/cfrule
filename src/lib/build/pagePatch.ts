@@ -112,8 +112,8 @@ export function patchPageSvelte(code: string): string {
       "async function useAbility(name) {\n    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);\n    ability = '';\n  }",
       `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
   function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
-  function jobInfo(job) { return JOB_INFO[job] || ((ACTIVE_BY_JOB[job] || []).length ? '능력: ' + ACTIVE_BY_JOB[job].join(', ') : '직업 정보 없음'); }
-  function jobTooltip(job) { return job + '\n' + jobInfo(job) + '\n능력: ' + ((ACTIVE_BY_JOB[job] || []).join(', ') || '없음'); }
+  function getJobInfo(job) { return JOB_INFO[job] || ((ACTIVE_BY_JOB[job] || []).length ? '능력: ' + ACTIVE_BY_JOB[job].join(', ') : '직업 정보 없음'); }
+  function jobTooltip(job) { return job + '\n' + getJobInfo(job) + '\n능력: ' + ((ACTIVE_BY_JOB[job] || []).join(', ') || '없음'); }
   const stateKeyLabels = {
     no_all_batchim_turns: '올받침 금지 남은 턴',
     no_hanbang_turns: '한방 금지 남은 턴',
@@ -222,7 +222,7 @@ export function patchPageSvelte(code: string): string {
   // Add hover metadata to existing job cards/buttons in the original selection screen.
   code = code.replace(/<button([^>]*class="job-card"[^>]*)>/g, '<button$1 title={jobTooltip(job)} onmouseenter={() => (hoverJob = job)} onmouseleave={() => (hoverJob = \'\')}>');
   code = code.replace(/<button([^>]*class="job-btn"[^>]*)>/g, '<button$1 title={jobTooltip(job)} onmouseenter={() => (hoverJob = job)} onmouseleave={() => (hoverJob = \'\')}>');
-  code = code.replace(/<div class="job-grid">/, '<div class="job-grid">\n          {#if hoverJob}<div class="job-hover-panel"><b>{hoverJob}</b><span>{jobInfo(hoverJob)}</span><small>{(ACTIVE_BY_JOB[hoverJob] || []).join(\', \') || \'능력 없음\'}</small></div>{/if}');
+  code = code.replace(/<div class="job-grid">/, '<div class="job-grid">\n          {#if hoverJob}<div class="job-hover-panel"><b>{hoverJob}</b><span>{getJobInfo(hoverJob)}</span><small>{(ACTIVE_BY_JOB[hoverJob] || []).join(\', \') || \'능력 없음\'}</small></div>{/if}');
 
   code = code.replace(/생각 과정 보기/g, '');
   code = code.replace(/<details class="think-log-panel">[\s\S]*?<\/details>/, '');
