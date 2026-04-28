@@ -127,6 +127,9 @@
   let prevPhase = '';
   let matchBannerTimer;
 
+  let ongoingGames = $state([]);
+  let now = $state(Date.now());
+
   const jobs = $derived(snapshot?.status?.jobs || []);
   const availableJobs = $derived(jobs.length ? jobs : Object.keys(ACTIVE_BY_JOB));
   const game = $derived(snapshot?.game || null);
@@ -144,6 +147,102 @@
       item.text?.includes('계산 중')
     )).slice(-5)
   );
+
+  // --- New features ---
+  let activeEffects = $state([]);
+  let showTargetSelector = $state(null); // { name, type }
+
+  const STATUS_LABELS = {
+    jojak_cooldown: '조작 쿨', jojak_uses: '조작 회수',
+    bokje_uses: '복제 회수',
+    chotohwa_cooldown: '초토화 쿨', chotohwa_uses: '초토화 회수',
+    juga_jojak_cooldown: '주가조작 쿨', juga_jojak_uses: '주가조작 회수',
+    hallucination_uses: '환각증 회수',
+    make_cooldown: '제작 쿨', mine_cooldown: '채굴 쿨', mine_uses: '채굴 회수',
+    detect_cooldown: '탐지 쿨', detect_uses: '탐지 회수',
+    vault_cooldown: '허들 쿨', vault_uses: '허들 회수',
+    lightning_cooldown: '직격뢰 쿨', lightning_uses: '직격뢰 회수',
+    shift_uses: '시프트 회수', big_shift_uses: '빅시프트 회수',
+    capture_cooldown: '포획 쿨', capture_uses: '포획 회수',
+    sagua_uses: '사구아 회수',
+    poetic_2_cooldown: '2음절 쿨', poetic_2_uses: '2음절 회수',
+    poetic_allow_cooldown: '시적허용 쿨', poetic_allow_uses: '시적허용 회수',
+    swallow_cooldown: '삼키기 쿨', swallow_uses: '삼키기 회수',
+    breath_uses: '브레스 회수', tail_uses: '꼬리 회수',
+    void_cooldown: '공허 쿨', void_uses: '공허 회수',
+    explosion_uses: '폭발 회수',
+    death_cooldown: '사형선고 쿨', death_uses: '사형선고 회수', soul_uses: '영혼 회수',
+    math_study_uses_left: '학습 회수',
+    dna_cooldown: 'DNA 쿨', dna_uses: 'DNA 회수',
+    split_uses: '쪼개기 회수', rest_cooldown: '쉼표 쿨',
+    burger_cooldown: '버거 쿨', fries_cooldown: '튀김 쿨', bonus_uses: '보너스 회수', robber_uses: '강도 회수',
+    checkmate_cooldown: '체크메이트 쿨', checkmate_uses: '체크메이트 회수', exchange_uses: '교환 회수', cry_uses: '울음 회수',
+    rescue_cooldown: '구조 쿨', rescue_uses: '구조 회수',
+    barrier_cooldown: '결계 쿨', barrier_uses: '결계 회수', distort_cooldown: '왜곡 쿨', distort_uses: '왜곡 회수',
+    report_cooldown: '보도 쿨', report_uses: '보도 회수',
+    stab_cooldown: '찌르기 쿨', stab_uses: '찌르기 회수', slice_cooldown: '가르기 쿨', slice_uses: '가르기 회수',
+    gandhi_cooldown: '억제 쿨', suppress_cooldown: '침묵 쿨',
+    bulletproof_uses: '수리 회수', repair_uses: '수리 회수',
+    gongcheo_uses: '공처 회수', gongcheo_cooldown: '공처 쿨',
+    fission_uses: '분열 회수',
+    speaki_clean_uses: '물걸레 회수', speaki_pumpkin_uses: '호박 회수',
+    otter_clam_uses: '조개 회수', otter_smash_uses: '깨부수기 회수',
+    programmer_shift_uses: 'Shift 회수', programmer_caps_uses: 'Caps 회수', programmer_backspace_uses: 'BS 회수', programmer_tab_uses: 'Tab 회수'
+  };
+
+  const ABILITY_TARGET_MAP = {
+    '조작': 'syllable', '제작': 'syllable', '채굴': 'syllable',
+    '복제': 'player', '탐지': 'player', '시프트': 'player', '빅 시프트': 'player', '포획': 'player',
+    '찌르기': 'player', '가르기': 'player', 'DNA파괴': 'player', '교환': 'player', '강도 채용': 'player',
+    '결계': 'chosung'
+  };
+
+  const myStatusList = $derived.by(() => {
+    if (!myState) return [];
+    return Object.entries(STATUS_LABELS)
+      .filter(([key]) => myState[key] !== undefined && myState[key] !== 0 && myState[key] !== null)
+      .map(([key, label]) => ({ label, value: myState[key] }));
+  });
+
+  $effect(() => {
+    if (log.length > 0) {
+      const last = log[log.length - 1];
+      if (last.type === 'system') {
+        // 능력/패시브 발동 감지
+        const triggerMatch = last.text?.match(/\[발동\]\s*(.+?):/);
+        if (triggerMatch) {
+          triggerEffect(triggerMatch[1], 'passive');
+        } else {
+          // 활성화된 능력 사용 감지
+          for (const ab of abilityButtons) {
+            if (last.text?.includes(`[${ab}]`)) {
+              triggerEffect(ab, 'active');
+              break;
+            }
+          }
+        }
+
+        // 에러 메시지 감지 및 토스트 표시
+        const isError = [
+          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어', 
+          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다'
+        ].some(err => last.text?.includes(err));
+        
+        if (isError) {
+          error = last.text.replace('[시스템]: ', '');
+          setTimeout(() => { if (error === last.text.replace('[시스템]: ', '')) error = ''; }, 3500);
+        }
+      }
+    }
+  });
+
+  function triggerEffect(name, type) {
+    const id = Math.random();
+    activeEffects = [...activeEffects, { id, name, type }];
+    setTimeout(() => {
+      activeEffects = activeEffects.filter(e => e.id !== id);
+    }, 2000);
+  }
 
   const jobRanking = $derived.by(() => {
     if (!ranking?.ranking) return {};
@@ -323,7 +422,7 @@
     if (socket) socket.close();
     if (browser && room) {
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}`);
+      socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}&nickname=${encodeURIComponent(nickname)}`);
       socket.onmessage = (event) => { try { snapshot = JSON.parse(event.data); } catch {} };
       socket.onerror = () => startPolling();
       socket.onclose = () => startPolling();
@@ -331,6 +430,38 @@
     }
     startPolling();
   }
+
+  async function fetchOngoingGames() {
+    if (!nickname) return;
+    try {
+      const res = await fetch(`/api/my-games?nickname=${encodeURIComponent(nickname)}`);
+      if (res.ok) ongoingGames = await res.json();
+    } catch {}
+  }
+
+  function timeSince(date) {
+    const seconds = Math.floor((now - date) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "년 전";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "달 전";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "일 전";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "시간 전";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "분 전";
+    return Math.floor(seconds) + "초 전";
+  }
+
+  $effect(() => {
+    if (browser && nickname) {
+      fetchOngoingGames();
+      const intv = setInterval(fetchOngoingGames, 10000);
+      const nowIntv = setInterval(() => { now = Date.now(); }, 1000);
+      return () => { clearInterval(intv); clearInterval(nowIntv); };
+    }
+  });
 
   async function send(commandText) {
     if (!room || !commandText.trim() || !user?.nickname) return;
@@ -405,8 +536,19 @@
   }
 
   async function useAbility(name) {
-    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);
+    const targetType = ABILITY_TARGET_MAP[name];
+    if (targetType) {
+      showTargetSelector = { name, type: targetType };
+      return;
+    }
+    await sendAbilityWithTarget(name);
+  }
+
+  async function sendAbilityWithTarget(name, target = '') {
+    const cmd = `2${name}${target ? ` ${target}` : ''}`;
+    await send(cmd);
     ability = '';
+    showTargetSelector = null;
   }
 
   async function searchWords() {
@@ -493,6 +635,77 @@
 
   function jobInitial(name) {
     return name ? name[0] : '?';
+  }
+
+  function getJobStatuses(state) {
+    if (!state) return [];
+    const statuses = [];
+    const { job } = state;
+
+    if (job === '투자자' && state.investor_stock !== undefined) {
+      statuses.push({ label: '주가', value: `${state.investor_stock}원`, type: 'investor' });
+    }
+    if (job === '수집가' && state.collected_syllables) {
+      statuses.push({ label: '수집', value: state.collected_syllables.join(', ') || '없음', type: 'collector' });
+    }
+    if (job === '감시자' && state.watch_count !== undefined) {
+      statuses.push({ label: '감시', value: `${state.watch_count}회`, type: 'watcher' });
+    }
+    if (job === '수학자' && state.math_result !== undefined) {
+      statuses.push({ label: '결과', value: state.math_result, type: 'math' });
+    }
+    if (job === '스폰지밥' && state.money !== undefined) {
+      statuses.push({ label: '잔액', value: `${state.money.toLocaleString()}원`, type: 'money' });
+    }
+    if (job === '사신' && state.execution_count !== undefined) {
+      statuses.push({ label: '처형', value: `${state.execution_count}회`, type: 'death' });
+    }
+    if (job === '작곡가') {
+      const units = state.compose_units || 0;
+      const target = state.compose_target_units || 8;
+      statuses.push({ label: '박자', value: `${units}/${target}`, type: 'composer' });
+      if (state.compose_notes?.length) {
+        statuses.push({ label: '음표', value: state.compose_notes.join(''), type: 'composer-notes' });
+      }
+    }
+    if (job === '수리사' && state.bulletproof_uses !== undefined) {
+      statuses.push({ label: '방탄', value: `${state.bulletproof_uses}개`, type: 'repair' });
+    }
+    if (job === '고죠' && state.gongcheo_uses !== undefined) {
+      statuses.push({ label: '공처', value: `${state.gongcheo_uses}회`, type: 'gojo' });
+    }
+    if (job === '피아니스트' && state.pianist_notes) {
+      statuses.push({ label: '악보', value: state.pianist_notes.join(' ') || '비었음', type: 'pianist' });
+    }
+    if (job === '뜀틀선수' && state.vault_uses !== undefined) {
+      statuses.push({ label: '도약', value: `${state.vault_uses}/${state.vault_max || 3}`, type: 'vault' });
+    }
+    if (job === '과학자') {
+      if (state.experiment_success_total) statuses.push({ label: '성공', value: `${state.experiment_success_total}회`, type: 'science' });
+      if (state.dna_success_streak) statuses.push({ label: '연속', value: `${state.dna_success_streak}회`, type: 'science' });
+    }
+    if (job === '마하트마간디' && state.gandhi_stacks !== undefined) {
+      statuses.push({ label: '스택', value: `${state.gandhi_stacks}`, type: 'gandhi' });
+    }
+    if (job === '은하계전사' && state.star_stacks !== undefined) {
+      statuses.push({ label: '성광', value: `${state.star_stacks}`, type: 'star' });
+    }
+    if (job === '혜성전사') {
+      if (state.comet_seong_count) statuses.push({ label: '성', value: state.comet_seong_count, type: 'comet' });
+      if (state.comet_hye_count) statuses.push({ label: '혜', value: state.comet_hye_count, type: 'comet' });
+    }
+    if (job === '우라늄') {
+      if (state.uranium_two_streak) statuses.push({ label: '임계', value: state.uranium_two_streak, type: 'uranium' });
+      if (state.fission_turns) statuses.push({ label: '핵분열', value: `${state.fission_turns}턴`, type: 'uranium' });
+    }
+    if (job === '프로그래머') {
+      if (state.programmer_delete_pending) statuses.push({ label: '삭제', value: state.programmer_delete_pending, type: 'dev' });
+      if (state.programmer_alt_count || state.programmer_f4_count) {
+        statuses.push({ label: 'A+F4', value: `${state.programmer_alt_count || 0}+${state.programmer_f4_count || 0}`, type: 'dev' });
+      }
+    }
+
+    return statuses;
   }
 
   function jobImageSrc(name) {
@@ -610,6 +823,22 @@
               </label>
               {#if practice}
                 <input class="lobby-input" bind:value={cpuJob} placeholder="CPU 직업 (비우면 랜덤)" />
+              {/if}
+
+              {#if ongoingGames.length > 0}
+                <div class="ongoing-section">
+                  <div class="ongoing-title">진행 중인 게임</div>
+                  <div class="ongoing-list">
+                    {#each ongoingGames as g}
+                      <button class="ongoing-card" onclick={() => { room = g.room; startLiveUpdates(); }}>
+                        <div class="og-room">{g.room}</div>
+                        <div class="og-meta">
+                          {g.phase === 'playing' ? `${g.turnCount}턴 · ${g.currentPlayer} 차례` : '준비 중'}
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
               {/if}
             {/if}
           </div>
@@ -786,30 +1015,38 @@
           </button>
         </div>
 
-        <!-- Floating word search panel -->
-        {#if showWordSearch}
-          <div class="word-search-float">
-            <div class="wsf-header">
-              <span>단어 검색</span>
-              <button class="wsf-close" onclick={() => (showWordSearch = false)}>✕</button>
+        <!-- Side Drawer Search Tab -->
+        <div class="search-tab-drawer" class:search-drawer-open={showWordSearch}>
+          <div class="search-tab-handle" onclick={() => (showWordSearch = !showWordSearch)} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && (showWordSearch = !showWordSearch)}>
+            <div class="handle-inner">
+              <Search size={16} />
+              <span>검색</span>
             </div>
-            <form class="wsf-form" onsubmit={(e) => { e.preventDefault(); searchInGame(); }}>
-              <input class="wsf-input" bind:value={inGameQuery} placeholder="기* · *차 · 기차" autocomplete="off" />
-              <button class="wsf-submit" type="submit"><Search size={13} /></button>
+          </div>
+          <div class="search-drawer-content">
+            <div class="sdc-header">
+              <h3>단어 검색</h3>
+              <button class="sdc-close" onclick={() => (showWordSearch = false)}>✕</button>
+            </div>
+            <form class="sdc-form" onsubmit={(e) => { e.preventDefault(); searchInGame(); }}>
+              <div class="sdc-input-wrap">
+                <input class="sdc-input" bind:value={inGameQuery} placeholder="기* · *차 · 기차" autocomplete="off" />
+                <button class="sdc-submit" type="submit"><Search size={14} /></button>
+              </div>
             </form>
-            <div class="wsf-results">
-              {#each inGameResults.slice(0, 40) as r}
-                <button class="wsf-item" onclick={() => { word = r.word; showWordSearch = false; tick().then(() => wordInputEl?.focus()); }}>
-                  <span class="wsf-word">{r.word}</span>
-                  <span class="wsf-kind wsf-k-{r.kind}">{r.kind}</span>
+            <div class="sdc-results">
+              {#each inGameResults.slice(0, 50) as r}
+                <button class="sdc-item" onclick={() => { word = r.word; showWordSearch = false; tick().then(() => wordInputEl?.focus()); }}>
+                  <div class="sdci-word">{r.word}</div>
+                  <div class="sdci-kind sdci-k-{r.kind}">{r.kind}</div>
                 </button>
               {/each}
               {#if !inGameResults.length && inGameQuery}
-                <div class="wsf-empty">결과 없음</div>
+                <div class="sdc-empty">결과가 없습니다</div>
               {/if}
             </div>
           </div>
-        {/if}
+        </div>
 
         <!-- Three-column game layout -->
         <div class="game-columns">
@@ -827,10 +1064,29 @@
                   <span>{jobInitial(playerJob || player)}</span>
                 </div>
                 <div class="player-body">
-                  <div class="player-name">{player}</div>
+                  <div class="player-name">
+                    {player}
+                    {#if snapshot?.presence?.[player]}
+                      {#if snapshot.presence[player].online}
+                        <span class="online-dot" title="온라인"></span>
+                      {:else}
+                        <span class="offline-label">오프라인: {timeSince(snapshot.presence[player].lastSeen)} 접속</span>
+                      {/if}
+                    {/if}
+                  </div>
                   <div class="player-job">
                     {playerJob || '미선택'}
                   </div>
+                  {#if getJobStatuses(game.playerStates?.[player]).length}
+                    <div class="job-status-list">
+                      {#each getJobStatuses(game.playerStates?.[player]) as st}
+                        <div class="status-chip status-{st.type}">
+                          <span class="status-label">{st.label}</span>
+                          <span class="status-value">{st.value}</span>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
                   {#if visibleEffects(game.playerStates?.[player]).length}
                     <div class="effect-list">
                       {#each visibleEffects(game.playerStates?.[player]) as ef}
@@ -892,6 +1148,26 @@
                   <span>{jobInitial(myState.job)}</span>
                 </div>
                 <div class="mj-name">{myState.job}</div>
+                {#if myStatusList.length}
+                  <div class="mj-status-list">
+                    {#each myStatusList as st}
+                      <div class="mj-status-item">
+                        <span class="mjs-label">{st.label}</span>
+                        <span class="mjs-value">{st.value}</span>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+                {#if getJobStatuses(myState).length}
+                  <div class="mj-status-grid">
+                    {#each getJobStatuses(myState) as st}
+                      <div class="mj-status-item status-{st.type}">
+                        <div class="mjs-label">{st.label}</div>
+                        <div class="mjs-value">{st.value}</div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
                 {#if visibleEffects(myState).length}
                   <div class="mj-effects">
                     {#each visibleEffects(myState) as ef}
@@ -945,14 +1221,9 @@
         <div class="bottom-composer" class:composer-active={canPlay}>
           {#if abilityButtons.length}
             <div class="ability-bar">
-              <input
-                class="ability-target"
-                bind:value={ability}
-                placeholder="대상/단어가 필요한 능력에만 입력"
-                disabled={!canPlay}
-              />
               <div class="ability-grid">
                 {#each abilityButtons as ab, ai}
+                  {@const abStatus = Object.entries(STATUS_LABELS).find(([k]) => k.includes(ab) && myState?.[k] !== undefined)}
                   <button
                     class="ab-btn"
                     style="--ai:{ai}"
@@ -960,7 +1231,10 @@
                     disabled={!canPlay}
                   >
                     <Sparkles size={13} />
-                    <span>{ab}</span>
+                    <span class="ab-name">{ab}</span>
+                    {#if abStatus && myState[abStatus[0]] !== 0}
+                      <span class="ab-status-val">{myState[abStatus[0]]}</span>
+                    {/if}
                   </button>
                 {/each}
               </div>
@@ -979,6 +1253,53 @@
               <Send size={17} />
             </button>
           </form>
+        </div>
+
+        <!-- Target Selector Overlay -->
+        {#if showTargetSelector}
+          <div class="target-selector-overlay" onclick={() => (showTargetSelector = null)}>
+            <div class="target-card" onclick={e => e.stopPropagation()}>
+              <div class="tc-header">
+                <h3>{showTargetSelector.name} 대상 선택</h3>
+                <button class="tc-close" onclick={() => (showTargetSelector = null)}>✕</button>
+              </div>
+              <div class="tc-body">
+                {#if showTargetSelector.type === 'player'}
+                  <div class="tc-players">
+                    {#each game.players.filter(p => p !== nickname) as p}
+                      <button class="tc-player-btn" onclick={() => sendAbilityWithTarget(showTargetSelector.name, p)}>
+                        {p}
+                      </button>
+                    {/each}
+                  </div>
+                {:else if showTargetSelector.type === 'syllable'}
+                  <div class="tc-input-row">
+                    <input class="tc-input" bind:value={ability} placeholder="변환할 음절 입력" maxlength="1" />
+                    <button class="tc-submit" onclick={() => sendAbilityWithTarget(showTargetSelector.name, ability)}>확인</button>
+                  </div>
+                {:else if showTargetSelector.type === 'chosung'}
+                  <div class="tc-chosungs">
+                    {#each ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'] as cs}
+                      <button class="tc-chosung-btn" onclick={() => sendAbilityWithTarget(showTargetSelector.name, cs)}>{cs}</button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Activation Effects Overlay -->
+        <div class="effects-layer">
+          {#each activeEffects as eff (eff.id)}
+            <div class="activation-splash {eff.type}">
+              <div class="splash-bg"></div>
+              <div class="splash-text">
+                <span class="splash-kicker">{eff.type === 'passive' ? 'PASSIVE' : 'ABILITY'}</span>
+                <span class="splash-name">{eff.name}</span>
+              </div>
+            </div>
+          {/each}
         </div>
       </div>
     {/if}
@@ -1053,7 +1374,11 @@
                 <span class="wc-replies">↩ {r.replies}</span>
               </div>
               {#if r.turnsToWin !== null && r.turnsToWin !== undefined}
-                <div class="wc-win" class:wc-urgent={r.turnsToWin <= 3}>{r.turnsToWin}턴 뒤 승리</div>
+                {#if r.kind === '유도'}
+                  <div class="wc-win" class:wc-urgent={r.turnsToWin <= 3}>{r.turnsToWin}턴 뒤 승리</div>
+                {:else if r.kind === '일반'}
+                  <div class="wc-win wc-lose">패배</div>
+                {/if}
               {/if}
             </div>
           {/each}
@@ -2588,6 +2913,7 @@
     color: var(--green);
   }
   .wc-win.wc-urgent { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.3); color: var(--gold); }
+  .wc-win.wc-lose { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); color: var(--red); }
 
   /* Analysis */
   .job-pair-row {
@@ -2986,102 +3312,250 @@
     color: #ccd6f6;
     border-color: #6272a4;
   }
-  .word-search-float {
+  /* ─── Search Tab Drawer ─── */
+  .search-tab-drawer {
     position: fixed;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 300px;
-    max-height: 70vh;
+    right: 0;
+    top: 56px;
+    bottom: 0;
+    width: 320px;
+    background: #fff;
+    border-left: 1px solid var(--border);
+    z-index: 150;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
     display: flex;
     flex-direction: column;
-    background: #13131f;
-    border: 1px solid #3a3a5c;
-    border-radius: 12px;
-    box-shadow: 0 12px 40px #0009;
-    z-index: 150;
-    overflow: hidden;
+    box-shadow: -10px 0 40px rgba(0,0,0,0);
   }
-  .wsf-header {
+  .search-tab-drawer.search-drawer-open {
+    transform: translateX(0);
+    box-shadow: -10px 0 40px rgba(15,23,42,.12);
+  }
+  .search-tab-handle {
+    position: absolute;
+    left: -34px;
+    top: 160px;
+    width: 34px;
+    height: 100px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 12px 0 0 12px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px 8px;
-    border-bottom: 1px solid #2a2a4a;
-    font-size: 13px;
-    font-weight: 600;
-    color: #ccd6f6;
-  }
-  .wsf-close {
-    background: none;
-    border: none;
-    color: #8892b0;
+    justify-content: center;
     cursor: pointer;
-    font-size: 14px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    line-height: 1;
+    box-shadow: -6px 0 16px rgba(0,0,0,0.04);
+    transition: all 0.25s;
+    color: var(--text2);
+    user-select: none;
+    z-index: -1;
   }
-  .wsf-close:hover { background: #2a2a4a; color: #ccd6f6; }
-  .wsf-form {
+  .search-tab-handle:hover {
+    color: var(--accent);
+    background: var(--bg3);
+    padding-right: 4px;
+    left: -38px;
+  }
+  .search-drawer-open .search-tab-handle {
+    background: var(--bg2);
+    color: var(--accent);
+    left: -32px;
+    box-shadow: none;
+  }
+  .handle-inner {
     display: flex;
-    gap: 6px;
-    padding: 10px 12px;
-    border-bottom: 1px solid #2a2a4a;
-  }
-  .wsf-input {
-    flex: 1;
-    background: #1e1e35;
-    border: 1px solid #3a3a5c;
-    border-radius: 6px;
-    color: #ccd6f6;
-    font-size: 13px;
-    padding: 6px 10px;
-    outline: none;
-  }
-  .wsf-input:focus { border-color: #6272a4; }
-  .wsf-submit {
-    background: #2a2a5a;
-    border: 1px solid #6272a4;
-    border-radius: 6px;
-    color: #ccd6f6;
-    cursor: pointer;
-    display: flex;
+    flex-direction: column;
     align-items: center;
-    padding: 6px 10px;
-  }
-  .wsf-submit:hover { background: #3a3a7a; }
-  .wsf-results {
-    overflow-y: auto;
-    flex: 1;
-    padding: 6px 0;
-  }
-  .wsf-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    background: none;
-    border: none;
-    color: #ccd6f6;
-    cursor: pointer;
-    padding: 6px 14px;
-    font-size: 13px;
-    text-align: left;
     gap: 8px;
+    writing-mode: vertical-lr;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    transform: rotate(180deg);
   }
-  .wsf-item:hover { background: #2a2a4a; }
-  .wsf-word { flex: 1; font-weight: 500; }
-  .wsf-kind {
-    font-size: 10px;
-    padding: 2px 6px;
+  .search-drawer-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #fff;
+  }
+  .sdc-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg);
+  }
+  .sdc-header h3 { font-size: 15px; font-weight: 900; color: var(--text); letter-spacing: -.3px; }
+  .sdc-close { 
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text3); transition: background .15s;
+  }
+  .sdc-close:hover { background: var(--border); color: var(--text); }
+  .sdc-form { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .sdc-input-wrap { position: relative; }
+  .sdc-input { 
+    width: 100%; height: 44px; padding: 0 48px 0 14px; 
+    font-size: 14px; background: var(--bg3); border: 1.5px solid var(--border2); border-radius: 10px; 
+    transition: all .2s;
+  }
+  .sdc-input:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 4px rgba(37,99,235,.1); }
+  .sdc-submit { 
+    position: absolute; right: 7px; top: 7px; width: 30px; height: 30px; 
+    border-radius: 8px; background: var(--accent); color: #fff; 
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, background .15s;
+  }
+  .sdc-submit:hover { background: var(--accent2); transform: scale(1.05); }
+  .sdc-results { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .sdc-item { 
+    width: 100%; display: flex; align-items: center; justify-content: space-between; 
+    padding: 11px 20px; gap: 12px; transition: all .15s; text-align: left; 
+    border-bottom: 1px solid rgba(0,0,0,.02);
+  }
+  .sdc-item:hover { background: rgba(37,99,235,.05); padding-left: 24px; }
+  .sdci-word { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+  .sdci-kind { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
+  .sdci-k-한방 { background: #fee2e2; color: #ef4444; }
+  .sdci-k-유도 { background: #fff7ed; color: #f97316; }
+  .sdci-k-루트 { background: #f0fdf4; color: #22c55e; }
+  .sdci-k-일반 { background: #f8fafc; color: #64748b; }
+  .sdc-empty { padding: 48px 20px; text-align: center; color: var(--text3); font-size: 13px; }
+  
+  @media (max-width: 640px) {
+    .search-tab-drawer {
+      width: 100%; top: auto; height: 60vh;
+      transform: translateY(100%); border-left: none;
+      border-top: 1px solid var(--border); border-radius: 24px 24px 0 0;
+    }
+    .search-tab-drawer.search-drawer-open { transform: translateY(0); }
+    .search-tab-handle {
+      left: auto; right: 20px; top: -42px; width: 84px; height: 42px;
+      border-radius: 14px 14px 0 0; border: 1px solid var(--border); border-bottom: none;
+      writing-mode: horizontal-tb; z-index: 10;
+    }
+    .handle-inner { flex-direction: row; writing-mode: horizontal-tb; transform: none; gap: 6px; }
+  }
+  /* ═══════════════════════════════════════════
+     JOB STATUS CHIPS
+  ═══════════════════════════════════════════ */
+  .job-status-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
     border-radius: 4px;
-    font-weight: 600;
-    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    gap: 4px;
+    border: 1px solid rgba(0,0,0,.05);
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.02);
   }
-  .wsf-k-한방 { background: #4a1c1c; color: #ff9999; }
-  .wsf-k-유도 { background: #1c3a1c; color: #88dd88; }
-  .wsf-k-루트 { background: #1c2a4a; color: #88aaff; }
-  .wsf-k-일반 { background: #2a2a3a; color: #8892b0; }
-  .wsf-empty { color: #8892b0; font-size: 12px; text-align: center; padding: 16px; }
+  .status-label { opacity: .7; font-weight: 500; }
+  .status-value { color: var(--text); }
+
+  /* MJS Grid for Right Panel */
+  .mj-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+    width: 100%;
+  }
+  .mj-status-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+  }
+  .mjs-label { font-size: 10px; font-weight: 700; color: var(--text3); margin-bottom: 2px; }
+  .mjs-value { font-size: 14px; font-weight: 800; color: var(--text); }
+
+  /* Job Specific Styles */
+  .status-investor { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+  .status-collector { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+  .status-watcher { background: #fdf2f8; border-color: #fbcfe8; color: #be185d; }
+  .status-math { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+  .status-money { background: #fefce8; border-color: #fef08a; color: #a16207; }
+  .status-death { background: #fafafa; border-color: #e5e5e5; color: #171717; }
+  .status-composer, .status-composer-notes { background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; }
+  .status-repair { background: #f0f9ff; border-color: #bae6fd; color: #0369a1; }
+  .status-gojo { background: #f8fafc; border-color: #e2e8f0; color: #334155; }
+  .status-pianist { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+  .status-vault { background: #ecfdf5; border-color: #d1fae5; color: #047857; }
+  .status-science { background: #fdf4ff; border-color: #f5d0fe; color: #a21caf; }
+  .status-gandhi { background: #fff7ed; border-color: #ffedd5; color: #9a3412; }
+  .status-star { background: #f0f9ff; border-color: #e0f2fe; color: #0369a1; }
+  .status-comet { background: #f5f3ff; border-color: #ede9fe; color: #5b21b6; }
+  .status-uranium { background: #f0fdf4; border-color: #dcfce7; color: #166534; }
+  .status-dev { background: #f8fafc; border-color: #f1f5f9; color: #0f172a; }
+
+  /* --- New feature styles --- */
+  .mj-status-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .mj-status-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; text-align: center; }
+  .mjs-label { display: block; font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 1px; }
+  .mjs-value { display: block; font-size: 13px; font-weight: 800; color: #1e293b; }
+
+  .ab-btn { position: relative; overflow: visible; }
+  .ab-status-val { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4); border: 2px solid #fff; z-index: 2; }
+
+  .target-selector-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+  .target-card { background: #fff; border-radius: 16px; width: 90%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; animation: targetPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes targetPop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .tc-header { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; background: #f8fafc; }
+  .tc-header h3 { font-size: 16px; font-weight: 700; color: #0f172a; }
+  .tc-close { background: none; border: none; font-size: 18px; color: #94a3b8; cursor: pointer; }
+  .tc-body { padding: 20px; }
+  .tc-players, .tc-chosungs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tc-chosungs { grid-template-columns: repeat(4, 1fr); }
+  .tc-player-btn, .tc-chosung-btn { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-weight: 600; color: #334155; transition: all 0.2s; cursor: pointer; }
+  .tc-player-btn:hover, .tc-chosung-btn:hover { background: #e2e8f0; transform: translateY(-2px); }
+  .tc-input-row { display: flex; gap: 8px; }
+  .tc-input { flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; }
+  .tc-submit { background: #3b82f6; color: #fff; padding: 0 20px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; }
+
+  .effects-layer { position: fixed; inset: 0; pointer-events: none; z-index: 3000; overflow: hidden; }
+  .activation-splash { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; animation: splashOut 1.5s forwards; }
+  .splash-text { position: relative; z-index: 2; text-align: center; }
+  .splash-kicker { display: block; font-size: 14px; font-weight: 900; letter-spacing: 0.2em; color: rgba(255,255,255,0.7); margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+  .splash-name { display: block; font-size: 48px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+  .splash-bg { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(59,130,246,0.8) 0%, transparent 70%); border-radius: 50%; opacity: 0; animation: bgExpand 0.8s ease-out forwards; }
+  .activation-splash.passive .splash-bg { background: radial-gradient(circle, rgba(16,185,129,0.8) 0%, transparent 70%); }
+  
+  @keyframes splashOut {
+    0% { transform: scale(0.5); opacity: 0; }
+    20% { transform: scale(1.1); opacity: 1; }
+    30% { transform: scale(1); }
+    80% { opacity: 1; filter: blur(0px); }
+    100% { opacity: 0; transform: translateY(-50px) scale(1.2); filter: blur(10px); }
+  }
+  @keyframes bgExpand {
+    0% { transform: scale(0.1); opacity: 0; }
+    50% { opacity: 0.5; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+
+  .ongoing-section { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
+  .ongoing-title { font-size: 13px; font-weight: 700; color: var(--text3); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ongoing-list { display: flex; flex-direction: column; gap: 8px; }
+  .ongoing-card { display: flex; flex-direction: column; align-items: flex-start; padding: 12px 16px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); transition: all 0.2s; text-align: left; }
+  .ongoing-card:hover { background: #fff; border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+  .og-room { font-size: 15px; font-weight: 800; color: var(--accent); }
+  .og-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .online-dot { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-left: 6px; box-shadow: 0 0 8px rgba(34,197,94,0.6); }
+  .offline-label { font-size: 10px; color: var(--text3); font-weight: 500; margin-left: 6px; }
 </style>

@@ -29,16 +29,25 @@ server.on('upgrade', (request, socket, head) => {
   }
   wss.handleUpgrade(request, socket, head, async (ws) => {
     const room = url.searchParams.get('room') || '';
+    const nickname = url.searchParams.get('nickname') || '';
     const send = (payload) => {
       if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
     };
     const game = await loadGameModule();
     const getRoomSnapshot = game.getRoomSnapshot || game.g;
+    const updatePresence = game.updatePresence || (() => {});
     if (!getRoomSnapshot) throw new Error('Built gameService snapshot export was not found.');
+    
+    if (nickname) updatePresence(room, nickname, true);
+
     const sendSnapshot = () => getRoomSnapshot(room).then(send).catch(() => {});
     sendSnapshot();
     const interval = setInterval(sendSnapshot, 1000);
-    ws.on('close', () => clearInterval(interval));
+    
+    ws.on('close', () => {
+      clearInterval(interval);
+      if (nickname) updatePresence(room, nickname, false);
+    });
   });
 });
 

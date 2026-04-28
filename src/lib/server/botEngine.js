@@ -369,6 +369,16 @@ export async function botRoomState(room) {
   return serializeGame(raw);
 }
 
+export async function botAllRoomStates() {
+  const bot = await getBotEngine();
+  const games = bot.context.__Bot?.scope?.games || bot.context.games || {};
+  const out = {};
+  for (const [room, raw] of Object.entries(games)) {
+    out[room] = serializeGame(raw);
+  }
+  return out;
+}
+
 export async function botRankings() {
   const bot = await getBotEngine();
   const players = getTierPlayers(bot.context);

@@ -2564,9 +2564,10 @@ with (Bot.scope) {
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
   };
-  formatNormalWithTurns = function formatNormalWithTurns(normal) {
+    formatNormalWithTurns = function formatNormalWithTurns(words, isYudo) {
+
     let __botResult = function () {
-      if (!normal.length) return "";
+      if (!words.length) return "";
       let groups = {
         1: [],
         3: [],
@@ -2582,11 +2583,11 @@ with (Bot.scope) {
         let __botLoop36 = Bot.functions.forLoop(function () {
           i = 0;
         }, function () {
-          return i < normal.length;
+          return i < words.length;
         }, function () {
           i++;
         }, function () {
-          let word = normal[i];
+          let word = words[i];
           let lastSyl = word[word.length - 1];
           let turn = getDefeatTurn(lastSyl);
           if (turn !== null) groups[turn].push(word);else groups.other.push(word);
@@ -2606,7 +2607,8 @@ with (Bot.scope) {
         }, function () {
           let turn = turns[i];
           if (groups[turn].length) {
-            result.push("  " + turn + "턴 뒤 승리 [" + groups[turn].length + "개]\n  " + filterArray(groups[turn]).join(", "));
+            let label = isYudo ? turn + "턴 뒤 승리" : "패배";
+            result.push("  " + label + " [" + groups[turn].length + "개]\n  " + filterArray(groups[turn]).join(", "));
           }
         });
         if (__botLoop37) return __botLoop37;
@@ -2614,7 +2616,8 @@ with (Bot.scope) {
       if (groups.other.length) {
         result.push("  턴 정보 없음 [" + groups.other.length + "개]\n  " + filterArray(groups.other).join(", "));
       }
-      return "\n\n< 일반음절 > [" + normal.length + "개]\n" + result.join("\n\n") + "\n\n⚠️ 주의: 턴 수는 돌림단어를 계산하지 않고 계산했습니다.";
+      let title = isYudo ? "유도음절" : "일반음절";
+      return "\n\n< " + title + " > [" + words.length + "개]\n" + result.join("\n\n") + "\n\n⚠️ 주의: 턴 수는 돌림단어를 계산하지 않고 계산했습니다.";
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -2686,9 +2689,9 @@ with (Bot.scope) {
       }
       let result = [];
       if (kill.length) result.push("\n\n< 한방음절 > [" + kill.length + "개]\n" + filterArray(kill).join(", "));
-      if (intend.length) result.push("\n\n< 유도음절 > [" + intend.length + "개]\n" + filterArray(intend).join(", "));
+      if (intend.length) result.push(formatNormalWithTurns(intend, true));
       if (route.length) result.push("\n\n< 루트음절 > [" + route.length + "개]\n" + filterArray(route).join(", "));
-      if (normal.length) result.push(formatNormalWithTurns(normal));
+      if (normal.length) result.push(formatNormalWithTurns(normal, false));
       if (diff.length) result.push("\n\n< 기타음절 > [" + diff.length + "개]\n" + filterArray(diff).join(", "));
       let send = "[ '" + filterCurses(query) + "' 구엜룰 단어 검색 결과(" + res.length + "개)" + FULL_VIEW + "\n" + result.join("");
       if (send.length > 100000) {
@@ -3300,7 +3303,7 @@ with (Bot.scope) {
         let winTeamIndex = winnerIndex % 2;
         let loserTeamIndex = (winTeamIndex + 1) % 2;
         game.teamLives[loserTeamIndex] -= 1;
-        if (game.teamLives[loserTeamIndex] > 0) {
+        if (game.teamLives[loserTeamIndex] > 0 && winType !== "기권") {
           resetGameAfterLifeLoss(game, loserTeamIndex);
           replier.reply(joinFoldedLines([systemLine("팀 목숨이 1개 차감되어 라운드가 초기화된다."), systemLine("남은 목숨: 팀 " + (loserTeamIndex + 1) + " - " + game.teamLives[loserTeamIndex] + "개"), systemLine("모든 디버프와 사용 단어, 기보가 초기화되고 처음부터 다시 시작한다."), systemLine("시작은 아무나 할 수 있습니다.")], [systemLine("단어 입력: 0단어"), systemLine("능력 사용: 2능력명"), systemLine("현황 확인: 1상태")]));
           return;
@@ -7605,7 +7608,7 @@ with (Bot.scope) {
       if (handleTierBotMessage(room, msg, sender, replier)) return;
       game = games[room];
       if (msg === "%도움말" || msg === "%ㄷㅇㅁ") {
-        replier.reply(joinFoldedLines([systemLine("채린룰 끝말잇기 도움말"), systemLine(PREFIX + "ㅊㄹ / " + PREFIX + "채린 : 일반 참가"), systemLine(PREFIX + "ㅇㅅ / " + PREFIX + "연습 : 연습 참가"), systemLine(PREFIX + "ㅈㅅ 직업명: 게임 참가 시 직업 선택"), systemLine(PREFIX + "ㅈㅂ 직업명: 직업 정보 보기")], [systemLine(PREFIX + "ㅈㅅㄹㄷ: 직업 랜덤 고르기"), systemLine(PREFIX + "밴 / " + PREFIX + "ㅂ : 직업 밴"), systemLine(PREFIX + "맵 / " + PREFIX + "ㅁ : 맵 시스템 제거됨"), systemLine(PREFIX + "ㅈㅇ: 직업 목록"), systemLine(PREFIX + "상태: 현황 확인"), systemLine(PREFIX + "무르기 단어: 무르기 요청"), systemLine(PREFIX + "무효: 무효 요청"), systemLine(PREFIX + "바꾸기: 첫 단어 입장 바꾸기 요청"), systemLine(PREFIX + "킥: 잠수 유저 확인"), systemLine("1ㄱㅅ 검색식: 구엜룰 단어 검색"), systemLine("1채린랭킹, 1채린티어, 1직업통계, 1ㅊㅌㅇ: 티어와 통계, 투표"), systemLine("2능력명: 능력 사용 예시 2조작"), systemLine(INPUT_PFX + "단어: 단어 입력"), systemLine("ㅈㅈ: 기권 및 종료")]));
+        replier.reply(joinFoldedLines([systemLine("채린룰 끝말잇기 도움말"), systemLine(PREFIX + "ㅊㄹ / " + PREFIX + "채린 : 일반 참가"), systemLine(PREFIX + "ㅇㅅ / " + PREFIX + "연습 : 연습 참가"), systemLine(PREFIX + "ㅈㅅ 직업명: 게임 참가 시 직업 선택"), systemLine(PREFIX + "ㅈㅂ 직업명: 직업 정보 보기")], [systemLine(PREFIX + "ㅈㅅㄹㄷ: 직업 랜덤 고르기"), systemLine(PREFIX + "밴 / " + PREFIX + "ㅂ : 직업 밴"), systemLine(PREFIX + "맵 / " + PREFIX + "ㅁ : 맵 시스템 제거됨"), systemLine(PREFIX + "ㅈㅇ: 직업 목록"), systemLine(PREFIX + "상태: 현황 확인"), systemLine(PREFIX + "무르기 단어: 무르기 요청"), systemLine(PREFIX + "무효: 무효 요청"), systemLine(PREFIX + "바꾸기: 첫 단어 입장 바꾸기 요청"), systemLine(PREFIX + "킥: 잠수 유저 확인"), systemLine("1ㄱㅅ 검색식: 구엜룰 단어 검색"), systemLine("1채린랭킹, 1채린티어, 1직업통계, 1ㅊㅌㅇ: 티어와 통계, 투표"), systemLine("2능력명: 능력 사용 예시 2조작"), systemLine(INPUT_PFX + "단어: 단어 입력"), systemLine("ㅈㅈ / 항복 / 기권: 기권 및 종료")]));
         return;
       }
       let mapCmdMatch = msg.match(new RegExp("^" + escapeRegExp(PREFIX) + "(?:맵|ㅁ)(?:\\s+(.+))?$"));
@@ -8041,7 +8044,7 @@ with (Bot.scope) {
         handleJobSelection(game, sender, job, replier, false, room);
         return;
       }
-      if (msg === "ㅈㅈ") {
+      if (msg === "ㅈㅈ" || msg === "항복" || msg === "기권") {
         if (!game || !game.players.includes(sender)) return;
         if (game.phase === "playing" || game.phase === "job_selection") {
           let senderIndex = game.players.indexOf(sender);
@@ -14856,7 +14859,7 @@ Alt-F4 콤보를 준비합니다.`;
             var winTeamIndex = winnerIndex % 2;
             var loserTeamIndex = (winTeamIndex + 1) % 2;
             var remain = (g.teamLives && typeof g.teamLives[loserTeamIndex] === "number" ? g.teamLives[loserTeamIndex] : 1) - 1;
-            if (remain > 0) {
+            if (remain > 0 && winType !== "기권") {
               endsNow = false;
               resetText = "ROUND_RESET:" + loserTeamIndex + ":" + remain + ":" + (winType || "");
             }

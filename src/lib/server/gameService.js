@@ -7,6 +7,7 @@ const roomMeta = new Map();
 const commandHistory = new Map();
 const restoredRooms = new Set();
 const restartTimers = new Map();
+const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 
 const QUEST_COUNT = 16;
 const CPU_RANDOM_JOBS = [
@@ -198,6 +199,7 @@ export async function joinRoom({ room, nickname }) {
 export async function sendCommand({ room, nickname, command }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim() || 'player';
+  updatePresence(room, sender, true);
   const msg = String(command || '').trim();
   const replies = msg ? await dispatchBotMessage(room, msg, sender) : [];
   if (msg) rememberCommand(room, sender, msg);
@@ -209,6 +211,13 @@ export async function sendCommand({ room, nickname, command }) {
   return state;
 }
 
+export function updatePresence(room, nickname, online) {
+  if (!room || !nickname) return;
+  const roomPresence = presence.get(room) || {};
+  roomPresence[nickname] = { online, lastSeen: Date.now() };
+  presence.set(room, roomPresence);
+}
+
 async function buildRoomSnapshot(room, allowPersistedFallback = true) {
   const game = await botRoomState(room);
   const state = {
@@ -216,7 +225,8 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
     meta: roomMeta.get(room) || null,
     status: await botBootStatus(),
     game,
-    log: logs.get(room) || []
+    log: logs.get(room) || [],
+    presence: presence.get(room) || {}
   };
   if ((!state.game || !state.meta) && allowPersistedFallback) {
     const persisted = await loadPersistedRoom(room);
@@ -253,4 +263,27 @@ export async function rankingSnapshot() {
   }
   const ranking = normalizeRanking(await botRankings());
   return { ranking, jobRanking: buildJobRanking(ranking) };
+}
+
+export async function getOngoingGames(nickname) {
+  const ongoing = [];
+  const sender = String(nickname || '').trim();
+  if (!sender) return [];
+
+  const { botAllRoomStates } = await import('./botEngine.js');
+  const allGames = await botAllRoomStates();
+
+  for (const [room, game] of Object.entries(allGames)) {
+    if (game.players?.includes(sender) && game.phase !== 'ended' && game.phase !== 'finished') {
+      const meta = roomMeta.get(room);
+      ongoing.push({
+        room,
+        meta,
+        phase: game.phase,
+        turnCount: game.turnCount,
+        currentPlayer: game.currentPlayer
+      });
+    }
+  }
+  return ongoing;
 }
