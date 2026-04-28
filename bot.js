@@ -141,8 +141,9 @@ Bot.scope = {
   K_FACTOR: undefined,
   DEFAULT_JOB_VALUE: undefined,
   TIER_DATA_DIR: undefined,
-  TIER_PLAYER_PATH: undefined,
   tierPlayerData: undefined,
+  cloneTierPlayerData: undefined,
+  getRatingDb: undefined,
   tierGames: undefined,
   authedSenders: undefined,
   currentPassword: undefined,
@@ -2702,18 +2703,39 @@ with (Bot.scope) {
   };
   ensureTierDataDir = function ensureTierDataDir() {
     let __botResult = function () {
+      return;
+    }.call(this);
+    if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
+    return __botResult;
+  };
+  cloneTierPlayerData = function cloneTierPlayerData(data) {
+    let __botResult = function () {
       try {
-        FileStream.createDir(TIER_DATA_DIR);
-      } catch (e) {}
+        return JSON.parse(JSON.stringify(data || {}));
+      } catch (e) {
+        return {};
+      }
+    }.call(this);
+    if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
+    return __botResult;
+  };
+  getRatingDb = function getRatingDb() {
+    let __botResult = function () {
+      if (typeof globalThis !== "undefined" && globalThis.RatingDB) return globalThis.RatingDB;
+      return null;
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
   };
   loadTierData = function loadTierData() {
     let __botResult = function () {
-      ensureTierDataDir();
+      let ratingDb = getRatingDb();
       try {
-        tierPlayerData = FileStream.readJson(TIER_PLAYER_PATH) || {};
+        if (ratingDb && typeof ratingDb.load === "function") {
+          tierPlayerData = cloneTierPlayerData(ratingDb.load());
+        } else {
+          tierPlayerData = {};
+        }
       } catch (e) {
         tierPlayerData = {};
       }
@@ -2723,8 +2745,10 @@ with (Bot.scope) {
   };
   saveTierData = function saveTierData() {
     let __botResult = function () {
-      ensureTierDataDir();
-      FileStream.writeJson(TIER_PLAYER_PATH, tierPlayerData);
+      let ratingDb = getRatingDb();
+      if (ratingDb && typeof ratingDb.save === "function") {
+        ratingDb.save(cloneTierPlayerData(tierPlayerData));
+      }
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -12417,7 +12441,6 @@ with (Bot.scope) {
   K_FACTOR = 36;
   DEFAULT_JOB_VALUE = 2.0;
   TIER_DATA_DIR = JSON_BASE_PATH;
-  TIER_PLAYER_PATH = TIER_DATA_DIR + "/tierbot_data.json";
   tierPlayerData = {};
   tierGames = {};
   authedSenders = {};

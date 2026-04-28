@@ -219,11 +219,6 @@ export function patchPageSvelte(code: string): string {
     }`
   );
 
-  // Add hover metadata to existing job cards/buttons in the original selection screen.
-  code = code.replace(/<button([^>]*class="job-card"[^>]*)>/g, '<button$1 title={jobTooltip(job)} onmouseenter={() => (hoverJob = job)} onmouseleave={() => (hoverJob = \'\')}>');
-  code = code.replace(/<button([^>]*class="job-btn"[^>]*)>/g, '<button$1 title={jobTooltip(job)} onmouseenter={() => (hoverJob = job)} onmouseleave={() => (hoverJob = \'\')}>');
-  code = code.replace(/<div class="job-grid">/, '<div class="job-grid">\n          {#if hoverJob}<div class="job-hover-panel"><b>{hoverJob}</b><span>{getJobInfo(hoverJob)}</span><small>{(ACTIVE_BY_JOB[hoverJob] || []).join(\', \') || \'능력 없음\'}</small></div>{/if}');
-
   code = code.replace(/생각 과정 보기/g, '');
   code = code.replace(/<details class="think-log-panel">[\s\S]*?<\/details>/, '');
 

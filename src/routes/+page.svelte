@@ -117,7 +117,7 @@
   let socket;
   let historyEl = $state();
   let wordInputEl = $state();
-  let jobInfo = $state({});
+  let jobInfoByJob = $state({});
   let showWordSearch = $state(false);
   let inGameQuery = $state('');
   let inGameResults = $state([]);
@@ -224,7 +224,7 @@
 
   $effect(() => {
     if (browser) {
-      fetch('/api/job-info').then(r => r.json()).then(d => { jobInfo = d; }).catch(() => {});
+      fetch('/api/job-info').then(r => r.json()).then(d => { jobInfoByJob = d; }).catch(() => {});
     }
   });
 
@@ -730,8 +730,8 @@
               {:else if selectedJob === job}
                 <span class="jc-check">✓</span>
               {/if}
-              {#if jobInfo[job]}
-                <div class="job-tooltip"><pre class="job-tooltip-text">{jobInfo[job]}</pre></div>
+              {#if jobInfoByJob[job]}
+                <div class="job-tooltip"><pre class="job-tooltip-text">{jobInfoByJob[job]}</pre></div>
               {/if}
             </button>
           {/each}

@@ -33,7 +33,15 @@ function syncRatingsToMongo(data) {
   queueRatingSync(data);
 }
 
-function createContext() {
+function cloneJson(value, fallback = {}) {
+  try {
+    return JSON.parse(JSON.stringify(value ?? fallback));
+  } catch {
+    return fallback;
+  }
+}
+
+function createContext(initialRatings = {}) {
   const sandbox = {
     console,
     setTimeout,
@@ -53,6 +61,14 @@ function createContext() {
         } else {
           writeJsonFile(resolveBotDataPath(inputPath), value);
         }
+      }
+    },
+    RatingDB: {
+      load() {
+        return cloneJson(initialRatings, {});
+      },
+      save(value) {
+        syncRatingsToMongo(value);
       }
     },
     Api: { gc() {} },
@@ -85,11 +101,11 @@ function normalizeLine(text) {
     .trim();
 }
 
-function bootSync() {
+function bootSync(initialRatings = {}) {
   ensureRuntimeDir();
   const source = (bundledBotSource || readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8'))
     .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
-  const context = createContext();
+  const context = createContext(initialRatings);
   vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
   installCpuStrategyPatch(context);
 
@@ -106,17 +122,14 @@ function bootSync() {
 export async function getBotEngine() {
   if (!enginePromise) {
     enginePromise = (async () => {
-      const engine = bootSync();
+      let dbRatings = {};
       try {
         const { loadRatings } = await import('./db.js');
-        const dbRatings = await loadRatings();
-        if (dbRatings && Object.keys(dbRatings).length > 0) {
-          const players = getTierPlayers(engine.context);
-          Object.assign(players, dbRatings);
-        }
+        dbRatings = await loadRatings();
       } catch (err) {
         console.warn('[botEngine] DB 레이팅 로드 실패:', err?.message);
       }
+      const engine = bootSync(dbRatings);
       return engine;
     })();
   }
@@ -209,7 +222,6 @@ function persistTierData(context) {
   const players = getTierPlayers(context);
   try {
     if (typeof context.saveTierData === 'function') context.saveTierData();
-    else if (typeof context.FileStream?.writeJson === 'function') context.FileStream.writeJson(context.TIER_PLAYER_PATH || 'tierbot_data.json', players);
   } catch {}
   syncRatingsToMongo(players);
 }
