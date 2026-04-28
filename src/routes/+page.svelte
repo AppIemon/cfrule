@@ -2,8 +2,8 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    BarChart3, Bot, Flag, Info, LogIn, LogOut, Plus,
-    Search, Send, Shuffle, Sparkles, Swords, UserRoundPlus, Vote
+    BarChart3, Bot, Flag, Info, LogIn, LogOut, MessageSquare, Plus,
+    Search, Send, Shuffle, Sparkles, Swords, UserRoundPlus, Vote, X
   } from 'lucide-svelte';
 
   const TIER_INFO = [
@@ -119,8 +119,29 @@
   let wordInputEl = $state();
   let jobInfoByJob = $state({});
   let showWordSearch = $state(false);
-  let inGameQuery = $state('');
-  let inGameResults = $state([]);
+  let inGameTabs = $state([{ id: Date.now(), query: '', results: [] }]);
+  let activeInGameTabId = $state(inGameTabs[0].id);
+  const activeInGameTab = $derived(inGameTabs.find(t => t.id === activeInGameTabId) || inGameTabs[0]);
+
+  let showChat = $state(false);
+  let chatInput = $state('');
+  let chatEl = $state();
+  const chats = $derived(snapshot?.chats || []);
+
+  function addInGameTab() {
+    const newId = Date.now();
+    inGameTabs = [...inGameTabs, { id: newId, query: '', results: [] }];
+    activeInGameTabId = newId;
+  }
+  function removeInGameTab(id, e) {
+    e?.stopPropagation();
+    if (inGameTabs.length <= 1) return;
+    const idx = inGameTabs.findIndex(t => t.id === id);
+    inGameTabs = inGameTabs.filter(t => t.id !== id);
+    if (activeInGameTabId === id) {
+      activeInGameTabId = inGameTabs[Math.max(0, idx - 1)].id;
+    }
+  }
 
   let showMatchBanner = $state(false);
   let showPracticeBar = $state(false);
@@ -190,6 +211,104 @@
     programmer_shift_uses: 'Shift 회수', programmer_caps_uses: 'Caps 회수', programmer_backspace_uses: 'BS 회수', programmer_tab_uses: 'Tab 회수'
   };
 
+  const ABILITY_CONFIG = {
+    '조작': { uses: 'jojak_uses', max: 3, cd: 'jojak_cooldown' },
+    '복제': { uses: 'bokje_uses', max: 1 },
+    '초토화': { uses: 'chotohwa_uses', max: 1, cd: 'chotohwa_cooldown' },
+    '주가 조작': { uses: 'juga_jojak_uses', max: 2, cd: 'juga_jojak_cooldown' },
+    '환각증': { uses: 'hallucination_uses', max: 1 },
+    '제작': { cd: 'make_cooldown' },
+    '채굴': { uses: 'mine_uses', max: 1, cd: 'mine_cooldown' },
+    '탐지': { uses: 'detect_uses', max: 1, cd: 'detect_cooldown' },
+    '허들 넘기': { uses: 'hurdle_uses', max: 1 },
+    '직격뢰': { uses: 'lightning_uses', max: 2, cd: 'lightning_cooldown' },
+    '시프트': { uses: 'shift_uses', max: 3 },
+    '빅 시프트': { uses: 'big_shift_uses', max: 1 },
+    '포획': { uses: 'capture_uses', max: 2, cd: 'capture_cooldown' },
+    '사구아': { uses: 'sagua_uses', max: 1 },
+    '2음절': { uses: 'poetic_2_uses', max: 2, cd: 'poetic_2_cooldown' },
+    '시적 허용': { uses: 'poetic_allow_uses', max: 1, cd: 'poetic_allow_cooldown' },
+    '삼키기': { uses: 'swallow_uses', max: 1, cd: 'swallow_cooldown' },
+    '브레스': { uses: 'breath_uses', max: 1 },
+    '꼬리 날리기': { uses: 'tail_uses', max: 1 },
+    '공허': { uses: 'void_uses', max: 2, cd: 'void_cooldown' },
+    '폭발': { uses: 'explosion_uses', max: 1 },
+    '사형 선고': { uses: 'death_uses', max: 1, cd: 'death_cooldown' },
+    '영혼': { uses: 'soul_uses', max: 1 },
+    'DNA파괴': { uses: 'dna_uses', max: 2, cd: 'dna_cooldown' },
+    '쪼개기': { uses: 'split_uses', max: 1 },
+    '쉼표': { cd: 'rest_cooldown' },
+    '게살버거': { cd: 'burger_cooldown' },
+    '감자튀김': { cd: 'fries_cooldown' },
+    '보너스': { uses: 'bonus_uses', max: 1 },
+    '강도 채용': { uses: 'robber_uses', max: 1 },
+    '체크메이트': { uses: 'checkmate_uses', max: 1, cd: 'checkmate_cooldown' },
+    '교환': { uses: 'exchange_uses', max: 1 },
+    '울음': { uses: 'cry_uses', max: 1 },
+    '긴급 구조': { uses: 'rescue_uses', max: 1, cd: 'rescue_cooldown' },
+    '결계': { uses: 'barrier_uses', max: 1, cd: 'barrier_cooldown' },
+    '왜곡': { uses: 'distort_uses', max: 1, cd: 'distort_cooldown' },
+    '거짓 보도': { uses: 'report_uses', max: 1, cd: 'report_cooldown' },
+    '거짓 뉴스': { uses: 'fake_news_uses', max: 1 },
+    '찌르기': { uses: 'stab_uses', max: 2, cd: 'stab_cooldown' },
+    '가르기': { uses: 'slice_uses', max: 1, cd: 'slice_cooldown' },
+    '억제': { cd: 'gandhi_cooldown' },
+    '수리': { cd: 'repair_cooldown', uses: 'repair_uses', max: 1 }, 
+    '핵분열': { uses: 'fission_uses', max: 1 },
+    '무량공처': { uses: 'gongcheo_uses', max: 1, cd: 'gongcheo_cooldown' },
+    '물걸레질': { uses: 'speaki_clean_uses', max: 2, cd: 'speaki_clean_cooldown' },
+    '호박': { uses: 'speaki_pumpkin_uses', max: 1, cd: 'speaki_pumpkin_cooldown' },
+    '조개': { uses: 'otter_clam_uses', max: 1, cd: 'otter_clam_cooldown' },
+    '깨부수기': { uses: 'otter_smash_uses', max: 1 },
+    'Shift': { uses: 'programmer_shift_uses', max: 1 },
+    'Caps Lock': { uses: 'programmer_caps_uses', max: 1, cd: 'programmer_caps_cooldown' },
+    'Backspace': { uses: 'programmer_backspace_uses', max: 1 },
+    'Tab': { uses: 'programmer_tab_uses', max: 1 }
+  };
+
+  function getPlayerAbilitiesStatus(playerJob, state) {
+    if (!playerJob || !state) return [];
+    const abs = ACTIVE_BY_JOB[playerJob];
+    if (!abs) return [];
+    
+    return abs.map(name => {
+      const conf = ABILITY_CONFIG[name];
+      let text = '준비됨';
+      let isReady = true;
+      let isExhausted = false;
+
+      if (conf) {
+        let parts = [];
+        let used = 0;
+        if (conf.max) {
+          used = state[conf.uses] || 0;
+          const remain = Math.max(0, conf.max - used);
+          parts.push(`${remain}/${conf.max}`);
+          if (remain === 0) {
+            isReady = false;
+            isExhausted = true;
+          }
+        }
+        
+        if (conf.cd) {
+          const cd = state[conf.cd] || 0;
+          if (cd > 0) {
+            parts.push(`쿨 ${cd}턴`);
+            isReady = false;
+          }
+        }
+
+        if (parts.length > 0) {
+          text = parts.join(' · ');
+        } else if (conf.max && used >= conf.max) {
+           text = '소진됨';
+        }
+      }
+      
+      return { name, text, isReady, isExhausted };
+    });
+  }
+
   const ABILITY_TARGET_MAP = {
     '조작': 'syllable', '제작': 'syllable', '채굴': 'syllable',
     '복제': 'player', '탐지': 'player', '시프트': 'player', '빅 시프트': 'player', '포획': 'player',
@@ -208,29 +327,54 @@
     if (log.length > 0) {
       const last = log[log.length - 1];
       if (last.type === 'system') {
-        // 능력/패시브 발동 감지
-        const triggerMatch = last.text?.match(/\[발동\]\s*(.+?):/);
-        if (triggerMatch) {
-          triggerEffect(triggerMatch[1], 'passive');
-        } else {
-          // 활성화된 능력 사용 감지
-          for (const ab of abilityButtons) {
-            if (last.text?.includes(`[${ab}]`)) {
+        const text = last.text?.replace('[시스템]: ', '').trim() || '';
+        
+        let effectTriggered = false;
+
+        // 1. 패시브 감지
+        const PASSIVE_BY_JOB = {
+          '해커': [], '투자자': ['투자의 귀재'], '환자': ['강박증'], '수집가': ['수집'],
+          '감시자': ['감시'], '뜀틀선수': ['뜀틀'], '전우치': ['잔상'], '시프터': [],
+          '비밀요원': ['타깃 확보'], '사과': ['삭와'], '시인': [], '공룡': [],
+          '마법사': ['부작용'], '사신': ['처형'], '수학자': ['논문 발표', '공부'],
+          '과학자': ['실험'], '작곡가': ['작곡'], '스폰지밥': ['저금통'],
+          '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
+          '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
+          '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': [],
+          '스핔이': [], '해달': [], '프로그래머': []
+        };
+        
+        const currentPassives = PASSIVE_BY_JOB[myState?.job] || [];
+        for (const ps of currentPassives) {
+          if (text.includes(`${ps} 발동`) || text.includes(`${ps} 효과`) || text.includes(`${ps} 패시브`)) {
+            triggerEffect(ps, 'passive');
+            effectTriggered = true;
+            break;
+          }
+        }
+
+        // 2. 액티브 능력 감지
+        if (!effectTriggered) {
+          const currentAbilities = ACTIVE_BY_JOB[myState?.job] || [];
+          for (const ab of currentAbilities) {
+            if (text.startsWith(ab) || text.includes(`${ab} 발동`) || text.includes(`${ab} 완료`)) {
               triggerEffect(ab, 'active');
+              effectTriggered = true;
               break;
             }
           }
         }
 
-        // 에러 메시지 감지 및 토스트 표시
+        // 3. 에러 메시지 감지 및 토스트 표시
         const isError = [
           '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어', 
-          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다'
-        ].some(err => last.text?.includes(err));
+          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다',
+          '쿨타임입니다', '모두 사용했습니다', '부족합니다', '지정해주세요'
+        ].some(err => text.includes(err));
         
-        if (isError) {
-          error = last.text.replace('[시스템]: ', '');
-          setTimeout(() => { if (error === last.text.replace('[시스템]: ', '')) error = ''; }, 3500);
+        if (isError && !effectTriggered) {
+          error = text;
+          setTimeout(() => { if (error === text) error = ''; }, 3500);
         }
       }
     }
@@ -487,6 +631,22 @@
     }
   }
 
+  async function sendChat(event) {
+    event?.preventDefault?.();
+    const text = chatInput.trim();
+    if (!text || !room || !socket) return;
+    socket.send(JSON.stringify({ type: 'chat', text }));
+    chatInput = '';
+    await tick();
+    if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  $effect(() => {
+    if (showChat && chats.length && chatEl) {
+      tick().then(() => { chatEl.scrollTop = chatEl.scrollHeight; });
+    }
+  });
+
   async function sendAbility() {
     await send(`2${ability}`);
     ability = '';
@@ -558,9 +718,10 @@
   }
 
   async function searchInGame() {
-    if (!inGameQuery.trim()) return;
-    const data = await fetch(`/api/search?q=${encodeURIComponent(inGameQuery)}`).then(r => r.json()).catch(() => ({}));
-    inGameResults = data.results || [];
+    const tabObj = activeInGameTab;
+    if (!tabObj || !tabObj.query.trim()) return;
+    const data = await fetch(`/api/search?q=${encodeURIComponent(tabObj.query)}`).then(r => r.json()).catch(() => ({}));
+    tabObj.results = data.results || [];
   }
 
   async function loadRanking() {
@@ -621,16 +782,30 @@
 
   function visibleEffects(state) {
     if (!state) return [];
-    const labels = {
-      disabled_turns: '능력불가', absolutely_disabled: '절대봉쇄',
-      no_yudo_turns: '유도불가', no_root_turns: '루트불가',
-      no_hanbang_turns: '한방불가', no_du_eum_turns: '두음불가',
-      only_even_turns: '짝수', only_odd_turns: '홀수',
-      only_length_2_turns: '2글자', no_length_2_turns: '2글자금지',
-      only_root_turns: '루트만', last_route_only_turns: '끝루트',
-      limited_length: '최대', min_length: '최소'
+    const config = {
+      disabled_turns: { label: '능력불가', type: 'debuff' },
+      absolutely_disabled: { label: '절대봉쇄', type: 'danger' },
+      no_yudo_turns: { label: '유도불가', type: 'debuff' },
+      no_root_turns: { label: '루트불가', type: 'debuff' },
+      no_hanbang_turns: { label: '한방불가', type: 'debuff' },
+      no_du_eum_turns: { label: '두음불가', type: 'debuff' },
+      only_even_turns: { label: '짝수', type: 'rule' },
+      only_odd_turns: { label: '홀수', type: 'rule' },
+      only_length_2_turns: { label: '2글자', type: 'rule' },
+      no_length_2_turns: { label: '2글자금지', type: 'debuff' },
+      only_root_turns: { label: '루트만', type: 'rule' },
+      last_route_only_turns: { label: '끝루트', type: 'rule' },
+      limited_length: { label: '최대', type: 'length' },
+      min_length: { label: '최소', type: 'length' }
     };
-    return Object.entries(labels).filter(([key]) => state[key]).map(([key, label]) => `${label} ${state[key]}`);
+    return Object.entries(config)
+      .filter(([key]) => state[key])
+      .map(([key, cfg]) => ({ 
+        label: cfg.label, 
+        value: state[key], 
+        type: cfg.type,
+        full: `${cfg.label} ${state[key]}`
+      }));
   }
 
   function jobInitial(name) {
@@ -1028,20 +1203,33 @@
               <h3>단어 검색</h3>
               <button class="sdc-close" onclick={() => (showWordSearch = false)}>✕</button>
             </div>
+            
+            <div class="sdc-tabs">
+              {#each inGameTabs as t (t.id)}
+                <div class="sdc-tab" class:tab-active={activeInGameTabId === t.id} onclick={() => activeInGameTabId = t.id} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && (activeInGameTabId = t.id)}>
+                  <span>{t.query || '새 검색'}</span>
+                  {#if inGameTabs.length > 1}
+                    <span class="sdc-tab-close" onclick={(e) => removeInGameTab(t.id, e)} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && removeInGameTab(t.id, e)}>✕</span>
+                  {/if}
+                </div>
+              {/each}
+              <button class="sdc-tab-add" onclick={addInGameTab}>+</button>
+            </div>
+
             <form class="sdc-form" onsubmit={(e) => { e.preventDefault(); searchInGame(); }}>
               <div class="sdc-input-wrap">
-                <input class="sdc-input" bind:value={inGameQuery} placeholder="기* · *차 · 기차" autocomplete="off" />
+                <input class="sdc-input" bind:value={activeInGameTab.query} placeholder="기* · *차 · K / I / R / A" autocomplete="off" />
                 <button class="sdc-submit" type="submit"><Search size={14} /></button>
               </div>
             </form>
             <div class="sdc-results">
-              {#each inGameResults.slice(0, 50) as r}
+              {#each activeInGameTab.results.slice(0, 50) as r}
                 <button class="sdc-item" onclick={() => { word = r.word; showWordSearch = false; tick().then(() => wordInputEl?.focus()); }}>
                   <div class="sdci-word">{r.word}</div>
                   <div class="sdci-kind sdci-k-{r.kind}">{r.kind}</div>
                 </button>
               {/each}
-              {#if !inGameResults.length && inGameQuery}
+              {#if !activeInGameTab.results.length && activeInGameTab.query}
                 <div class="sdc-empty">결과가 없습니다</div>
               {/if}
             </div>
@@ -1087,10 +1275,13 @@
                       {/each}
                     </div>
                   {/if}
-                  {#if visibleEffects(game.playerStates?.[player]).length}
-                    <div class="effect-list">
-                      {#each visibleEffects(game.playerStates?.[player]) as ef}
-                        <span class="effect-tag">{ef}</span>
+                  {#if getPlayerAbilitiesStatus(playerJob, game.playerStates?.[player]).length}
+                    <div class="player-ability-list">
+                      {#each getPlayerAbilitiesStatus(playerJob, game.playerStates?.[player]) as ab}
+                        <div class="pa-item" class:pa-ready={ab.isReady} class:pa-exhausted={ab.isExhausted}>
+                          <span class="pa-name">{ab.name}</span>
+                          <span class="pa-status">{ab.text}</span>
+                        </div>
                       {/each}
                     </div>
                   {/if}
@@ -1171,7 +1362,7 @@
                 {#if visibleEffects(myState).length}
                   <div class="mj-effects">
                     {#each visibleEffects(myState) as ef}
-                      <span class="effect-tag">{ef}</span>
+                      <span class="effect-tag effect-{ef.type}">{ef.full}</span>
                     {/each}
                   </div>
                 {/if}
@@ -1199,8 +1390,33 @@
               </div>
             {/if}
 
+            <div class="game-status-panel">
+              <div class="col-label">STATUS</div>
+              <div class="status-content">
+                {#each game.players as p, pi}
+                  {@const effects = visibleEffects(game.playerStates?.[p])}
+                  <div class="status-player-row" class:spr-active={p === currentPlayer}>
+                    <div class="spr-info">
+                      <span class="spr-team team-{(pi % 2) + 1}"></span>
+                      <span class="spr-name">{p}</span>
+                      <span class="spr-job">{game.playerStates?.[p]?.job || ''}</span>
+                    </div>
+                    <div class="spr-effects">
+                      {#if effects.length}
+                        {#each effects as ef}
+                          <span class="effect-tag effect-{ef.type}">{ef.full}</span>
+                        {/each}
+                      {:else}
+                        <span class="spr-empty">효과 없음</span>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+
             <div class="game-guide-panel">
-              <div class="col-label">GAME</div>
+              <div class="col-label">GAME RULES</div>
               <div class="guide-row">
                 <span>시작</span>
                 <strong>{(game.history || []).length ? '진행 중' : '아무나 첫 단어'}</strong>
@@ -1209,10 +1425,9 @@
                 <span>첫 수 제한</span>
                 <strong>한방 · 유도 불가</strong>
               </div>
-              <div class="guide-actions">
-                <button class="guide-btn" onclick={() => send('1상태')} disabled={busy}>상태</button>
-                <button class="guide-btn" onclick={() => send('1바꾸기')} disabled={busy}>입장</button>
-                <button class="guide-btn" onclick={() => send('1킥')} disabled={busy}>잠수</button>
+              <div class="guide-row">
+                <span>모드</span>
+                <strong>{game.mode}대{game.mode} {game.isPractice ? '(연습)' : ''}</strong>
               </div>
             </div>
           </aside>
@@ -1363,7 +1578,7 @@
         </div>
         <div class="word-grid">
           {#each filteredSearch as r (r.word)}
-            <div class="word-card wc-{r.kind}">
+            <button class="word-card wc-{r.kind}" onclick={() => { searchText = r.last + '*'; submitSearch(); }}>
               <div class="wc-top">
                 <span class="wc-word">{r.word}</span>
                 <span class="wc-kind-badge">{r.kind}</span>
@@ -1380,7 +1595,7 @@
                   <div class="wc-win wc-lose">패배</div>
                 {/if}
               {/if}
-            </div>
+            </button>
           {/each}
         </div>
       {/if}
@@ -1628,6 +1843,46 @@
           <div class="rank-empty">직업을 선택하세요</div>
         {/if}
       {/if}
+    </div>
+  {/if}
+
+  <!-- ══════════════════════ FLOATING CHAT ══════════════════════ -->
+  {#if room}
+    <div class="floating-chat-container">
+      {#if showChat}
+        <div class="chat-window">
+          <div class="chat-header">
+            <div class="chat-header-info">
+              <MessageSquare size={14} />
+              <span>채팅</span>
+            </div>
+            <button class="chat-close" onclick={() => (showChat = false)}><X size={16} /></button>
+          </div>
+          <div class="chat-messages" bind:this={chatEl}>
+            {#each chats as c (c.id)}
+              <div class="chat-msg" class:my-chat={c.sender === nickname}>
+                <span class="chat-sender">{c.sender}</span>
+                <div class="chat-text">{c.text}</div>
+                <span class="chat-at">{new Date(c.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            {/each}
+            {#if chats.length === 0}
+              <div class="chat-empty">메시지가 없습니다.</div>
+            {/if}
+          </div>
+          <form class="chat-form" onsubmit={sendChat}>
+            <input class="chat-input" bind:value={chatInput} placeholder="메시지 입력..." autocomplete="off" />
+            <button class="chat-send" type="submit" disabled={!chatInput.trim()}><Send size={14} /></button>
+          </form>
+        </div>
+      {/if}
+      <button class="chat-toggle-btn" class:chat-open={showChat} onclick={() => (showChat = !showChat)}>
+        {#if showChat}
+          <X size={24} />
+        {:else}
+          <MessageSquare size={24} />
+        {/if}
+      </button>
     </div>
   {/if}
 </div>
@@ -2436,16 +2691,49 @@
   .player-body { flex: 1; min-width: 0; }
   .player-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
   .player-job { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .player-ability-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+  .pa-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); border-radius: 4px; padding: 3px 6px; font-size: 11px; border-left: 2px solid #555; }
+  .pa-item.pa-ready { border-left-color: var(--accent); }
+  .pa-item.pa-exhausted { opacity: 0.5; border-left-color: var(--red); }
+  .pa-name { font-weight: 600; color: #eee; }
+  .pa-status { color: #aaa; font-size: 10px; }
+  .pa-item.pa-ready .pa-status { color: var(--accent); }
+  .pa-item.pa-exhausted .pa-status { color: var(--red); }
   .effect-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
   .effect-tag {
     font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 999px;
-    background: rgba(249,115,22,.12);
-    border: 1px solid rgba(249,115,22,.3);
-    color: #fdba74;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text2);
     animation: popIn .18s ease both;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .effect-tag.effect-debuff {
+    background: rgba(239,68,68,.1);
+    border-color: rgba(239,68,68,.3);
+    color: #ef4444;
+  }
+  .effect-tag.effect-danger {
+    background: #1a1a1a;
+    border-color: #f59e0b;
+    color: #f59e0b;
+    box-shadow: 0 0 10px rgba(245,158,11,.4);
+    font-weight: 900;
+  }
+  .effect-tag.effect-rule {
+    background: rgba(59,130,246,.1);
+    border-color: rgba(59,130,246,.3);
+    color: #3b82f6;
+  }
+  .effect-tag.effect-length {
+    background: rgba(168,85,247,.1);
+    border-color: rgba(168,85,247,.3);
+    color: #a855f7;
   }
   .team-dot {
     width: 8px; height: 8px;
@@ -2741,6 +3029,40 @@
   .notice-panel { display: flex; flex-direction: column; gap: 6px; }
   .notice-panel .notice-item { padding: 8px 10px; font-size: 12px; }
   .notice-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .game-status-panel {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--bg3);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: fadeUp .22s ease both;
+  }
+  .status-content { display: flex; flex-direction: column; gap: 10px; }
+  .status-player-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bg2);
+    border: 1px solid transparent;
+    transition: border-color .2s;
+  }
+  .status-player-row.spr-active {
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(99,102,241,.1);
+  }
+  .spr-info { display: flex; align-items: center; gap: 6px; }
+  .spr-team { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .spr-team.team-1 { background: var(--accent); }
+  .spr-team.team-2 { background: var(--red); }
+  .spr-name { font-size: 13px; font-weight: 800; color: var(--text); }
+  .spr-job { font-size: 11px; color: var(--text3); }
+  .spr-effects { display: flex; flex-wrap: wrap; gap: 4px; }
+  .spr-empty { font-size: 11px; color: var(--text3); font-style: italic; }
+
   .game-guide-panel {
     border: 1px solid var(--border2);
     border-radius: var(--radius);
@@ -2762,24 +3084,6 @@
     color: var(--text);
     font-size: 12px;
     text-align: right;
-  }
-  .guide-actions {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-  .guide-btn {
-    height: 34px;
-    border-radius: var(--radius-sm);
-    background: #fff;
-    border: 1px solid var(--border2);
-    color: var(--text2);
-    font-size: 12px;
-    font-weight: 800;
-  }
-  .guide-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent2);
   }
 
   /* ═══════════════════════════════════════════
@@ -3373,7 +3677,6 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 2px;
-    transform: rotate(180deg);
   }
   .search-drawer-content {
     flex: 1;
@@ -3439,8 +3742,66 @@
       border-radius: 14px 14px 0 0; border: 1px solid var(--border); border-bottom: none;
       writing-mode: horizontal-tb; z-index: 10;
     }
-    .handle-inner { flex-direction: row; writing-mode: horizontal-tb; transform: none; gap: 6px; }
+    .handle-inner { flex-direction: row; writing-mode: horizontal-tb; gap: 6px; }
   }
+
+  /* --- Tab Styles --- */
+  .sdc-tabs {
+    display: flex;
+    background: #f8fafc;
+    padding: 0 12px;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sdc-tabs::-webkit-scrollbar { display: none; }
+  .sdc-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #e2e8f0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    font-size: 11px;
+    font-weight: 800;
+    color: #64748b;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-top: 8px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .sdc-tab.tab-active {
+    background: #fff;
+    color: var(--accent);
+    border-color: var(--border);
+    padding-bottom: 9px;
+    margin-bottom: -1px;
+    z-index: 2;
+  }
+  .sdc-tab-close {
+    font-size: 12px;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  .sdc-tab-close:hover { background: rgba(0,0,0,0.1); color: #ef4444; }
+  .sdc-tab-add {
+    padding: 8px 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: color 0.2s;
+  }
+  .sdc-tab-add:hover { color: var(--accent); }
   /* ═══════════════════════════════════════════
      JOB STATUS CHIPS
   ═══════════════════════════════════════════ */
@@ -3558,4 +3919,170 @@
 
   .online-dot { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-left: 6px; box-shadow: 0 0 8px rgba(34,197,94,0.6); }
   .offline-label { font-size: 10px; color: var(--text3); font-weight: 500; margin-left: 6px; }
+
+  /* ═══════════════════════════════════════════
+     FLOATING CHAT
+  ═══════════════════════════════════════════ */
+  .floating-chat-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+  }
+  .chat-toggle-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(37,99,235,0.4);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .chat-toggle-btn:hover {
+    transform: scale(1.1) rotate(5deg);
+    background: var(--accent2);
+  }
+  .chat-toggle-btn.chat-open {
+    background: #475569;
+    box-shadow: 0 8px 24px rgba(71,85,105,0.4);
+  }
+  .chat-window {
+    width: 320px;
+    height: 450px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: chatPopUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid var(--border);
+  }
+  @keyframes chatPopUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .chat-header {
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .chat-header-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+    font-size: 14px;
+    color: #1e293b;
+  }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #fdfdfe;
+  }
+  .chat-empty {
+    text-align: center;
+    color: var(--text3);
+    font-size: 12px;
+    margin-top: 40px;
+  }
+  .chat-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 85%;
+  }
+  .my-chat {
+    align-self: flex-end;
+    align-items: flex-end;
+  }
+  .chat-sender {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 4px;
+    margin-left: 4px;
+  }
+  .my-chat .chat-sender {
+    margin-left: 0;
+    margin-right: 4px;
+  }
+  .chat-text {
+    padding: 8px 12px;
+    background: #f1f5f9;
+    border-radius: 12px 12px 12px 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #334155;
+    word-break: break-word;
+  }
+  .my-chat .chat-text {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 12px 12px 4px 12px;
+  }
+  .chat-at {
+    font-size: 9px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+  .chat-form {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    background: #fff;
+  }
+  .chat-input {
+    flex: 1;
+    height: 38px;
+    padding: 0 14px;
+    font-size: 13px;
+    border-radius: 19px;
+    border: 1px solid var(--border2);
+  }
+  .chat-input:focus {
+    border-color: var(--accent);
+    background: #fff;
+  }
+  .chat-send {
+    width: 38px;
+    height: 38px;
+    border-radius: 19px;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .chat-send:hover:not(:disabled) {
+    transform: scale(1.05);
+    background: var(--accent2);
+  }
+  
+  @media (max-width: 640px) {
+    .floating-chat-container {
+      bottom: 80px; /* Above bottom composer */
+      right: 16px;
+    }
+    .chat-window {
+      width: calc(100vw - 32px);
+      height: 400px;
+    }
+  }
 </style>

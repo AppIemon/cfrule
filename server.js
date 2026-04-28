@@ -36,6 +36,7 @@ server.on('upgrade', (request, socket, head) => {
     const game = await loadGameModule();
     const getRoomSnapshot = game.getRoomSnapshot || game.g;
     const updatePresence = game.updatePresence || (() => {});
+    const addChatMessage = game.addChatMessage || (() => {});
     if (!getRoomSnapshot) throw new Error('Built gameService snapshot export was not found.');
     
     if (nickname) updatePresence(room, nickname, true);
@@ -43,6 +44,15 @@ server.on('upgrade', (request, socket, head) => {
     const sendSnapshot = () => getRoomSnapshot(room).then(send).catch(() => {});
     sendSnapshot();
     const interval = setInterval(sendSnapshot, 1000);
+
+    ws.on('message', async (data) => {
+      try {
+        const payload = JSON.parse(data.toString());
+        if (payload.type === 'chat' && payload.text) {
+          await addChatMessage({ room, nickname, text: payload.text });
+        }
+      } catch {}
+    });
     
     ws.on('close', () => {
       clearInterval(interval);

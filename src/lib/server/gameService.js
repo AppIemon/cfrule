@@ -8,6 +8,7 @@ const commandHistory = new Map();
 const restoredRooms = new Set();
 const restartTimers = new Map();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
+const roomChats = new Map(); // room -> [{ id, sender, text, at }]
 
 const QUEST_COUNT = 16;
 const CPU_RANDOM_JOBS = [
@@ -211,6 +212,24 @@ export async function sendCommand({ room, nickname, command }) {
   return state;
 }
 
+export async function addChatMessage({ room, nickname, text }) {
+  await restoreRoom(room);
+  const sender = String(nickname || '').trim() || 'player';
+  const list = roomChats.get(room) || [];
+  list.push({
+    id: `${Date.now()}-${Math.random()}`,
+    sender,
+    text: String(text || '').trim(),
+    at: Date.now()
+  });
+  while (list.length > 50) list.shift();
+  roomChats.set(room, list);
+  
+  const state = await getRoomSnapshot(room);
+  publishRoom(room, state);
+  return state;
+}
+
 export function updatePresence(room, nickname, online) {
   if (!room || !nickname) return;
   const roomPresence = presence.get(room) || {};
@@ -226,6 +245,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
     status: await botBootStatus(),
     game,
     log: logs.get(room) || [],
+    chats: roomChats.get(room) || [],
     presence: presence.get(room) || {}
   };
   if ((!state.game || !state.meta) && allowPersistedFallback) {

@@ -533,6 +533,8 @@ export function analyzeByType({ attackerJob, defenderJob, type, limit = 40 }) {
   return { type, attackerJob, defenderJob, total: syllables.length, syllables };
 }
 
+const NORMAL_SYL = "가간갈강개갤거건게겨고곡곤골곰곳과관괴구귀그근귿글긔기길까꺼꼬꼼꽃끄끌나날남낱내네넬녀녈노논뇨누눈뉴니닉닌닐님닙닛다닥단달닭당대댱더던덜덩데덴도독돈돌동되두둘뒤듀듁드든들디딥땅때땡떼뜰라란랄람래램랴략러레려렬롄로론롤료루룬룰류리린릴립링마막말매머멀메멘멧모목몰몸무묵문물미민바반발밭배버베벨벼보볼부북불뷰브블비뼈뿌사산살삼삿새색샛생샤서설섬섯성세셀셰소속손솔쇠수술숨슈스슬시실심쌍쒜쓰씨아악안알암앞애앵야약어언얼엉에엘엠여열옌오옥온옷옹완왓외요우울웃원위윈윗유이인일입자잠장재잭저적정젖제젹젼조존좀주중쥬즈즘지진집짓쪽쭈찌차찰참채책천첼초추취층치친카칼캐커컨컷케코콕콜콤콩퀴크큰클키타탈태터털테텔토톰투툴튜트티팀파팔팜패팬퍼페펜포폴표푸풀풋풍프플피필하한할함해핵허헌헝헤헨헬혈호혼홀홉화황후흐히각감갓객갸걱걸검격겹경곁계광교국군굴굼굿금급김깔깜깨께꼴꼽꽁꾀꾸꿀꿰끈끝끼낙낚난납낫냅냉너넉넝녁년념녑녕놀놋농느늘능늪늬담답덤덧뎍돛됴둥등딜따딱딴딸땜떡똥뚝뜨뜸락랍랏랩랭량렉력련렴렵령례록롯롱률르를릉릎릭림릿만맏망맥맨먹멍멜몽뭇믈믿밀밋박밥밧방백뱃벅번벌범법벤별볏병복본봉뵈분빈빌빗빛빨삯삽상샘석선섹셉셋셩솜솝순숫숯쉐쉬승신싱싸쌈쌔쏠앙액얌양얘억엄엥역연염엽영예올옻왁왈왕왜운워월율윷은음응의익임잇작잔잡쟁전절점접젠젤졸종줄쥐질짐징쪼쯔찔찬창처철청체촌총쵸출춤충칠칸캡쿠쿤퀸큐킬킹탁탄탐탑탕턱텁톨통퇴튀판팡팥팽펄펙펠펭편평폐폭폰푼품합항행향혀협형활홰회횡훈훼흙흥힘갑갱것겉겔곱공궈극긍긴껍낟냐냥넌넥녹뇽눌뉵댕덕뎨딕뚜뜻띠랜렌렙룡뤼륙면명몬밤밴벋봄붓빙빚뻘센셈솥쇼숙싹쌀압엇와용웜웨웰육잣쟝젓죡쥔증짚짜착첨최측칡침켄콘콧킷특팩펀햄헐혜홈환훠휘휴흑흠힐곧낮닝닻뎐랑랒뱀빵뻬썩쎄씰앗움으잉족죄짝짬쩡찐찜칙탱텅틀픽널늦돗릊먼벵뿔션쇄숭쑹옴퉁학혹뜽뮤쐬펑핀셔슐켐젼조족존졸좀종죄죡주줄중쥐쥔쥬즈즘증지진질짐집짓징짚짜짝짬쩡쪼쪽쭈쯔찌찐찔찜차착찬찰참창채책처천철첨청체첼초촌총최쵸추출춤충취측층치칙친칠칡침카칸칼캐캡커컨컷케코콕콘콜콤콧콩쿠쿤퀴퀸큐크큰클키킬킷킹타탁탄탈탐탑탕태탱터턱털텁텅테텔토톨톰통퇴투툴퉁튀튜트특틀틈티팀파판팔팜팡팥패팩팬팽퍼펀펄펑페펙펜펠펭편평폐포폭폰폴표푸푼풀품풋풍프플피픽핀필하학한할함합항해핵햄행향허헌헐헝헤헨헬혀혈협형혜호혹혼홀홈홉화환활황홰회횡후훈훠훤훼휘휴흐흑흙흠흥히힐힘";
+
 // Integrated word search using the engine's cached data
 export function searchInEngine(query, limit = 200) {
   const scope = getReadingData();
@@ -542,10 +544,23 @@ export function searchInEngine(query, limit = 200) {
   const allWords = Object.values(scope.WORDS_BY_START || {}).flat();
 
   let filtered;
-  if (q.includes('*') || q.includes('?')) {
-    const reStr = q.split('').map(c =>
-      c === '*' ? '.*' : c === '?' ? '.' : c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    ).join('');
+  const isSpecial = q.includes('*') || q.includes('?') || /[KIRNA]/.test(q);
+  
+  if (isSpecial) {
+    let reStr = q.toUpperCase();
+    const KILLSYL_STR = Array.from(scope.KILLSYL_SET).join('');
+    const INTENDSYL_STR = Array.from(scope.INTENDSYL_SET).join('');
+    const ROUTESYL_STR = Array.from(scope.ROUTESYL_SET).join('');
+    const SEARCH_A_CLASS = Array.from(SEARCH_A_CLASS_SET).join('');
+    
+    reStr = reStr.replace(/\*/g, '.*')
+                 .replace(/\?/g, '.')
+                 .replace(/K/g, `[${KILLSYL_STR}]`)
+                 .replace(/I/g, `[${INTENDSYL_STR}]`)
+                 .replace(/R/g, `[${ROUTESYL_STR}]`)
+                 .replace(/N/g, `[${NORMAL_SYL}]`)
+                 .replace(/A/g, `[${SEARCH_A_CLASS}]`);
+                 
     try {
       const re = new RegExp(`^${reStr}$`);
       filtered = allWords.filter(w => re.test(w));
@@ -561,9 +576,7 @@ export function searchInEngine(query, limit = 200) {
     const last = word[word.length - 1];
     const kind = kindOf(scope, word);
     const replies = (scope.WORDS_BY_START?.[last] || []).length;
-    // turnsToWin: attacker plays this word → opponent faces 'last' syllable → attacker wins in N turns
     const turnsToWin = WIN_TURN_MAP[last] ?? null;
-    // turnsToDefeat: opponent plays from 'last' and wins in turnsToWin turns — same value but framed differently in UI
     return {
       word,
       kind,

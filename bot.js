@@ -698,6 +698,7 @@ with (Bot.scope) {
   };
   isYudo = function isYudo(word) {
     let __botResult = function () {
+      if (["붕어톱", "욕중관수욕", "쇄소건즐", "잎뽕"].indexOf(word) !== -1) return true;
       if (!INTENDSYL_SET) return false;
       if (word.length === 0) return false;
       return INTENDSYL_SET.has(word[word.length - 1]);
@@ -707,6 +708,7 @@ with (Bot.scope) {
   };
   isRoot = function isRoot(word) {
     let __botResult = function () {
+      if (["붕어톱", "욕중관수욕", "쇄소건즐", "잎뽕"].indexOf(word) !== -1) return true;
       if (!ROUTESYL_SET) return false;
       if (word.length === 0) return false;
       return ROUTESYL_SET.has(word[0]) && ROUTESYL_SET.has(word[word.length - 1]);
@@ -3303,7 +3305,7 @@ with (Bot.scope) {
         let winTeamIndex = winnerIndex % 2;
         let loserTeamIndex = (winTeamIndex + 1) % 2;
         game.teamLives[loserTeamIndex] -= 1;
-        if (game.teamLives[loserTeamIndex] > 0 && winType !== "기권") {
+        if (game.teamLives[loserTeamIndex] > 0) {
           resetGameAfterLifeLoss(game, loserTeamIndex);
           replier.reply(joinFoldedLines([systemLine("팀 목숨이 1개 차감되어 라운드가 초기화된다."), systemLine("남은 목숨: 팀 " + (loserTeamIndex + 1) + " - " + game.teamLives[loserTeamIndex] + "개"), systemLine("모든 디버프와 사용 단어, 기보가 초기화되고 처음부터 다시 시작한다."), systemLine("시작은 아무나 할 수 있습니다.")], [systemLine("단어 입력: 0단어"), systemLine("능력 사용: 2능력명"), systemLine("현황 확인: 1상태")]));
           return;
@@ -7397,7 +7399,7 @@ with (Bot.scope) {
         });
         if (winner) {
           replier.reply(systemLine("승자는 " + winner + "이다."));
-          finalizeMatch(room, winner, "기권", replier);
+          finalizeMatch(room, winner, "한방", replier);
         }
         if (games[room]) games[room].cpuThinkToken = (games[room].cpuThinkToken || 0) + 1;
         return;
@@ -8066,7 +8068,11 @@ with (Bot.scope) {
           }
           if (!winner) return;
           replier.reply(joinLines([systemLine(sender + "이 ㅈㅈ를 쳤다."), systemLine("기보: " + (game.history.length > 0 ? game.history.join(" ") : "없음"))]));
-          finalizeMatch(room, winner, "기권", replier);
+          let winType = "기권";
+          if (game.history.length > 0 && isHanbang(game.history[game.history.length - 1])) {
+            winType = "한방";
+          }
+          finalizeMatch(room, winner, winType, replier);
         } else {
           replySystem(replier, "게임 대기가 취소된다.");
           delete games[room];
@@ -14859,7 +14865,7 @@ Alt-F4 콤보를 준비합니다.`;
             var winTeamIndex = winnerIndex % 2;
             var loserTeamIndex = (winTeamIndex + 1) % 2;
             var remain = (g.teamLives && typeof g.teamLives[loserTeamIndex] === "number" ? g.teamLives[loserTeamIndex] : 1) - 1;
-            if (remain > 0 && winType !== "기권") {
+            if (remain > 0) {
               endsNow = false;
               resetText = "ROUND_RESET:" + loserTeamIndex + ":" + remain + ":" + (winType || "");
             }
@@ -16335,7 +16341,15 @@ Alt-F4 콤보를 준비합니다.`;
         for (var i = 0; i < SEARCH_WORD_LIST.length; i++) if (reg.test(SEARCH_WORD_LIST[i])) res.push(SEARCH_WORD_LIST[i]);
         res = Array.from(new Set(res)).sort();
         var bucket = {"한방음절":[], "유도음절":[], "루트음절":[], "일반음절":[], "기타음절":[]};
-        for (var j = 0; j < res.length; j++) bucket[__ccClass(res[j])].push(res[j]);
+        for (var j = 0; j < res.length; j++) {
+          var word = res[j];
+          if (["붕어톱", "욕중관수욕", "쇄소건즐", "잎뽕"].indexOf(word) !== -1) {
+            bucket["유도음절"].push(word);
+            bucket["루트음절"].push(word);
+          } else {
+            bucket[__ccClass(word)].push(word);
+          }
+        }
         var result = [];
         if (bucket["한방음절"].length) result.push("\n\n< 한방음절 > [" + bucket["한방음절"].length + "개]\n" + filterArray(bucket["한방음절"]).join(", "));
         if (bucket["유도음절"].length) result.push("\n\n< 유도음절 > [" + bucket["유도음절"].length + "개]\n" + filterArray(bucket["유도음절"]).join(", "));
