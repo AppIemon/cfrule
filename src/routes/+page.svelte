@@ -116,6 +116,11 @@
   let poller;
   let socket;
   let historyEl = $state();
+  let wordInputEl = $state();
+  let jobInfo = $state({});
+  let showWordSearch = $state(false);
+  let inGameQuery = $state('');
+  let inGameResults = $state([]);
 
   let showMatchBanner = $state(false);
   let showPracticeBar = $state(false);
@@ -215,6 +220,12 @@
 
   $effect(() => {
     if (!isBanPhase && selectedBans.length) selectedBans = [];
+  });
+
+  $effect(() => {
+    if (browser) {
+      fetch('/api/job-info').then(r => r.json()).then(d => { jobInfo = d; }).catch(() => {});
+    }
   });
 
   async function request(path, options = {}) {
@@ -337,6 +348,8 @@
       await send(`0${text}`);
     } finally {
       cpuThinking = false;
+      await tick();
+      wordInputEl?.focus();
     }
   }
 
@@ -397,6 +410,12 @@
     const data = await request(`/api/search?q=${encodeURIComponent(searchText)}`);
     searchResults = data.results || [];
     searchTotal = data.total || 0;
+  }
+
+  async function searchInGame() {
+    if (!inGameQuery.trim()) return;
+    const data = await fetch(`/api/search?q=${encodeURIComponent(inGameQuery)}`).then(r => r.json()).catch(() => ({}));
+    inGameResults = data.results || [];
   }
 
   async function loadRanking() {
@@ -711,6 +730,9 @@
               {:else if selectedJob === job}
                 <span class="jc-check">✓</span>
               {/if}
+              {#if jobInfo[job]}
+                <div class="job-tooltip"><pre class="job-tooltip-text">{jobInfo[job]}</pre></div>
+              {/if}
             </button>
           {/each}
         </div>
@@ -756,7 +778,35 @@
             <span class="syl-player-label">현재 차례</span>
             <span class="syl-player-name" class:syl-myturn={canPlay}>{currentPlayer || '—'}</span>
           </div>
+          <button class="syl-search-btn" class:wsf-active={showWordSearch} onclick={() => (showWordSearch = !showWordSearch)} title="단어 검색">
+            <Search size={15} />
+          </button>
         </div>
+
+        <!-- Floating word search panel -->
+        {#if showWordSearch}
+          <div class="word-search-float">
+            <div class="wsf-header">
+              <span>단어 검색</span>
+              <button class="wsf-close" onclick={() => (showWordSearch = false)}>✕</button>
+            </div>
+            <form class="wsf-form" onsubmit={(e) => { e.preventDefault(); searchInGame(); }}>
+              <input class="wsf-input" bind:value={inGameQuery} placeholder="기* · *차 · 기차" autocomplete="off" />
+              <button class="wsf-submit" type="submit"><Search size={13} /></button>
+            </form>
+            <div class="wsf-results">
+              {#each inGameResults.slice(0, 40) as r}
+                <button class="wsf-item" onclick={() => { word = r.word; showWordSearch = false; tick().then(() => wordInputEl?.focus()); }}>
+                  <span class="wsf-word">{r.word}</span>
+                  <span class="wsf-kind wsf-k-{r.kind}">{r.kind}</span>
+                </button>
+              {/each}
+              {#if !inGameResults.length && inGameQuery}
+                <div class="wsf-empty">결과 없음</div>
+              {/if}
+            </div>
+          </div>
+        {/if}
 
         <!-- Three-column game layout -->
         <div class="game-columns">
@@ -912,6 +962,7 @@
           <form class="input-zone" class:input-active={canPlay} onsubmit={sendWord}>
             <input
               class="word-input"
+              bind:this={wordInputEl}
               bind:value={word}
               placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
               disabled={!canPlay || busy}
@@ -2850,5 +2901,151 @@
     .ability-bar { grid-template-columns: 1fr; }
     .ability-grid { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
     .ab-btn { flex: 0 0 auto; }
+    .word-search-float { width: calc(100vw - 32px); right: 16px; left: 16px; }
   }
+
+  /* ─── Job Tooltip ─── */
+  .job-card { position: relative; }
+  .job-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    width: 320px;
+    max-height: 340px;
+    overflow-y: auto;
+    background: #1a1a2e;
+    border: 1px solid #3a3a5c;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 32px #0008;
+    pointer-events: none;
+  }
+  .job-tooltip-text {
+    font-family: inherit;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #ccd6f6;
+    white-space: pre-wrap;
+    margin: 0;
+  }
+  .job-card:hover .job-tooltip { display: block; }
+
+  /* ─── Floating word search ─── */
+  .syl-search-btn {
+    background: none;
+    border: 1px solid #3a3a5c;
+    border-radius: 7px;
+    color: #8892b0;
+    padding: 5px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .syl-search-btn:hover, .syl-search-btn.wsf-active {
+    background: #2a2a4a;
+    color: #ccd6f6;
+    border-color: #6272a4;
+  }
+  .word-search-float {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 300px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    background: #13131f;
+    border: 1px solid #3a3a5c;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px #0009;
+    z-index: 150;
+    overflow: hidden;
+  }
+  .wsf-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid #2a2a4a;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ccd6f6;
+  }
+  .wsf-close {
+    background: none;
+    border: none;
+    color: #8892b0;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .wsf-close:hover { background: #2a2a4a; color: #ccd6f6; }
+  .wsf-form {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a2a4a;
+  }
+  .wsf-input {
+    flex: 1;
+    background: #1e1e35;
+    border: 1px solid #3a3a5c;
+    border-radius: 6px;
+    color: #ccd6f6;
+    font-size: 13px;
+    padding: 6px 10px;
+    outline: none;
+  }
+  .wsf-input:focus { border-color: #6272a4; }
+  .wsf-submit {
+    background: #2a2a5a;
+    border: 1px solid #6272a4;
+    border-radius: 6px;
+    color: #ccd6f6;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+  }
+  .wsf-submit:hover { background: #3a3a7a; }
+  .wsf-results {
+    overflow-y: auto;
+    flex: 1;
+    padding: 6px 0;
+  }
+  .wsf-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: none;
+    border: none;
+    color: #ccd6f6;
+    cursor: pointer;
+    padding: 6px 14px;
+    font-size: 13px;
+    text-align: left;
+    gap: 8px;
+  }
+  .wsf-item:hover { background: #2a2a4a; }
+  .wsf-word { flex: 1; font-weight: 500; }
+  .wsf-kind {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .wsf-k-한방 { background: #4a1c1c; color: #ff9999; }
+  .wsf-k-유도 { background: #1c3a1c; color: #88dd88; }
+  .wsf-k-루트 { background: #1c2a4a; color: #88aaff; }
+  .wsf-k-일반 { background: #2a2a3a; color: #8892b0; }
+  .wsf-empty { color: #8892b0; font-size: 12px; text-align: center; padding: 16px; }
 </style>

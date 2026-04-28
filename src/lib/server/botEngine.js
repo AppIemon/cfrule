@@ -48,9 +48,10 @@ function createContext() {
         return readJsonFile(resolveBotDataPath(inputPath), null);
       },
       writeJson(inputPath, value) {
-        writeJsonFile(resolveBotDataPath(inputPath), value);
         if (isRatingJsonPath(inputPath)) {
           syncRatingsToMongo(value);
+        } else {
+          writeJsonFile(resolveBotDataPath(inputPath), value);
         }
       }
     },
@@ -103,7 +104,22 @@ function bootSync() {
 }
 
 export async function getBotEngine() {
-  if (!enginePromise) enginePromise = Promise.resolve().then(() => bootSync());
+  if (!enginePromise) {
+    enginePromise = (async () => {
+      const engine = bootSync();
+      try {
+        const { loadRatings } = await import('./db.js');
+        const dbRatings = await loadRatings();
+        if (dbRatings && Object.keys(dbRatings).length > 0) {
+          const players = getTierPlayers(engine.context);
+          Object.assign(players, dbRatings);
+        }
+      } catch (err) {
+        console.warn('[botEngine] DB 레이팅 로드 실패:', err?.message);
+      }
+      return engine;
+    })();
+  }
   return enginePromise;
 }
 
@@ -316,6 +332,11 @@ export async function dispatchBotMessage(room, msg, sender) {
   syncRatingsToMongo(getTierPlayers(context));
   await flushRatingSyncs();
   return replies;
+}
+
+export async function botJobInfo() {
+  const bot = await getBotEngine();
+  return bot.context.__Bot?.scope?.JOB_INFO || {};
 }
 
 export async function botBootStatus() {
