@@ -330,7 +330,7 @@
   async function sendWord(event) {
     event?.preventDefault?.();
     const text = word.trim();
-    if (!text || !canPlay) return;
+    if (!text || !canPlay || busy) return;
     word = '';
     cpuThinking = true;
     try {
@@ -807,7 +807,11 @@
                   <span class="think-dot"></span>
                   <span class="think-dot"></span>
                   <span class="think-dot"></span>
-                  <span class="think-label">컴퓨터가 생각 중입니다...</span>
+                  <span class="think-label">
+                    {game?.isPractice && currentPlayer?.startsWith('채린컴퓨터') 
+                      ? '컴퓨터가 생각 중입니다...' 
+                      : '단어 처리 중...'}
+                  </span>
                 </div>
               {/if}
             </div>
@@ -909,11 +913,11 @@
             <input
               class="word-input"
               bind:value={word}
-              placeholder={canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
-              disabled={!canPlay}
+              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
+              disabled={!canPlay || busy}
               autocomplete="off"
             />
-            <button class="send-btn" class:send-ready={canPlay && word.trim()} type="submit" disabled={!canPlay || !word.trim()}>
+            <button class="send-btn" class:send-ready={canPlay && word.trim() && !busy} type="submit" disabled={!canPlay || !word.trim() || busy}>
               <Send size={17} />
             </button>
           </form>
