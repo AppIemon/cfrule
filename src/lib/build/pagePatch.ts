@@ -113,7 +113,7 @@ export function patchPageSvelte(code: string): string {
       `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
   function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
   function getJobInfo(job) { return JOB_INFO[job] || ((ACTIVE_BY_JOB[job] || []).length ? '능력: ' + ACTIVE_BY_JOB[job].join(', ') : '직업 정보 없음'); }
-  function jobTooltip(job) { return job + '\n' + getJobInfo(job) + '\n능력: ' + ((ACTIVE_BY_JOB[job] || []).join(', ') || '없음'); }
+  function jobTooltip(job) { return job + '\\n' + getJobInfo(job) + '\\n능력: ' + ((ACTIVE_BY_JOB[job] || []).join(', ') || '없음'); }
   const stateKeyLabels = {
     no_all_batchim_turns: '올받침 금지 남은 턴',
     no_hanbang_turns: '한방 금지 남은 턴',
