@@ -818,14 +818,18 @@
           <aside class="col-players">
             <div class="col-label">PLAYERS</div>
             {#each game.players || [] as player, index}
+              {@const playerJob = game.playerStates?.[player]?.job || ''}
               <div class="player-card" class:player-active={player === currentPlayer}>
                 <div class="player-avatar" class:avatar-active={player === currentPlayer}>
-                  {jobInitial(player)}
+                  {#if playerJob}
+                    <img src={jobImageSrc(playerJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                  {/if}
+                  <span>{jobInitial(playerJob || player)}</span>
                 </div>
                 <div class="player-body">
                   <div class="player-name">{player}</div>
                   <div class="player-job">
-                    {game.playerStates?.[player]?.job || '미선택'}
+                    {playerJob || '미선택'}
                   </div>
                   {#if visibleEffects(game.playerStates?.[player]).length}
                     <div class="effect-list">
@@ -944,7 +948,7 @@
               <input
                 class="ability-target"
                 bind:value={ability}
-                placeholder="능력 대상"
+                placeholder="대상/단어가 필요한 능력에만 입력"
                 disabled={!canPlay}
               />
               <div class="ability-grid">
@@ -2081,6 +2085,22 @@
     flex-shrink: 0;
     color: var(--text2);
     transition: background .2s, border-color .2s, color .2s;
+    overflow: hidden;
+    position: relative;
+  }
+  .player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .player-avatar img:not([hidden]) + span { display: none; }
+  .player-avatar span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
   }
   .player-avatar.avatar-active {
     background: var(--accent);
@@ -2178,41 +2198,50 @@
   /* Input zone */
   .bottom-composer {
     border-top: 1px solid var(--border);
-    background: rgba(255,255,255,.96);
-    backdrop-filter: blur(14px);
-    padding: 12px 16px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.98));
+    backdrop-filter: blur(18px);
+    padding: 14px 18px 16px;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     z-index: 40;
-    box-shadow: 0 -14px 36px rgba(15,23,42,.06);
+    box-shadow: 0 -18px 44px rgba(15,23,42,.08);
   }
   .bottom-composer.composer-active {
     border-top-color: rgba(37,99,235,.25);
   }
   .input-zone {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     transition: opacity .2s;
     width: 100%;
     max-width: 980px;
     margin: 0 auto;
+    padding: 6px;
+    border: 1px solid rgba(37,99,235,.14);
+    border-radius: calc(var(--radius) + 8px);
+    background: rgba(255,255,255,.84);
+    box-shadow: 0 12px 28px rgba(15,23,42,.06);
   }
   .word-input {
     flex: 1;
-    height: 50px;
+    height: 54px;
     font-size: 16px;
     font-weight: 700;
-    border-radius: var(--radius);
+    border-radius: calc(var(--radius) + 2px);
+    border: 1px solid transparent;
+    background: transparent;
     transition: border-color .18s, box-shadow .18s;
   }
   .input-zone.input-active .word-input {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+    border-color: rgba(37,99,235,.35);
+    background: rgba(239,246,255,.72);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
   }
   .send-btn {
-    width: 50px; height: 50px;
-    border-radius: var(--radius);
+    width: 54px; height: 54px;
+    border-radius: calc(var(--radius) + 2px);
     background: var(--bg3);
     border: 1px solid var(--border2);
     display: flex; align-items: center; justify-content: center;
@@ -2234,12 +2263,16 @@
     max-width: 980px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+    grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
     align-items: start;
-    gap: 8px;
+    gap: 10px;
+    padding: 8px;
+    border-radius: calc(var(--radius) + 8px);
+    background: rgba(15,23,42,.035);
+    border: 1px solid rgba(37,99,235,.10);
     animation: fadeUp .3s ease both;
   }
-  .ability-target { height: 38px; font-size: 13px; border-radius: var(--radius-sm); }
+  .ability-target { height: 40px; font-size: 13px; border-radius: var(--radius-sm); background: rgba(255,255,255,.9); }
   .ability-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .ab-btn {
     height: 38px;
