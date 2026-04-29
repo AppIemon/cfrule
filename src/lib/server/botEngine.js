@@ -124,7 +124,8 @@ export async function getBotEngine() {
     enginePromise = (async () => {
       let dbRatings = {};
       try {
-        const { loadRatings } = await import('./db.js');
+        const { ensureIndexes, loadRatings } = await import('./db.js');
+        await ensureIndexes();
         dbRatings = await loadRatings();
       } catch (err) {
         console.warn('[botEngine] DB 레이팅 로드 실패:', err?.message);

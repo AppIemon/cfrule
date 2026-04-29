@@ -175,6 +175,7 @@ Bot.scope = {
   getSelectableJobs: undefined,
   getMaxBanCount: undefined,
   getPlayerTeamIndex: undefined,
+  isPlayersTeamTurn: undefined,
   getSelectedEnemyJobs: undefined,
   getSelectedAllyJobs: undefined,
   scoreRecommendedJob: undefined,
@@ -4044,7 +4045,22 @@ with (Bot.scope) {
   getPlayerTeamIndex = function getPlayerTeamIndex(game, player) {
     let __botResult = function () {
       if (!game || !game.players) return -1;
-      return game.players.indexOf(player) % 2;
+      let idx = game.players.indexOf(player);
+      if (idx < 0) return -1;
+      return game.teamMode > 1 ? idx % 2 : idx;
+    }.call(this);
+    if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
+    return __botResult;
+  };
+  isPlayersTeamTurn = function isPlayersTeamTurn(game, player) {
+    let __botResult = function () {
+      if (!game || !game.players || game.currentTurnIndex === -1) return true;
+      let currentPlayer = game.players[game.currentTurnIndex];
+      if (player === currentPlayer) return true;
+      if (game.teamMode <= 1) return false;
+      let playerTeam = getPlayerTeamIndex(game, player);
+      let currentTeam = getPlayerTeamIndex(game, currentPlayer);
+      return playerTeam !== -1 && playerTeam === currentTeam;
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -4065,7 +4081,7 @@ with (Bot.scope) {
         }, function () {
           let name = game.players[i];
           if (name === player) return Bot.functions.control("continue");
-          if (i % 2 === teamIndex) return Bot.functions.control("continue");
+          if (getPlayerTeamIndex(game, name) === teamIndex) return Bot.functions.control("continue");
           if (game.playerStates[name] && game.playerStates[name].job) out.push(game.playerStates[name].job);
         });
         if (__botLoop55) return __botLoop55;
@@ -4091,7 +4107,7 @@ with (Bot.scope) {
         }, function () {
           let name = game.players[i];
           if (name === player) return Bot.functions.control("continue");
-          if (i % 2 !== teamIndex) return Bot.functions.control("continue");
+          if (getPlayerTeamIndex(game, name) !== teamIndex) return Bot.functions.control("continue");
           if (game.playerStates[name] && game.playerStates[name].job) out.push(game.playerStates[name].job);
         });
         if (__botLoop56) return __botLoop56;
@@ -4183,6 +4199,22 @@ with (Bot.scope) {
       if (!game || !game.isPractice) return;
       let preferredJob = game.practiceCpuJobArg ? normalizeJobName(game.practiceCpuJobArg) : null;
       let bannedJobs = game.bannedJobs || [];
+      let alreadyPicked = {};
+      {
+        let pickedNames = Object.keys(game.playerStates || {});
+        let pi;
+        let __botLoop60p = Bot.functions.forLoop(function () {
+          pi = 0;
+        }, function () {
+          return pi < pickedNames.length;
+        }, function () {
+          pi++;
+        }, function () {
+          let pickedState = game.playerStates[pickedNames[pi]];
+          if (pickedState && pickedState.job) alreadyPicked[pickedState.job] = true;
+        });
+        if (__botLoop60p) return __botLoop60p;
+      }
       {
         let i;
         let __botLoop60 = Bot.functions.forLoop(function () {
@@ -4197,16 +4229,27 @@ with (Bot.scope) {
           if (game.playerStates[player]) return Bot.functions.control("continue");
           let selectableJobs = ALL_JOBS.filter(function (job) {
             let __botResult = function () {
-              return bannedJobs.indexOf(job) === -1;
+              return bannedJobs.indexOf(job) === -1 && !alreadyPicked[job];
             }.call(this);
             if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
             return __botResult;
           });
+          if (selectableJobs.length === 0) {
+            selectableJobs = ALL_JOBS.filter(function (job) {
+              let __botResult = function () {
+                return bannedJobs.indexOf(job) === -1;
+              }.call(this);
+              if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
+              return __botResult;
+            });
+          }
           if (selectableJobs.length === 0) selectableJobs = ALL_JOBS.slice();
-          let cpuJob = chooseRecommendedJobForPlayer(game, player, selectableJobs, preferredJob);
+          let cpuPreferredJob = preferredJob && !alreadyPicked[preferredJob] ? preferredJob : null;
+          let cpuJob = chooseRecommendedJobForPlayer(game, player, selectableJobs, cpuPreferredJob);
           if (!cpuJob) cpuJob = selectableJobs[Math.floor(Math.random() * selectableJobs.length)];
+          alreadyPicked[cpuJob] = true;
           game.playerStates[player] = initJobState(cpuJob);
-          let teamIndex = i % 2;
+          let teamIndex = getPlayerTeamIndex(game, player);
           if (game.teamStates && game.teamStates[teamIndex]) attachTeamState(game.playerStates[player], game.teamStates[teamIndex]);
         });
         if (__botLoop60) return __botLoop60;
@@ -4268,8 +4311,9 @@ with (Bot.scope) {
           }, function () {
             let player = game.players[i];
             if (isCpuPlayerName(player)) hasCpuPlayer = true;
-            teams[i % 2].players.push(player);
-            teams[i % 2].jobs.push(game.playerStates[player] ? game.playerStates[player].job : null);
+            let teamIndex = getPlayerTeamIndex(game, player);
+            teams[teamIndex].players.push(player);
+            teams[teamIndex].jobs.push(game.playerStates[player] ? game.playerStates[player].job : null);
           });
           if (__botLoop61a) return __botLoop61a;
         }
@@ -4312,7 +4356,7 @@ with (Bot.scope) {
         return true;
       }
       game.playerStates[sender] = initJobState(job);
-      let tIndex = game.players.indexOf(sender) % 2;
+      let tIndex = getPlayerTeamIndex(game, sender);
       if (game.teamStates && game.teamStates[tIndex]) attachTeamState(game.playerStates[sender], game.teamStates[tIndex]);
       let pickedText = pickedByRandom ? "로 랜덤 선택됐다." : "로 선택됐다.";
       if (!game.firstPicker) {
@@ -8099,8 +8143,8 @@ with (Bot.scope) {
           replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
           return;
         }
-        if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-          replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+        if (!isPlayersTeamTurn(game, sender)) {
+          replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
           return;
         }
         if (isMapAbilityBlocked(game)) {
@@ -8676,8 +8720,8 @@ with (Bot.scope) {
           }
         } else if (state.job === "스핔이" && !isAbilityDisabled) {
           if (ability === "물걸레질") {
-            if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-              replier.reply("자기 차례에만 사용할 수 있습니다.");
+            if (!isPlayersTeamTurn(game, sender)) {
+              replier.reply("자기 팀 차례에만 사용할 수 있습니다.");
               return;
             }
             if (state.speaki_clean_uses >= 3) {
@@ -8695,8 +8739,8 @@ with (Bot.scope) {
             if (trySpeakiPassiveWin(room, sender, state, replier)) return;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "물걸레질", "단어를 말끔히 닦는다.") + " 이번 차례에 사용된 단어를 다시 사용할 수 있고 현재 턴 수가 " + game.turnCount + "이 된다.");
           } else if (ability === "호박") {
-            if (game.currentTurnIndex === -1 || sender !== game.players[game.currentTurnIndex]) {
-              replier.reply("호박은 자기 차례에만 사용할 수 있습니다.");
+            if (game.currentTurnIndex === -1 || !isPlayersTeamTurn(game, sender)) {
+              replier.reply("호박은 자기 팀 차례에만 사용할 수 있습니다.");
               return;
             }
             if (game.history.length === 0) {
@@ -9008,8 +9052,8 @@ with (Bot.scope) {
               replier.reply("깨부수기는 이미 사용했습니다.");
               return;
             }
-            if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-              replier.reply("깨부수기는 자기 차례에만 사용할 수 있습니다.");
+            if (!isPlayersTeamTurn(game, sender)) {
+              replier.reply("깨부수기는 자기 팀 차례에만 사용할 수 있습니다.");
               return;
             }
             if (game.history.length === 0) {
@@ -13998,8 +14042,8 @@ Alt-F4 콤보를 준비합니다.`;
                   replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
                   return;
                 }
-                if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-                  replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+                if (!isPlayersTeamTurn(game, sender)) {
+                  replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
                   return;
                 }
                 if (isMapAbilityBlocked(game)) {
@@ -15417,8 +15461,8 @@ Alt-F4 콤보를 준비합니다.`;
                   replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
                   return;
                 }
-                if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-                  replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+                if (!isPlayersTeamTurn(game, sender)) {
+                  replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
                   return;
                 }
                 if (isMapAbilityBlocked(game)) {
@@ -15521,6 +15565,13 @@ Alt-F4 콤보를 준비합니다.`;
         if (!game || !game.players) return -1;
         var idx = game.players.indexOf(sender);
         if (idx < 0 || game.players.length === 0) return -1;
+        if (game.teamMode > 1) {
+          var myTeam = getPlayerTeamIndex(game, sender);
+          for (var ti = 1; ti <= game.players.length; ti++) {
+            var oi = (idx + ti) % game.players.length;
+            if (getPlayerTeamIndex(game, game.players[oi]) !== myTeam) return oi;
+          }
+        }
         return (idx + 1) % game.players.length;
       }
       function __deepOppState(game, sender) {
@@ -15538,8 +15589,8 @@ Alt-F4 콤보를 준비합니다.`;
           replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
           return false;
         }
-        if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-          replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+        if (!isPlayersTeamTurn(game, sender)) {
+          replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
           return false;
         }
         if (isMapAbilityBlocked(game)) {

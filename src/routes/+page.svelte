@@ -245,9 +245,17 @@
   const currentPlayer = $derived(game?.currentPlayer || '');
   const nextSyllable = $derived(formatSyllable(game));
   const canPlay = $derived(game?.phase === 'playing' && (!currentPlayer || currentPlayer === nickname));
+  const myTeamIndex = $derived(game?.players?.indexOf(nickname) ?? -1);
+  const currentTeamIndex = $derived(game?.players?.indexOf(currentPlayer) ?? -1);
+  const canUseAbility = $derived(
+    game?.phase === 'playing' &&
+    myState &&
+    (canPlay || (game?.teamMode > 1 && myTeamIndex >= 0 && currentTeamIndex >= 0 && myTeamIndex % 2 === currentTeamIndex % 2))
+  );
   const log = $derived(snapshot?.log || []);
   const notices = $derived(log.filter((item) => item.type === 'system' && !isGuiOnlyNotice(item.text)).slice(-4).reverse());
   const abilityButtons = $derived(ACTIVE_BY_JOB[myState?.job] || []);
+  const myAbilityStatuses = $derived(getPlayerAbilitiesStatus(myState?.job, myState));
   const cpuThinkLog = $derived(
     log.filter(item => item.type === 'system' && (
       item.text?.includes('생각 중이다') ||
@@ -806,6 +814,7 @@
   }
 
   async function sendAbilityWithTarget(name, target = '') {
+    if (!canUseAbility || busy) return;
     const cmd = `2${name}${target ? ` ${target}` : ''}`;
     await send(cmd);
     ability = '';
@@ -1535,7 +1544,7 @@
               </div>
               <div class="guide-row">
                 <span>모드</span>
-                <strong>{game.mode}대{game.mode} {game.isPractice ? '(연습)' : ''}</strong>
+                <strong>{game.teamMode || 1}대{game.teamMode || 1} {game.isPractice ? '(연습)' : ''}</strong>
               </div>
             </div>
           </aside>
@@ -1546,17 +1555,19 @@
             <div class="ability-bar">
               <div class="ability-grid">
                 {#each abilityButtons as ab, ai}
-                  {@const abStatus = Object.entries(STATUS_LABELS).find(([k]) => k.includes(ab) && myState?.[k] !== undefined)}
+                  {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
                   <button
                     class="ab-btn"
+                    class:ab-not-ready={abStatus && !abStatus.isReady}
                     style="--ai:{ai}"
                     onclick={() => useAbility(ab)}
-                    disabled={!canPlay}
+                    disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
+                    title={abStatus?.text || '준비됨'}
                   >
                     <Sparkles size={13} />
                     <span class="ab-name">{ab}</span>
-                    {#if abStatus && myState[abStatus[0]] !== 0}
-                      <span class="ab-status-val">{myState[abStatus[0]]}</span>
+                    {#if abStatus}
+                      <span class="ab-status-val">{abStatus.text}</span>
                     {/if}
                   </button>
                 {/each}
@@ -3205,6 +3216,10 @@
     background: rgba(99,102,241,.1);
     box-shadow: 0 4px 14px rgba(99,102,241,.2);
   }
+  .ab-btn.ab-not-ready {
+    color: var(--text3);
+    background: rgba(148,163,184,.1);
+  }
   .ab-btn::after {
     content: '';
     position: absolute;
@@ -4182,7 +4197,7 @@
   .mjs-value { display: block; font-size: 13px; font-weight: 800; color: #1e293b; }
 
   .ab-btn { position: relative; overflow: visible; }
-  .ab-status-val { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4); border: 2px solid #fff; z-index: 2; }
+  .ab-status-val { position: absolute; top: -7px; right: -7px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; min-width: 18px; max-width: 72px; height: 18px; padding: 0 5px; border-radius: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4); border: 2px solid #fff; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .target-selector-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
   .target-card { background: var(--bg2); border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); overflow: hidden; animation: targetPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }

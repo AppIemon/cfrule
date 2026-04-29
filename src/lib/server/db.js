@@ -13,8 +13,8 @@ function envValue(key, fallback = '') {
   return line ? line.slice(line.indexOf('=') + 1).trim() : fallback;
 }
 
-const uri = envValue('MONGODB_URI');
-const dbName = envValue('MONGODB_DB', 'charynn_rule');
+const uri = envValue('MONGODB_URI') || envValue('MONGO_URI') || envValue('DATABASE_URL');
+const dbName = envValue('MONGODB_DB') || envValue('MONGO_DB') || envValue('MONGODB_DATABASE') || 'charynn_rule';
 
 let clientPromise;
 
@@ -25,7 +25,10 @@ export function getMongoClient() {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000
     });
-    clientPromise = client.connect();
+    clientPromise = client.connect().catch((error) => {
+      clientPromise = null;
+      throw error;
+    });
   }
   return clientPromise;
 }
