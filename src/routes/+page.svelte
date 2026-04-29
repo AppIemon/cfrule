@@ -640,17 +640,29 @@
     startLiveUpdates();
   }
 
-  async function refresh() {
-    if (!room) return;
+  async function refresh(targetRoom = room) {
+    if (!targetRoom) return;
     try {
-      const res = await fetch(`/api/room?room=${encodeURIComponent(room)}`, { cache: 'no-store' });
-      if (res.ok) snapshot = await res.json();
+      const res = await fetch(`/api/room?room=${encodeURIComponent(targetRoom)}`, { cache: 'no-store' });
+      if (!res.ok || targetRoom !== room) return;
+      snapshot = await res.json();
     } catch {}
   }
 
   function startPolling() {
     clearInterval(poller);
+    refresh();
     poller = setInterval(refresh, 1200);
+  }
+
+  async function openExistingRoom(targetRoom) {
+    if (!targetRoom) return;
+    room = targetRoom;
+    hasMatched = false;
+    snapshot = null;
+    await refresh(targetRoom);
+    hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
+    startLiveUpdates();
   }
 
   let wsRetryDelay = 1000;
@@ -658,13 +670,25 @@
   function startLiveUpdates() {
     clearInterval(poller);
     clearTimeout(wsRetryTimer);
-    if (socket) { try { socket.close(); } catch {} }
+    if (socket) {
+      try {
+        socket.onclose = null;
+        socket.close();
+      } catch {}
+    }
+    startPolling();
     if (browser && room) {
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
       try {
         socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}&nickname=${encodeURIComponent(nickname)}`);
         socket.onopen = () => { wsRetryDelay = 1000; };
-        socket.onmessage = (event) => { try { snapshot = JSON.parse(event.data); } catch {} };
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data?.room && data.room !== room) return;
+            snapshot = data;
+          } catch {}
+        };
         socket.onerror = () => {};
         socket.onclose = () => {
           if (!room) return;
@@ -1088,7 +1112,7 @@
                   <div class="ongoing-title">진행 중인 게임</div>
                   <div class="ongoing-list">
                     {#each ongoingGames as g}
-                      <button class="ongoing-card" onclick={() => { room = g.room; startLiveUpdates(); }}>
+                      <button class="ongoing-card" onclick={() => openExistingRoom(g.room)}>
                         <div class="og-room">{g.room}</div>
                         <div class="og-meta">
                           {g.phase === 'playing' ? `${g.turnCount}턴 · ${g.currentPlayer} 차례` : '준비 중'}
