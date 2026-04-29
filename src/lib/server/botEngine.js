@@ -91,7 +91,6 @@ function createContext(initialRatings = {}) {
     },
     Packages: {}
   };
-  sandbox.globalThis = sandbox;
   return vm.createContext(sandbox);
 }
 
@@ -107,7 +106,9 @@ function bootSync(initialRatings = {}) {
   const source = (bundledBotSource || readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8'))
     .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
   const context = createContext(initialRatings);
-  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  const result = vm.runInContext(`${source}\n; ({ Bot, response })`, context, { filename: 'bot.js' });
+  context.__Bot = result.Bot;
+  context.__response = result.response;
   installCpuStrategyPatch(context);
 
   const response = context.__response;

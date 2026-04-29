@@ -104,7 +104,7 @@ export function patchPageSvelte(code: string): string {
   );
 
   if (!code.includes('const targetRoom = room;')) {
-    console.warn('[pagePatch] \u26a0 refresh() \ud328\uce58\uac00 \uc801\uc6a9\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4. +page.svelte\uc758 refresh \ud568\uc218 \uc2dc\uadf8\ub2c8\ucc98\uac00 \ubcc0\uacbd\ub418\uc5c8\uc744 \uc218 \uc788\uc2b5\ub2c8\ub2e4.');
+    throw new Error('[pagePatch] \u26a0 refresh() \ud328\uce58\uac00 \uc801\uc6a9\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4. +page.svelte\uc758 refresh \ud568\uc218 \uc2dc\uadf8\ub2c8\ucc98\uac00 \ubcc0\uacbd\ub418\uc5c8\uc744 \uc218 \uc788\uc2b5\ub2c8\ub2e4.');
   }
 
   if (!code.includes("function abilityRequiresTarget")) {
@@ -224,7 +224,7 @@ export function patchPageSvelte(code: string): string {
   );
 
   if (!code.includes('holdPlayingSnapshot = true;')) {
-    console.warn('[pagePatch] \u26a0 cpuThinking \ud328\uce58\uac00 \uc801\uc6a9\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4. +page.svelte\uc758 sendWord \ud568\uc218\uac00 \ubcc0\uacbd\ub418\uc5c8\uc744 \uc218 \uc788\uc2b5\ub2c8\ub2e4.');
+    throw new Error('[pagePatch] \u26a0 cpuThinking \ud328\uce58\uac00 \uc801\uc6a9\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4. +page.svelte\uc758 sendWord \ud568\uc218\uac00 \ubcc0\uacbd\ub418\uc5c8\uc744 \uc218 \uc788\uc2b5\ub2c8\ub2e4.');
   }
   if (false) code = code.replace(/생각 과정 보기/g, '');
   if (false) code = code.replace(/<details class="think-log-panel">[\s\S]*?<\/details>/, '');
@@ -281,7 +281,7 @@ export function patchPageSvelte(code: string): string {
   const _requiredTokens = ['selectedAbility', 'floatingSearchOpen', 'JOB_INFO', 'rankLoading', 'rawGame', 'abilityRequiresTarget', 'rank-slim-panel'];
   for (const _tok of _requiredTokens) {
     if (!code.includes(_tok)) {
-      console.warn(`[pagePatch] \u26a0 \ud544\uc218 \ud328\uce58 \ub204\ub77d: '${_tok}'\uc774(\uac00) \ucf54\ub4dc\uc5d0 \uc5c6\uc2b5\ub2c8\ub2e4.`);
+      throw new Error(`[pagePatch] \u26a0 \ud544\uc218 \ud328\uce58 \ub204\ub77d: '${_tok}'\uc774(\uac00) \ucf54\ub4dc\uc5d0 \uc5c6\uc2b5\ub2c8\ub2e4.`);
     }
   }
 
