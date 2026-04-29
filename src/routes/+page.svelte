@@ -101,18 +101,11 @@
   let rankJob = $state('');
   let matchResult = $state(null);
   let matchResultTimer;
-  let analysisJobA = $state('해커');
-  let analysisJobB = $state('사과');
-  let analysisSyllable = $state('');
-  let analysisSituation = $state('');
-  let analysis = $state(null);
-  let analysisMode = $state('syllable');
-  let batchAnalysis = $state(null);
-  let analysisBusy = $state(false);
   let tab = $state('game');
   let busy = $state(false);
   let cpuThinking = $state(false);
   let error = $state('');
+  let hasMatched = $state(false);
   let poller;
   let socket;
   let historyEl = $state();
@@ -520,6 +513,7 @@
 
   $effect(() => {
     const phase = game?.phase ?? '';
+    if (phase && phase !== 'waiting') hasMatched = true;
     if (!practice && prevPhase === 'waiting' && phase && phase !== 'waiting') {
       showMatchBanner = true;
       clearTimeout(matchBannerTimer);
@@ -608,6 +602,7 @@
     nickname = '';
     room = '';
     snapshot = null;
+    hasMatched = false;
   }
 
   async function create() {
@@ -623,6 +618,7 @@
     });
     room = data.room;
     snapshot = data;
+    hasMatched = !!data.game && data.game.phase !== 'waiting';
     startLiveUpdates();
   }
 
@@ -640,6 +636,7 @@
     });
     room = data.room;
     snapshot = data;
+    hasMatched = !!data.game && data.game.phase !== 'waiting';
     startLiveUpdates();
   }
 
@@ -843,35 +840,6 @@
     searchWords();
   }
 
-  async function runAnalysis() {
-    analysisBusy = true;
-    analysis = null;
-    batchAnalysis = null;
-    try {
-      analysis = await request('/api/analysis', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          attackerJob: analysisJobA, defenderJob: analysisJobB,
-          syllable: analysisSyllable, situation: analysisSituation
-        })
-      });
-    } finally { analysisBusy = false; }
-  }
-
-  async function runBatchAnalysis(type) {
-    analysisBusy = true;
-    analysis = null;
-    batchAnalysis = null;
-    try {
-      batchAnalysis = await request('/api/analysis', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ attackerJob: analysisJobA, defenderJob: analysisJobB, type })
-      });
-    } finally { analysisBusy = false; }
-  }
-
   const filteredSearch = $derived(
     searchFilter === '전체' ? searchResults : searchResults.filter(r => r.kind === searchFilter)
   );
@@ -880,6 +848,7 @@
     showPracticeBar = false;
     room = '';
     snapshot = null;
+    hasMatched = false;
     practice = true;
     await create();
   }
@@ -1030,9 +999,6 @@
       <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
         <BarChart3 size={15} />랭킹
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'analysis'} onclick={() => (tab = 'analysis')}>
-        <Bot size={15} />분석
-      </button>
       <button class="nav-btn" class:nav-active={tab === 'settings'} onclick={() => (tab = 'settings')}>
         <Settings size={15} />설정
       </button>
@@ -1137,7 +1103,7 @@
         </div>
       </div>
 
-    {:else if !practice && (!game || game.phase === 'waiting')}
+    {:else if !practice && !hasMatched && (!game || game.phase === 'waiting')}
       <!-- ─── MATCHING ─── -->
       <div class="matching-screen">
         <div class="radar">
@@ -1176,7 +1142,16 @@
         {/if}
       </div>
 
-    {:else if !game || game.phase === 'waiting' || game.phase === 'job_selection'}
+    {:else if !game}
+      <div class="matching-screen compact-loading">
+        <div class="radar-core"><Swords size={28} /></div>
+        <h2 class="matching-label">게임 상태를 불러오고 있어요<span class="dots"></span></h2>
+        <div class="room-code-pill">
+          방 코드 <strong>{room}</strong>
+        </div>
+      </div>
+
+    {:else if game.phase === 'waiting' || game.phase === 'job_selection'}
       <!-- ─── JOB SELECTION ─── -->
       <div class="job-screen">
         <div class="job-screen-header">
@@ -1720,183 +1695,6 @@
       {/if}
     </div>
 
-  <!-- ══════════════════════ ANALYSIS TAB ══════════════════════ -->
-  {:else if tab === 'analysis'}
-    <div class="content-page">
-      <div class="job-pair-row">
-        <div class="jp-side atk">
-          <span class="jp-label">⚔ 공격</span>
-          <select class="jp-select" bind:value={analysisJobA}>
-            {#each Object.keys(ACTIVE_BY_JOB) as j}<option value={j}>{j}</option>{/each}
-          </select>
-        </div>
-        <div class="jp-vs">VS</div>
-        <div class="jp-side def">
-          <span class="jp-label">🛡 수비</span>
-          <select class="jp-select" bind:value={analysisJobB}>
-            {#each Object.keys(ACTIVE_BY_JOB) as j}<option value={j}>{j}</option>{/each}
-          </select>
-        </div>
-      </div>
-
-      <div class="mode-tabs">
-        {#each [['syllable','음절 분석'],['I','유도 전체'],['R','루트 전체'],['A','A급 전체'],['K','한방 전체']] as [m, label]}
-          <button class="mode-tab mt-{m}" class:mt-active={analysisMode === m} onclick={() => (analysisMode = m)}>{label}</button>
-        {/each}
-      </div>
-
-      {#if analysisMode === 'syllable'}
-        <div class="syl-form-row">
-          <input class="syl-inp" bind:value={analysisSyllable} maxlength="1" placeholder="음절" />
-          <button class="accent-btn" onclick={runAnalysis} disabled={analysisBusy}><Swords size={16} />분석</button>
-        </div>
-        <textarea class="situ-text" bind:value={analysisSituation} placeholder="공격: 해커&#10;수비: 사과&#10;음절: 기&#10;기보: 기차 차표"></textarea>
-      {:else}
-        <button class="accent-btn batch-run" onclick={() => runBatchAnalysis(analysisMode)} disabled={analysisBusy}>
-          <Swords size={16} />전체 분석 실행
-        </button>
-      {/if}
-
-      {#if analysisBusy}
-        <div class="analysis-spinner">
-          <div class="spin-ring"></div>분석 중...
-        </div>
-      {/if}
-
-      {#if analysis && analysisMode === 'syllable'}
-        {#if analysis.attackerForceSyllables?.length}
-          <div class="force-bar">
-            <span class="force-lbl">⚡ {analysis.attackerJob} 변환</span>
-            {#each analysis.attackerForceSyllables as fs}
-              <span class="force-chip">
-                <span class="fc-via">{fs.via}</span>→<strong class="fc-syl">{fs.syllable}</strong>
-                <span class="fc-cnt">{fs.wordCount}</span>
-                {#if fs.profile?.kill}<span class="fc-k">K{fs.profile.kill}</span>{/if}
-                {#if fs.profile?.yudo}<span class="fc-i">I{fs.profile.yudo}</span>{/if}
-              </span>
-            {/each}
-          </div>
-        {/if}
-        <div class="ability-info-row">
-          <div class="ai-side ai-atk">
-            <span class="ai-label">⚔ {analysis.attackerJob}</span>
-            <div class="ai-chips">
-              {#each analysis.attackerAbilities?.attack || [] as ab}<span class="ai-chip">{ab}</span>{/each}
-            </div>
-          </div>
-          <div class="ai-side ai-def">
-            <span class="ai-label">🛡 {analysis.defenderJob}</span>
-            <div class="ai-chips">
-              {#each analysis.defenderAbilities?.defense || [] as ab}<span class="ai-chip def">{ab}</span>{/each}
-            </div>
-          </div>
-        </div>
-        <div class="summary-grid">
-          {#each analysis.summary || [] as item}
-            <div class="sum-card" class:sc-win={item.counts?.이김 > 0} class:sc-danger={item.verdict?.includes('위험')}>
-              <div class="sc-syl">{item.syllable}</div>
-              <div class="sc-verdict">{item.verdict}</div>
-              {#if item.winIn}<div class="sc-win-badge">{item.winIn}턴</div>{/if}
-              <div class="sc-score">{item.score}pt</div>
-            </div>
-          {/each}
-        </div>
-        <div class="detail-grid">
-          {#each (analysis.syllables || []).slice(0, 6) as item}
-            <div class="detail-card">
-              <div class="dc-header">
-                <span class="dc-syl">{item.syllable}</span>
-                {#if item.profile?.dueumSyllable}
-                  <span class="dc-dueum">두음→{item.profile.dueumSyllable}(+{item.profile.dueumExtra})</span>
-                {/if}
-                <span class="dc-verdict">{item.verdict}</span>
-                {#if item.winIn}<span class="dc-win">{item.winIn}턴</span>{/if}
-              </div>
-              <div class="dc-counts">
-                {#each Object.entries(item.counts || {}) as [k, v]}
-                  {#if v > 0}<span class="cnt-chip cnt-{k.replace(/ /g,'_')}">{k} {v}</span>{/if}
-                {/each}
-              </div>
-              <div class="move-list">
-                {#each (item.best || []).slice(0, 8) as row}
-                  <div class="move-block">
-                    <div class="move-row">
-                      <span class="mv-word">{row.word}</span>
-                      <span class="mv-kind mk-{row.kind}">{row.kind}</span>
-                      <span class="mv-res mr-{row.result?.replace(/ /g,'_')}">{row.result}</span>
-                      <span class="mv-reply">↩{row.replyCount}</span>
-                      {#if row.winIn}<span class="mv-win">{row.winIn}턴</span>{/if}
-                    </div>
-                    <!-- 결과 원인 설명 -->
-                    {#if row.resultExplain}
-                      <div class="result-explain">💡 {row.resultExplain}</div>
-                    {/if}
-                    <!-- 상대가 이어야 할 음절 -->
-                    {#if row.replySyllables?.length}
-                      <div class="sub-row">
-                        <span class="sub-lbl">상대 응수:</span>
-                        {#each row.replySyllables as syl, si}
-                          <span class="rs-chip">{syl}
-                            ({row.replyProfiles?.[si]?.total ?? 0}개{row.replyProfiles?.[si]?.kill ? ` · K${row.replyProfiles[si].kill}` : ''}{row.replyProfiles?.[si]?.yudo ? ` · I${row.replyProfiles[si].yudo}` : ''})</span>
-                        {/each}
-                      </div>
-                    {/if}
-                    <!-- 수비자 능력 탈출 옵션 -->
-                    {#if row.defenderEscapes?.length}
-                      <div class="sub-row">
-                        <span class="sub-lbl esc-lbl">🛡 {analysis.defenderJob} 탈출:</span>
-                        {#each row.defenderEscapes as esc}
-                          <span class="esc-chip" class:esc-zero={esc.wordCount === 0}>
-                            {esc.via}→{esc.syllable}({esc.wordCount}개{esc.kill ? ` K${esc.kill}` : ''}{esc.yudo ? ` I${esc.yudo}` : ''})
-                          </span>
-                        {/each}
-                      </div>
-                    {/if}
-                    <!-- 공격자 보유 능력 -->
-                    {#if row.attackerAbilities?.length}
-                      <div class="sub-row">
-                        <span class="sub-lbl atk-lbl">⚔ {analysis.attackerJob}:</span>
-                        {#each row.attackerAbilities as ab}<span class="atk-chip">{ab}</span>{/each}
-                      </div>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-
-      {#if batchAnalysis && analysisMode !== 'syllable'}
-        <div class="batch-header">
-          <span class="bh-type">{batchAnalysis.type === 'I' ? '유도' : batchAnalysis.type === 'R' ? '루트' : batchAnalysis.type === 'A' ? 'A급' : '한방'}음절</span>
-          <span class="bh-count">총 {batchAnalysis.total}개</span>
-          <span class="bh-vs">{batchAnalysis.attackerJob} vs {batchAnalysis.defenderJob}</span>
-        </div>
-        <div class="batch-grid">
-          {#each (batchAnalysis.syllables || []).slice(0, 60) as item}
-            <div class="batch-card bc-w{item.winIn || 0}">
-              <div class="bc-top">
-                <span class="bc-syl">{item.syllable}</span>
-                {#if item.winIn}<span class="bc-win">{item.winIn}턴</span>{/if}
-              </div>
-              <div class="bc-verdict">{item.verdict}</div>
-              <div class="bc-score">{item.score}pt · {item.profile?.total || 0}개</div>
-              <div class="bc-moves">
-                {#each (item.best || []).slice(0, 3) as row}
-                  <div class="bc-move">
-                    <span class="mv-word">{row.word}</span>
-                    <span class="mv-kind mk-{row.kind}">{row.kind}</span>
-                    {#if row.winIn}<span class="mv-win">{row.winIn}턴</span>{/if}
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
-
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
   {:else if tab === 'rank'}
     <div class="content-page rank-page">
@@ -2171,10 +1969,10 @@
     --card-shadow: 0 2px 16px rgba(0,0,0,.3);
   }
 
-  button, input, select, textarea { font: inherit; color: inherit; }
+  button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; border: none; background: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   button:disabled { opacity: .4; cursor: default; }
-  input, select, textarea {
+  input, select {
     background: var(--bg3);
     border: 1.5px solid var(--border2);
     border-radius: var(--radius-sm);
@@ -2182,13 +1980,12 @@
     outline: none;
     transition: border-color .18s, box-shadow .18s, background .18s;
   }
-  input:focus, select:focus, textarea:focus {
+  input:focus, select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(59,130,246,.18);
     background: var(--bg2);
   }
   input, select { height: 42px; padding: 0 14px; font-size: 16px; }
-  textarea { padding: 12px 14px; resize: vertical; min-height: 90px; font-size: 16px; }
   select option { background: var(--bg2); color: var(--text); }
   .app { min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -3528,42 +3325,6 @@
   .wc-win.wc-urgent { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.3); color: var(--gold); }
   .wc-win.wc-lose { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); color: var(--red); }
 
-  /* Analysis */
-  .job-pair-row {
-    display: flex; align-items: center; gap: 16px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 20px;
-  }
-  .jp-side { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .jp-label { font-size: 12px; font-weight: 700; color: var(--text3); }
-  .jp-side.atk .jp-label { color: #fca5a5; }
-  .jp-side.def .jp-label { color: #93c5fd; }
-  .jp-select { height: 44px; font-size: 14px; font-weight: 600; }
-  .jp-vs { font-size: 22px; font-weight: 900; color: var(--border2); flex-shrink: 0; }
-  .mode-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-  .mode-tab {
-    height: 36px; padding: 0 16px;
-    border-radius: 999px;
-    border: 1px solid var(--border2);
-    background: var(--bg3);
-    font-size: 13px; font-weight: 600;
-    color: var(--text2);
-    transition: all .18s;
-  }
-  .mode-tab:hover { border-color: var(--accent); color: var(--text); }
-  .mode-tab.mt-active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(99,102,241,.3); }
-  .mode-tab.mt-I.mt-active { background: var(--orange); border-color: var(--orange); box-shadow: 0 4px 14px rgba(249,115,22,.3); }
-  .mode-tab.mt-R.mt-active { background: var(--blue); border-color: var(--blue); box-shadow: 0 4px 14px rgba(59,130,246,.3); }
-  .mode-tab.mt-A.mt-active { background: #7c3aed; border-color: #7c3aed; box-shadow: 0 4px 14px rgba(124,58,237,.3); }
-  .mode-tab.mt-K.mt-active { background: var(--red); border-color: var(--red); box-shadow: 0 4px 14px rgba(239,68,68,.3); }
-  .syl-form-row { display: flex; gap: 10px; align-items: center; }
-  .syl-inp { width: 72px; height: 52px; font-size: 26px; font-weight: 900; text-align: center; border-radius: var(--radius-sm); }
-  .situ-text { border-radius: var(--radius-sm); min-height: 80px; font-size: 13px; }
-  .batch-run { height: 48px; padding: 0 28px; font-size: 15px; align-self: flex-start; }
-  .analysis-spinner { display: flex; align-items: center; gap: 14px; padding: 32px; justify-content: center; color: var(--text2); font-size: 14px; }
-  .spin-ring { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--border2); border-top-color: var(--accent); animation: spin .7s linear infinite; }
   .cpu-thinking-row { display: flex; align-items: center; gap: 5px; padding: 12px 16px; justify-content: center; }
   .think-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: 0.3; animation: think-pulse .9s ease-in-out infinite; }
   .think-dot:nth-child(2) { animation-delay: .2s; }
@@ -3574,150 +3335,6 @@
   .think-log-panel summary { padding: 6px 12px; cursor: pointer; color: var(--text2); background: var(--bg2); user-select: none; }
   .think-log-panel summary:hover { color: var(--accent); }
   .think-log-entry { padding: 4px 14px; color: var(--text2); border-top: 1px solid var(--border); background: var(--bg); }
-  .force-bar {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 10px 14px;
-    background: rgba(245,158,11,.08);
-    border: 1px solid rgba(245,158,11,.2);
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-  }
-  .force-lbl { font-weight: 700; color: var(--gold); white-space: nowrap; }
-  .force-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    background: var(--bg3); border: 1px solid rgba(245,158,11,.3); border-radius: 999px;
-    padding: 3px 10px; font-size: 12px;
-  }
-  .fc-via { font-weight: 700; color: var(--gold); font-size: 11px; }
-  .fc-syl { font-size: 15px; font-weight: 900; }
-  .fc-cnt { color: var(--text3); font-size: 11px; }
-  .fc-k { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 999px; background: rgba(239,68,68,.15); color: #fca5a5; }
-  .fc-i { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 999px; background: rgba(249,115,22,.15); color: #fdba74; }
-  .ability-info-row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .ai-side {
-    flex: 1; min-width: 180px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 12px;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .ai-side.ai-atk { border-color: rgba(239,68,68,.25); background: rgba(239,68,68,.05); }
-  .ai-side.ai-def { border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.05); }
-  .ai-label { font-size: 11px; font-weight: 700; }
-  .ai-side.ai-atk .ai-label { color: #fca5a5; }
-  .ai-side.ai-def .ai-label { color: #93c5fd; }
-  .ai-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-  .ai-chip {
-    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
-    background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.25); color: #fca5a5;
-  }
-  .ai-chip.def { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.25); color: #93c5fd; }
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 8px; }
-  .sum-card {
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
-    background: var(--bg2);
-    display: flex; flex-direction: column; gap: 4px;
-    cursor: default;
-    animation: popIn .25s ease both;
-    transition: border-color .15s;
-  }
-  .sum-card:hover { border-color: var(--border2); }
-  .sum-card.sc-win { border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.06); }
-  .sum-card.sc-danger { border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.06); }
-  .sc-syl { font-size: 30px; font-weight: 900; line-height: 1; }
-  .sc-verdict { font-size: 11px; color: var(--text3); line-height: 1.3; }
-  .sc-win-badge {
-    font-size: 11px; font-weight: 800; color: var(--green);
-    background: rgba(34,197,94,.12); border-radius: 999px;
-    padding: 2px 8px; align-self: flex-start;
-  }
-  .sc-score { font-size: 11px; color: var(--text3); }
-  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 12px; }
-  .detail-card {
-    border: 1.5px solid var(--border); border-radius: var(--radius);
-    padding: 14px; background: var(--bg2);
-    animation: fadeUp .22s ease both;
-  }
-  .dc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-  .dc-syl { font-size: 28px; font-weight: 900; }
-  .dc-verdict { font-size: 12px; color: var(--text3); flex: 1; }
-  .dc-win {
-    font-size: 11px; font-weight: 800; color: var(--green);
-    background: rgba(34,197,94,.12); border-radius: 999px; padding: 2px 8px;
-  }
-  .dc-counts { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-  .cnt-chip {
-    border: 1px solid var(--border); border-radius: 999px;
-    padding: 2px 9px; font-size: 11px; color: var(--text3);
-  }
-  .cnt-chip.cnt-이김 { border-color: rgba(34,197,94,.3); color: var(--green); background: rgba(34,197,94,.08); }
-  .cnt-chip.cnt-짐 { border-color: rgba(239,68,68,.3); color: #fca5a5; background: rgba(239,68,68,.08); }
-  .cnt-chip.cnt-능력_소모_유도 { border-color: rgba(249,115,22,.3); color: #fdba74; background: rgba(249,115,22,.08); }
-  .move-list { display: flex; flex-direction: column; gap: 2px; }
-  .move-block { border-top: 1px solid var(--border); padding: 5px 0 4px; display: flex; flex-direction: column; gap: 3px; }
-  .move-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .mv-word { font-size: 13px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
-  .mv-kind {
-    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; flex-shrink: 0;
-  }
-  .mk-한방 { background: rgba(239,68,68,.15); color: #fca5a5; }
-  .mk-유도 { background: rgba(249,115,22,.15); color: #fdba74; }
-  .mk-루트 { background: rgba(59,130,246,.15); color: #93c5fd; }
-  .mk-일반 { background: var(--bg3); color: var(--text3); }
-  .mv-res { font-size: 11px; color: var(--text3); flex-shrink: 0; }
-  .mr-이김 { color: var(--green); font-weight: 700; }
-  .mr-짐 { color: var(--red); font-weight: 700; }
-  .mv-reply { font-size: 11px; color: var(--text3); flex-shrink: 0; }
-  .mv-win {
-    font-size: 10px; font-weight: 800; color: var(--green);
-    background: rgba(34,197,94,.12); border-radius: 999px; padding: 1px 6px; flex-shrink: 0;
-  }
-  .sub-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 2px 0; }
-  .sub-lbl { font-size: 10px; color: var(--text3); white-space: nowrap; }
-  .esc-lbl { color: #93c5fd; font-weight: 700; }
-  .atk-lbl { color: #fca5a5; font-weight: 700; }
-  .rs-chip {
-    font-size: 11px; padding: 1px 7px; border-radius: 999px;
-    background: var(--bg3); color: var(--text2);
-  }
-  .esc-chip {
-    font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
-    background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.25); color: #93c5fd;
-  }
-  .esc-chip.esc-zero { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.25); color: var(--green); }
-  .atk-chip {
-    font-size: 10px; padding: 1px 7px; border-radius: 999px;
-    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2); color: #fca5a5;
-  }
-  .batch-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .bh-type { font-size: 17px; font-weight: 800; }
-  .bh-count, .bh-vs { font-size: 13px; color: var(--text3); }
-  .batch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 10px; }
-  .batch-card {
-    border: 1.5px solid var(--border); border-radius: var(--radius);
-    padding: 12px; background: var(--bg2);
-    display: flex; flex-direction: column; gap: 6px;
-    animation: popIn .3s cubic-bezier(.34,1.56,.64,1) both;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .batch-card:hover { border-color: var(--border2); box-shadow: 0 6px 20px rgba(0,0,0,.2); }
-  .batch-card.bc-w1 { border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.06); }
-  .batch-card.bc-w2 { border-color: rgba(101,163,13,.4); background: rgba(101,163,13,.06); }
-  .batch-card.bc-w3 { border-color: rgba(245,158,11,.4); background: rgba(245,158,11,.06); }
-  .bc-top { display: flex; align-items: center; justify-content: space-between; }
-  .bc-syl { font-size: 32px; font-weight: 900; line-height: 1; }
-  .bc-win {
-    font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px;
-    background: var(--bg3); color: var(--text2);
-  }
-  .bc-w1 .bc-win { background: rgba(34,197,94,.2); color: var(--green); }
-  .bc-w2 .bc-win { background: rgba(101,163,13,.2); color: #86efac; }
-  .bc-w3 .bc-win { background: rgba(245,158,11,.2); color: var(--gold); }
-  .bc-verdict { font-size: 11px; color: var(--text3); line-height: 1.3; }
-  .bc-score { font-size: 11px; color: var(--text3); }
-  .bc-moves { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
-  .bc-move { display: flex; align-items: center; gap: 5px; font-size: 12px; }
 
   /* Ranking */
   .rank-page { max-width: 640px; }
@@ -3893,7 +3510,7 @@
     .ab-btn { flex: 0 0 auto; }
     .word-search-float { width: calc(100vw - 32px); right: 16px; left: 16px; }
     /* Inputs: force 16px to prevent iOS auto-zoom */
-    input, select, textarea { font-size: 16px !important; }
+    input, select { font-size: 16px !important; }
   }
 
   /* ─── Job Tooltip ─── */

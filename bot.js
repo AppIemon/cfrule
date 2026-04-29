@@ -16155,7 +16155,7 @@ Alt-F4 콤보를 준비합니다.`;
 (function(){
   with(Bot.scope){
     var __ccPrevPickV31 = cpuPickWord;
-    var CHARYNN_BRAIN_V31 = { maxCandidates: 520, deepCandidates: 110, replyBeam: 50, myReplyBeam: 28 };
+    var CHARYNN_BRAIN_V31 = { maxCandidates: 90, deepCandidates: 14, replyBeam: 8, myReplyBeam: 5 };
     try { CPU_MAX_CANDIDATES = Math.max(Number(CPU_MAX_CANDIDATES) || 0, 360); } catch(e) {}
     try { CPU_PICK_TOP_COUNT = Math.max(Number(CPU_PICK_TOP_COUNT) || 0, 40); } catch(e2) {}
     function __ccNum(x, d){ x = Number(x); return isNaN(x) ? d : x; }
