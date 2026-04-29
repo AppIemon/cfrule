@@ -419,6 +419,11 @@
         
         let effectTriggered = false;
 
+        if (text.includes('ㅈㅈ를 쳤다') || text.includes('항복') || text.includes('기권')) {
+          triggerEffect('항복', 'surrender');
+          effectTriggered = true;
+        }
+
         // 1. 패시브 감지
         const PASSIVE_BY_JOB = {
           '해커': [], '투자자': ['투자의 귀재'], '환자': ['강박증'], '수집가': ['수집'],
@@ -1628,7 +1633,7 @@
             <div class="activation-splash {eff.type}">
               <div class="splash-bg"></div>
               <div class="splash-text">
-                <span class="splash-kicker">{eff.type === 'passive' ? 'PASSIVE' : 'ABILITY'}</span>
+                <span class="splash-kicker">{eff.type === 'passive' ? 'PASSIVE' : eff.type === 'surrender' ? 'SURRENDER' : 'ABILITY'}</span>
                 <span class="splash-name">{eff.name}</span>
               </div>
             </div>
@@ -3862,6 +3867,8 @@
   .splash-name { display: block; font-size: 48px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.5); }
   .splash-bg { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(59,130,246,0.8) 0%, transparent 70%); border-radius: 50%; opacity: 0; animation: bgExpand 0.8s ease-out forwards; }
   .activation-splash.passive .splash-bg { background: radial-gradient(circle, rgba(16,185,129,0.8) 0%, transparent 70%); }
+  .activation-splash.surrender .splash-bg { background: radial-gradient(circle, rgba(239,68,68,0.82) 0%, rgba(15,23,42,0.2) 44%, transparent 72%); }
+  .activation-splash.surrender .splash-name { color: #fee2e2; }
   
   @keyframes splashOut {
     0% { transform: scale(0.5); opacity: 0; }

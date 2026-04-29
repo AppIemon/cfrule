@@ -16199,11 +16199,32 @@ Alt-F4 콤보를 준비합니다.`;
       } catch(e2) {}
       return out;
     }
+    function __ccHasSurvivalEscape(state, game){
+      try {
+        if (!state || state.lost_abilities || state.disabled_turns > 0 || state.absolutely_disabled > 0) return false;
+        if (state.job === "뜀틀선수" && (state.vault_uses || 0) < (state.vault_max || 3) && (state.vault_cooldown || 0) <= 0) return true;
+        if (state.job === "기자" && (state.report_uses || 0) < 2 && (state.report_cooldown || 0) <= 0) return true;
+        if (state.job === "고죠" && (state.gongcheo_uses || 0) > 0 && (state.gongcheo_cooldown || 0) <= 0) return true;
+        if (state.job === "생존자" && (state.rescue_uses || 0) < 3 && (state.rescue_cooldown || 0) <= 0 && game && game.history && game.history.length >= 3) return true;
+        if (state.job === "전우치" && game && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) return true;
+        if (state.job === "공룡" && (state.swallow_uses || 0) < 3 && (state.swallow_cooldown || 0) <= 0 && game && game.history && game.history.length >= 2) return true;
+      } catch(e) {}
+      return false;
+    }
     function __ccCollect(game, name, cap){
       cap = cap || CHARYNN_BRAIN_V31.maxCandidates;
       var state = __ccState(game, name), oppName = __ccOppName(game, name), oppState = __ccState(game, oppName);
       var result = [], seen = {};
       function add(w){ if (!w || seen[w] || result.length >= cap) return; seen[w] = true; if (__ccCanAdd(w, game, state, oppState)) result.push(w); }
+      function addClass(arr, cls){
+        for (var j=0; arr && j<arr.length && result.length<cap; j++) {
+          var w = arr[j];
+          if (cls === "hanbang" && !isHanbang(w)) continue;
+          if (cls === "special" && !(isYudo(w) || isRoot(w))) continue;
+          if (cls === "normal" && (isHanbang(w) || isYudo(w) || isRoot(w))) continue;
+          add(w);
+        }
+      }
       try {
         var syls = __ccStartSyllables(game, state);
         if (syls === "HALLUCINATION" || syls === "KNIGHT_EXCHANGE" || syls === null) {
@@ -16213,14 +16234,12 @@ Alt-F4 콤보를 준비합니다.`;
           return { words: result, state: state, oppName: oppName, oppState: oppState };
         }
         syls = __ccArr(syls);
-        for (var pass=0; pass<2 && result.length<cap; pass++) {
+        for (var pass=0; pass<3 && result.length<cap; pass++) {
           for (var si=0; si<syls.length && result.length<cap; si++) {
             var arr = WORDS_BY_START && WORDS_BY_START[syls[si]] ? WORDS_BY_START[syls[si]] : [];
-            for (var j=0; j<arr.length && result.length<cap; j++) {
-              var w = arr[j];
-              if (pass === 0 && !(isHanbang(w) || isYudo(w) || isRoot(w))) continue;
-              add(w);
-            }
+            if (pass === 0) addClass(arr, "hanbang");
+            else if (pass === 1) addClass(arr, "special");
+            else addClass(arr, "normal");
           }
         }
         if (game && game.customWords && result.length<cap) {
@@ -16338,13 +16357,17 @@ Alt-F4 콤보를 준비합니다.`;
         for(var i=0;i<words.length;i++)coarse.push(__ccCoarse(words[i],game,pack.oppState,hintWord));
         coarse.sort(function(a,b){if(b.coarse_score!==a.coarse_score)return b.coarse_score-a.coarse_score;if(a.fast_reply_count!==b.fast_reply_count)return a.fast_reply_count-b.fast_reply_count;return a.word<b.word?-1:(a.word>b.word?1:0);});
         var selectedBase=coarse.slice(0,Math.min(coarse.length,CHARYNN_BRAIN_V31.deepCandidates));
-        var seen={};for(var hi=0;hi<coarse.length;hi++){if(coarse[hi].word===hintWord&&!seen[hintWord]){selectedBase.push(coarse[hi]);break;}}
+        var selectedSeen={};for(var sb=0;sb<selectedBase.length;sb++)selectedSeen[selectedBase[sb].word]=true;
+        for(var hi=0;hi<coarse.length;hi++){if(coarse[hi].word===hintWord&&!selectedSeen[hintWord]){selectedBase.push(coarse[hi]);selectedSeen[hintWord]=true;break;}}
+        for(var si=0;si<coarse.length&&selectedBase.length<CHARYNN_BRAIN_V31.deepCandidates+10;si++){if(coarse[si].fast_kill_risk===0&&!selectedSeen[coarse[si].word]){selectedBase.push(coarse[si]);selectedSeen[coarse[si].word]=true;}}
         var infos=[],wins=[],safe=[],risky=[];
+        var seen={};
         for(var di=0;di<selectedBase.length;di++){var base=selectedBase[di];if(seen[base.word])continue;seen[base.word]=true;var info=__ccTacticalInfo(base,game,cpuName,pack.state,pack.oppName,pack.oppState);infos.push(info);if(info.immediate_win)wins.push(info);else if(!info.forced_loss_risk)safe.push(info);else risky.push(info);}
         wins.sort(__ccCmp);safe.sort(__ccCmp);risky.sort(__ccCmp);infos.sort(__ccCmp);
-        var best=wins.length?wins[0]:(safe.length?safe[0]:(risky.length?risky[0]:null));
+        var canGamble=__ccHasSurvivalEscape(pack.state,game);
+        var best=wins.length?wins[0]:(safe.length?safe[0]:(canGamble&&risky.length?risky[0]:(risky.length?risky[0]:null)));
         if(!best)return hint||null;
-        try{game.lastCpuDecision={mode:"charynn-tactical-v3.1",cpu:cpuName,job:pack.state?pack.state.job:"",opponent:pack.oppName||"",opponent_job:pack.oppState?pack.oppState.job:"",candidate_count:words.length,coarse_count:coarse.length,analyzed_count:infos.length,immediate_win_count:wins.length,safe_count:safe.length,risky_count:risky.length,model_hint_word:hintWord,selected_word:best.word,selected_score:best.score,selected_immediate_win:!!best.immediate_win,selected_safe:!best.forced_loss_risk,selected_opp_reply_count:best.opp_reply_count,selected_min_my_reply_count:best.min_my_reply_count,selected_best_opp_reply:best.best_opp_reply,candidates:infos.slice(0,10).map(function(x){return{w:x.word,s:x.score,win:!!x.immediate_win,safe:!x.forced_loss_risk,or:x.opp_reply_count,ok:x.opp_kill_replies,dy:x.deadly_reply_count,mr:x.min_my_reply_count,bo:x.best_opp_reply,h:!!x.model_hint};})};}catch(e2){}
+        try{game.lastCpuDecision={mode:"charynn-tactical-v3.1",cpu:cpuName,job:pack.state?pack.state.job:"",opponent:pack.oppName||"",opponent_job:pack.oppState?pack.oppState.job:"",candidate_count:words.length,coarse_count:coarse.length,analyzed_count:infos.length,immediate_win_count:wins.length,safe_count:safe.length,risky_count:risky.length,survival_escape:canGamble,model_hint_word:hintWord,selected_word:best.word,selected_score:best.score,selected_immediate_win:!!best.immediate_win,selected_safe:!best.forced_loss_risk,selected_opp_reply_count:best.opp_reply_count,selected_min_my_reply_count:best.min_my_reply_count,selected_best_opp_reply:best.best_opp_reply,candidates:infos.slice(0,10).map(function(x){return{w:x.word,s:x.score,win:!!x.immediate_win,safe:!x.forced_loss_risk,or:x.opp_reply_count,ok:x.opp_kill_replies,dy:x.deadly_reply_count,mr:x.min_my_reply_count,bo:x.best_opp_reply,h:!!x.model_hint};})};}catch(e2){}
         return{word:best.word,score:best.score,tactical:true};
       }.call(this);
       if(__botResult&&__botResult.__botControl&&__botResult.type==="return")return __botResult.value;
