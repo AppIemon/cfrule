@@ -652,7 +652,7 @@
   function startPolling() {
     clearInterval(poller);
     refresh();
-    poller = setInterval(refresh, 1200);
+    poller = setInterval(refresh, 2500);
   }
 
   async function openExistingRoom(targetRoom) {

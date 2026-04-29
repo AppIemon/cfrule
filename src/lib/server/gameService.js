@@ -146,7 +146,7 @@ function startCommand(meta) {
 
 function looksLikeGameEnd(replies) {
   const text = (replies || []).join('\n');
-  return /승리|패배|레이팅|티어 변경|경기 종료|게임 종료/.test(text);
+  return /\[\s*(팀\s*)?티어전 결과\s*\]|경기 종료|게임 종료|^.+ 승리! /m.test(text);
 }
 
 function scheduleAutoRestart(room, sender, replies) {
@@ -211,7 +211,7 @@ export async function sendCommand({ room, nickname, command }) {
   if (msg) rememberCommand(room, sender, msg);
   append(room, sender, msg, replies);
   scheduleAutoRestart(room, sender, replies);
-  const state = await getRoomSnapshot(room);
+  const state = await buildRoomSnapshot(room, true);
   await persistRoom(room, state);
   publishRoom(room, state);
   return state;
@@ -269,10 +269,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
 }
 
 export async function getRoomSnapshot(room) {
-  await restoreRoom(room);
-  const state = await buildRoomSnapshot(room, true);
-  if (state.game || state.meta) persistRoom(room, state).catch(() => {});
-  return state;
+  return buildRoomSnapshot(room, true);
 }
 
 export async function rankingSnapshot() {
