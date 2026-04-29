@@ -85,7 +85,7 @@ export function patchPageSvelte(code: string): string {
   }
 
   code = code.replace(
-    /async function refresh\(\) \{\n\s*if \(!room\) return;\n\s*snapshot = await request\(`\/api\/room\?room=\$\{encodeURIComponent\(room\)\}`\);\n\s*\}/,
+    /async function refresh\(\) \{\s*if \(!room\) return;\s*try \{\s*const res = await fetch\(`\/api\/room\?room=\$\{encodeURIComponent\(room\)\}`, \{ cache: 'no-store' \}\);\s*if \(res\.ok\) snapshot = await res\.json\(\);\s*\} catch \{\}\s*\}/,
     `async function refresh() {
     if (!room) return;
     const targetRoom = room;
@@ -113,7 +113,7 @@ export function patchPageSvelte(code: string): string {
       "async function sendAbility() {\n    await submitSelectedAbility();\n  }"
     );
     code = code.replace(
-      "async function useAbility(name) {\n    await send(`2${name}${ability.trim() && !ability.trim().startsWith(name) ? ` ${ability.trim()}` : ''}`);\n    ability = '';\n  }",
+      /async function useAbility\(name\) \{\s*const targetType = ABILITY_TARGET_MAP\[name\];\s*if \(targetType\) \{\s*showTargetSelector = \{ name, type: targetType \};\s*return;\s*\}\s*await sendAbilityWithTarget\(name\);\s*\}/,
       `function abilityRequiresTarget(name) { return abilityNeedsTarget.has(name); }
   function abilityHint(name) { return abilityRequiresTarget(name) ? '대상 필요' : '즉시 사용'; }
   function getJobInfo(job) { return JOB_INFO[job] || ((ACTIVE_BY_JOB[job] || []).length ? '능력: ' + ACTIVE_BY_JOB[job].join(', ') : '직업 정보 없음'); }

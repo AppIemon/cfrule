@@ -1344,7 +1344,7 @@
           <!-- LEFT: Players -->
           <aside class="col-players">
             <div class="col-label">PLAYERS</div>
-            {#each game.players || [] as player, index}
+            {#each game.players || [] as player, index (player)}
               {@const playerJob = game.playerStates?.[player]?.job || ''}
               <div class="player-card" class:player-active={player === currentPlayer}>
                 <div class="player-avatar" class:avatar-active={player === currentPlayer}>
@@ -1403,7 +1403,7 @@
               {#if !(game.history || []).length}
                 <div class="history-empty">첫 번째 단어를 입력하세요</div>
               {/if}
-              {#each game.history || [] as item, i}
+              {#each game.history || [] as item, i (i)}
                 <div class="word-bubble" style="--bi:{i % 2}">
                   <span class="bubble-text">{item}</span>
                 </div>
@@ -1443,7 +1443,7 @@
                 <div class="mj-name">{myState.job}</div>
                 {#if myStatusList.length}
                   <div class="mj-status-list">
-                    {#each myStatusList as st}
+                    {#each myStatusList as st (st.label)}
                       <div class="mj-status-item">
                         <span class="mjs-label">{st.label}</span>
                         <span class="mjs-value">{st.value}</span>
@@ -1453,7 +1453,7 @@
                 {/if}
                 {#if getJobStatuses(myState).length}
                   <div class="mj-status-grid">
-                    {#each getJobStatuses(myState) as st}
+                    {#each getJobStatuses(myState) as st (st.label)}
                       <div class="mj-status-item status-{st.type}">
                         <div class="mjs-label">{st.label}</div>
                         <div class="mjs-value">{st.value}</div>
@@ -1495,7 +1495,7 @@
             <div class="game-status-panel">
               <div class="col-label">STATUS</div>
               <div class="status-content">
-                {#each game.players as p, pi}
+                {#each game.players as p, pi (p)}
                   {@const effects = visibleEffects(game.playerStates?.[p])}
                   <div class="status-player-row" class:spr-active={p === currentPlayer}>
                     <div class="spr-info">
@@ -1539,7 +1539,7 @@
           {#if abilityButtons.length}
             <div class="ability-bar">
               <div class="ability-grid">
-                {#each abilityButtons as ab, ai}
+                {#each abilityButtons as ab, ai (ab)}
                   {@const abStatus = Object.entries(STATUS_LABELS).find(([k]) => k.includes(ab) && myState?.[k] !== undefined)}
                   <button
                     class="ab-btn"
