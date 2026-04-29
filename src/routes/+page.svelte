@@ -128,6 +128,9 @@
   let chatEl = $state();
   const chats = $derived(snapshot?.chats || []);
 
+  let lineColor = $state(browser ? (localStorage.getItem('lineColor') || '#2563eb') : '#2563eb');
+  $effect(() => { if (browser) localStorage.setItem('lineColor', lineColor); });
+
   function addInGameTab() {
     const newId = Date.now();
     inGameTabs = [...inGameTabs, { id: newId, query: '', results: [] }];
@@ -904,7 +907,7 @@
   <title>채린룰</title>
 </svelte:head>
 
-<div class="app">
+<div class="app" style="--my-color: {lineColor}">
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
     <div class="brand">
@@ -999,6 +1002,22 @@
               {#if practice}
                 <input class="lobby-input" bind:value={cpuJob} placeholder="CPU 직업 (비우면 랜덤)" />
               {/if}
+
+              <div class="color-setting-row">
+                <span class="color-setting-label">선 색깔</span>
+                <div class="color-chips">
+                  {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
+                    <button
+                      class="color-chip"
+                      class:color-chip-sel={lineColor === c}
+                      style="background: {c}"
+                      onclick={() => (lineColor = c)}
+                      title={c}
+                    ></button>
+                  {/each}
+                  <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" />
+                </div>
+              </div>
 
               {#if ongoingGames.length > 0}
                 <div class="ongoing-section">
@@ -2169,6 +2188,46 @@
   }
   .practice-toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); background: #fff; }
 
+  .color-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+  }
+  .color-setting-label {
+    font-size: 13px;
+    color: var(--text2);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .color-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .color-chip {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .15s, border-color .15s;
+    flex-shrink: 0;
+  }
+  .color-chip:hover { transform: scale(1.15); }
+  .color-chip.color-chip-sel { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg2); }
+  .color-picker-input {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border2);
+    padding: 0;
+    cursor: pointer;
+    background: none;
+    flex-shrink: 0;
+  }
+  .color-picker-input::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
+  .color-picker-input::-webkit-color-swatch { border: none; border-radius: 50%; }
+
   /* ═══════════════════════════════════════════
      MATCHING SCREEN
   ═══════════════════════════════════════════ */
@@ -2741,13 +2800,13 @@
     flex-shrink: 0;
     margin-top: 4px;
   }
-  .team-dot.team-1 { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .team-dot.team-1 { background: var(--my-color); box-shadow: 0 0 6px var(--my-color); }
   .team-dot.team-2 { background: var(--red); box-shadow: 0 0 6px var(--red); }
   .turn-indicator {
     position: absolute;
     left: 0; top: 0; bottom: 0;
     width: 3px;
-    background: var(--accent);
+    background: var(--my-color);
     border-radius: 0 2px 2px 0;
     animation: turnBar 1.6s ease-in-out infinite;
   }
@@ -2802,9 +2861,9 @@
     transition: border-color .15s, box-shadow .15s;
   }
   .word-bubble:nth-child(even) .bubble-text {
-    background: rgba(99,102,241,.12);
-    border-color: rgba(99,102,241,.25);
-    color: var(--accent2);
+    background: color-mix(in srgb, var(--my-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--my-color) 25%, transparent);
+    color: var(--my-color);
   }
   .bubble-text:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(99,102,241,.15); }
 
@@ -3056,7 +3115,7 @@
   }
   .spr-info { display: flex; align-items: center; gap: 6px; }
   .spr-team { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .spr-team.team-1 { background: var(--accent); }
+  .spr-team.team-1 { background: var(--my-color); }
   .spr-team.team-2 { background: var(--red); }
   .spr-name { font-size: 13px; font-weight: 800; color: var(--text); }
   .spr-job { font-size: 11px; color: var(--text3); }
