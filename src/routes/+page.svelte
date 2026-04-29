@@ -129,7 +129,13 @@
   const chats = $derived(snapshot?.chats || []);
 
   let lineColor = $state(browser ? (localStorage.getItem('lineColor') || '#2563eb') : '#2563eb');
-  $effect(() => { if (browser) localStorage.setItem('lineColor', lineColor); });
+  $effect(() => {
+    if (!browser) return;
+    localStorage.setItem('lineColor', lineColor);
+    document.documentElement.style.setProperty('--accent', lineColor);
+    document.documentElement.style.setProperty('--accent2', lineColor);
+    document.documentElement.style.setProperty('--my-color', lineColor);
+  });
 
   // Dark/light mode
   let theme = $state('light');
@@ -999,7 +1005,7 @@
   <title>채린룰</title>
 </svelte:head>
 
-<div class="app" style="--my-color: {lineColor}; --accent: {lineColor}; --accent2: {lineColor}">
+<div class="app">
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
     <div class="brand">
