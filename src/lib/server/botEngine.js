@@ -36,7 +36,8 @@ function syncRatingsToMongo(data) {
 function cloneJson(value, fallback = {}) {
   try {
     return JSON.parse(JSON.stringify(value ?? fallback));
-  } catch {
+  } catch (e) {
+    console.warn('[botEngine] JSON 복제 실패:', e?.message);
     return fallback;
   }
 }
@@ -189,7 +190,8 @@ function rankLeaderName(players) {
 function questProgress(player, quest) {
   try {
     return Math.max(0, Number(quest.progress(player) || 0));
-  } catch {
+  } catch (e) {
+    console.warn('[botEngine] 퀘스트 진행도 계산 실패:', e?.message);
     return 0;
   }
 }
@@ -222,7 +224,7 @@ function persistTierData(context) {
   const players = getTierPlayers(context);
   try {
     if (typeof context.saveTierData === 'function') context.saveTierData();
-  } catch {}
+  } catch (e) { console.warn('[botEngine] 티어 데이터 저장 실패:', e?.message); }
   syncRatingsToMongo(players);
 }
 
@@ -290,7 +292,7 @@ function buildCpuThoughtLines(bot, room, msg) {
     if (typeof context.isRoot === 'function' && context.isRoot(word)) kind.push('루트');
     replies.push(`[시스템]: 생각 과정: 입력 단어 '${word}'의 끝음절 '${next}'에서 사용 가능한 응답을 ${count}개로 계산했습니다.`);
     replies.push(`[시스템]: 생각 과정: '${word}' 분류는 ${kind.length ? kind.join(', ') : '일반'}이며, CPU는 응답 수와 위험 음절을 비교해 후보를 골랐습니다.`);
-  } catch {}
+  } catch (e) { console.warn('[botEngine] CPU 사고 로그 생성 실패:', e?.message); }
   return replies;
 }
 
@@ -398,7 +400,7 @@ function serializeSet(value) {
   if (!value) return [];
   try {
     if (typeof value[Symbol.iterator] === 'function') return Array.from(value);
-  } catch {}
+  } catch (e) { console.warn('[botEngine] Set 변환 실패:', e?.message); }
   return [];
 }
 

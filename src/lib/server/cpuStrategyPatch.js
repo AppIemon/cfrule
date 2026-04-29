@@ -161,5 +161,5 @@ export function installCpuStrategyPatch(context) {
 
   try {
     vm.runInContext(script, context, { filename: 'cpuStrategyPatch.js' });
-  } catch {}
+  } catch (e) { console.warn('[cpuStrategyPatch] VM 패치 실패:', e?.message); }
 }

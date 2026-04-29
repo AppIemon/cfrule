@@ -548,6 +548,7 @@ export function searchInEngine(query, limit = 200) {
   
   if (isSpecial) {
     let reStr = q.toUpperCase();
+    reStr = reStr.replace(/[.+^${}()|[\]\\]/g, '\\$&');
     const KILLSYL_STR = Array.from(scope.KILLSYL_SET).join('');
     const INTENDSYL_STR = Array.from(scope.INTENDSYL_SET).join('');
     const ROUTESYL_STR = Array.from(scope.ROUTESYL_SET).join('');

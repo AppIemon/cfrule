@@ -15,6 +15,15 @@ function dmKey(a, b) {
   return [a, b].sort().join('\x00');
 }
 
+const roomLocks = new Map(); // room -> Promise (per-room mutex)
+
+function withRoomLock(room, fn) {
+  const prev = roomLocks.get(room) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  roomLocks.set(room, next.catch(() => {}));
+  return next;
+}
+
 const QUEST_COUNT = 16;
 const CPU_RANDOM_JOBS = [
   '해커','투자자','환자','수집가','감시자','뜀틀선수','전우치','시프터','비밀요원','사과','시인','공룡','마법사','사신','수학자','과학자','작곡가','스폰지밥','나이트','생존자','악당','기자','검객','마하트마간디','수리사','우라늄','고죠','스핔이','해달','프로그래머'
@@ -51,8 +60,8 @@ async function persistRoom(room, stateOverride = null) {
       snapshot: state,
       lastGame: state?.game || null
     });
-  } catch {
-    // Mongo unavailable; in-memory room still works in local/dev.
+  } catch (e) {
+    console.warn('[gameService] DB 저장 실패 (인메모리로 계속 동작):', e?.message);
   }
 }
 
@@ -60,7 +69,8 @@ async function loadPersistedRoom(room) {
   try {
     const { loadRoomSnapshot } = await import('./db.js');
     return await loadRoomSnapshot(room);
-  } catch {
+  } catch (e) {
+    console.warn('[gameService] DB 로드 실패:', e?.message);
     return null;
   }
 }
@@ -164,7 +174,7 @@ function scheduleAutoRestart(room, sender, replies) {
       const state = await getRoomSnapshot(room);
       await persistRoom(room, state);
       publishRoom(room, state);
-    } catch {}
+    } catch (e) { console.warn('[gameService] 자동 재시작 실패:', e?.message); }
   }, 900);
   restartTimers.set(room, timer);
 }
@@ -203,18 +213,20 @@ export async function joinRoom({ room, nickname }) {
 }
 
 export async function sendCommand({ room, nickname, command }) {
-  await restoreRoom(room);
-  const sender = String(nickname || '').trim() || 'player';
-  updatePresence(room, sender, true);
-  const msg = String(command || '').trim();
-  const replies = msg ? await dispatchBotMessage(room, msg, sender) : [];
-  if (msg) rememberCommand(room, sender, msg);
-  append(room, sender, msg, replies);
-  scheduleAutoRestart(room, sender, replies);
-  const state = await getRoomSnapshot(room);
-  await persistRoom(room, state);
-  publishRoom(room, state);
-  return state;
+  return withRoomLock(room, async () => {
+    await restoreRoom(room);
+    const sender = String(nickname || '').trim() || 'player';
+    updatePresence(room, sender, true);
+    const msg = String(command || '').trim();
+    const replies = msg ? await dispatchBotMessage(room, msg, sender) : [];
+    if (msg) rememberCommand(room, sender, msg);
+    append(room, sender, msg, replies);
+    scheduleAutoRestart(room, sender, replies);
+    const state = await getRoomSnapshot(room);
+    await persistRoom(room, state);
+    publishRoom(room, state);
+    return state;
+  });
 }
 
 export async function addChatMessage({ room, nickname, text }) {

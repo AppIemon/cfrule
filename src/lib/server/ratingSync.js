@@ -34,7 +34,7 @@ export function queueRatingSync(data) {
   if (!looksLikeRatingData(data)) return;
   const task = import('./db.js')
     .then(({ saveRatings }) => saveRatings(data))
-    .catch(() => {})
+    .catch((e) => { console.warn('[ratingSync] DB 동기화 실패:', e?.message); })
     .finally(() => pendingRatingSyncs.delete(task));
   pendingRatingSyncs.add(task);
 }

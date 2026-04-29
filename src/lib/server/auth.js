@@ -103,7 +103,7 @@ export function setSessionCookie(cookies, token) {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
-    secure: false,
+    secure: !!process.env.VERCEL,
     maxAge: sessionDays * 24 * 60 * 60
   });
 }
