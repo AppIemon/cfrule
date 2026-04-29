@@ -9,6 +9,11 @@ const restoredRooms = new Set();
 const restartTimers = new Map();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 const roomChats = new Map(); // room -> [{ id, sender, text, at }]
+const directMessages = new Map(); // conversationKey -> [{ id, from, to, text, at }]
+
+function dmKey(a, b) {
+  return [a, b].sort().join('\x00');
+}
 
 const QUEST_COUNT = 16;
 const CPU_RANDOM_JOBS = [
@@ -306,4 +311,39 @@ export async function getOngoingGames(nickname) {
     }
   }
   return ongoing;
+}
+
+export function addDirectMessage({ from, to, text }) {
+  if (!from || !to || !text) return;
+  const key = dmKey(from, to);
+  const list = directMessages.get(key) || [];
+  list.push({
+    id: `${Date.now()}-${Math.random()}`,
+    from: String(from).trim(),
+    to: String(to).trim(),
+    text: String(text).trim(),
+    at: Date.now()
+  });
+  while (list.length > 200) list.shift();
+  directMessages.set(key, list);
+}
+
+export function getDirectMessages(userA, userB) {
+  return directMessages.get(dmKey(userA, userB)) || [];
+}
+
+export function getDMInbox(nickname) {
+  const user = String(nickname || '').trim();
+  if (!user) return [];
+  const convos = [];
+  for (const [key, msgs] of directMessages) {
+    const [a, b] = key.split('\x00');
+    if (a !== user && b !== user) continue;
+    const other = a === user ? b : a;
+    const last = msgs[msgs.length - 1];
+    const unread = msgs.filter(m => m.to === user).length;
+    convos.push({ with: other, last, unread });
+  }
+  convos.sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
+  return convos;
 }

@@ -21,44 +21,110 @@ function loadGameModule() {
   return gameModulePromise;
 }
 
+const PING_INTERVAL = 25000;
+const PING_TIMEOUT = 10000;
+
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
   if (url.pathname !== '/ws') {
     socket.destroy();
     return;
   }
+
+  socket.on('error', () => socket.destroy());
+
   wss.handleUpgrade(request, socket, head, async (ws) => {
     const room = url.searchParams.get('room') || '';
     const nickname = url.searchParams.get('nickname') || '';
+    let isAlive = true;
+
     const send = (payload) => {
-      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
+      if (ws.readyState === ws.OPEN) {
+        try { ws.send(JSON.stringify(payload)); } catch {}
+      }
     };
-    const game = await loadGameModule();
+
+    let game;
+    try {
+      game = await loadGameModule();
+    } catch (err) {
+      console.error('Failed to load game module:', err);
+      ws.close(1011, 'server error');
+      return;
+    }
+
     const getRoomSnapshot = game.getRoomSnapshot || game.g;
     const updatePresence = game.updatePresence || (() => {});
     const addChatMessage = game.addChatMessage || (() => {});
-    if (!getRoomSnapshot) throw new Error('Built gameService snapshot export was not found.');
-    
+    const addDirectMessage = game.addDirectMessage || (() => {});
+
+    if (!getRoomSnapshot) {
+      ws.close(1011, 'server error');
+      return;
+    }
+
     if (nickname) updatePresence(room, nickname, true);
 
     const sendSnapshot = () => getRoomSnapshot(room).then(send).catch(() => {});
     sendSnapshot();
     const interval = setInterval(sendSnapshot, 1000);
 
+    // Keepalive ping/pong to prevent proxy timeouts (esp. on mobile connections)
+    ws.on('pong', () => { isAlive = true; });
+    const pingTimer = setInterval(() => {
+      if (!isAlive) {
+        clearInterval(interval);
+        clearInterval(pingTimer);
+        ws.terminate();
+        return;
+      }
+      isAlive = false;
+      try { ws.ping(); } catch {}
+    }, PING_INTERVAL);
+
+    // Watchdog: terminate if pong not received within timeout
+    let pongTimeout;
+    ws.on('ping', () => {
+      clearTimeout(pongTimeout);
+      try { ws.pong(); } catch {}
+    });
+
     ws.on('message', async (data) => {
       try {
         const payload = JSON.parse(data.toString());
         if (payload.type === 'chat' && payload.text) {
           await addChatMessage({ room, nickname, text: payload.text });
+        } else if (payload.type === 'dm' && payload.to && payload.text) {
+          await addDirectMessage({ from: nickname, to: payload.to, text: payload.text });
         }
       } catch {}
     });
-    
+
+    ws.on('error', () => {
+      clearInterval(interval);
+      clearInterval(pingTimer);
+      clearTimeout(pongTimeout);
+    });
+
     ws.on('close', () => {
       clearInterval(interval);
+      clearInterval(pingTimer);
+      clearTimeout(pongTimeout);
       if (nickname) updatePresence(room, nickname, false);
     });
   });
+});
+
+server.on('error', (err) => {
+  console.error('HTTP server error:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
 });
 
 server.listen(port, () => {
