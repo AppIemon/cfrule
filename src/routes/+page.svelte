@@ -3,7 +3,7 @@
   import { onDestroy, tick } from 'svelte';
   import {
     BarChart3, Bot, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
-    Search, Send, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Vote, X
+    Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Vote, X
   } from 'lucide-svelte';
 
   const TIER_INFO = [
@@ -999,7 +999,7 @@
   <title>채린룰</title>
 </svelte:head>
 
-<div class="app" style="--my-color: {lineColor}">
+<div class="app" style="--my-color: {lineColor}; --accent: {lineColor}; --accent2: {lineColor}">
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
     <div class="brand">
@@ -1018,11 +1018,11 @@
       <button class="nav-btn" class:nav-active={tab === 'analysis'} onclick={() => (tab = 'analysis')}>
         <Bot size={15} />분석
       </button>
+      <button class="nav-btn" class:nav-active={tab === 'settings'} onclick={() => (tab = 'settings')}>
+        <Settings size={15} />설정
+      </button>
     </nav>
     <div class="top-auth">
-      <button class="icon-btn theme-btn" onclick={toggleTheme} title={theme === 'dark' ? '라이트 모드' : '다크 모드'}>
-        {#if theme === 'dark'}<Sun size={16} />{:else}<Moon size={16} />{/if}
-      </button>
       {#if user}
         <button class="icon-btn" class:dm-unread={dmInbox.length > 0} onclick={() => (showDM = !showDM)} title="쪽지">
           <Mail size={16} />
@@ -1101,22 +1101,6 @@
               {#if practice}
                 <input class="lobby-input" bind:value={cpuJob} placeholder="CPU 직업 (비우면 랜덤)" />
               {/if}
-
-              <div class="color-setting-row">
-                <span class="color-setting-label">선 색깔</span>
-                <div class="color-chips">
-                  {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
-                    <button
-                      class="color-chip"
-                      class:color-chip-sel={lineColor === c}
-                      style="background: {c}"
-                      onclick={() => (lineColor = c)}
-                      title={c}
-                    ></button>
-                  {/each}
-                  <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" />
-                </div>
-              </div>
 
               {#if ongoingGames.length > 0}
                 <div class="ongoing-section">
@@ -1897,7 +1881,7 @@
     </div>
 
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
-  {:else}
+  {:else if tab === 'rank'}
     <div class="content-page rank-page">
       <div class="rank-header">
         <h2 class="rank-title">랭킹</h2>
@@ -1962,9 +1946,62 @@
         {/if}
       {/if}
     </div>
+
+  <!-- ══════════════════════ SETTINGS TAB ══════════════════════ -->
+  {:else if tab === 'settings'}
+    <div class="content-page settings-page">
+      <h2 class="settings-title"><Settings size={18} />설정</h2>
+
+      <!-- 테마 섹션 -->
+      <div class="settings-section">
+        <div class="settings-section-label">테마</div>
+        <div class="theme-options">
+          <button
+            class="theme-option-btn"
+            class:theme-opt-active={theme === 'light'}
+            onclick={() => { theme = 'light'; if (browser) { localStorage.setItem('theme', 'light'); document.documentElement.setAttribute('data-theme', 'light'); } }}
+          >
+            <Sun size={20} />
+            <span>라이트</span>
+          </button>
+          <button
+            class="theme-option-btn"
+            class:theme-opt-active={theme === 'dark'}
+            onclick={() => { theme = 'dark'; if (browser) { localStorage.setItem('theme', 'dark'); document.documentElement.setAttribute('data-theme', 'dark'); } }}
+          >
+            <Moon size={20} />
+            <span>다크</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 강조 색상 섹션 -->
+      <div class="settings-section">
+        <div class="settings-section-label">강조 색상</div>
+        <p class="settings-section-desc">버튼·팀 마커·단어 버블 등 UI 강조색을 변경합니다.</p>
+        <div class="settings-color-row">
+          {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
+            <button
+              class="color-chip"
+              class:color-chip-sel={lineColor === c}
+              style="background: {c}"
+              onclick={() => (lineColor = c)}
+              title={c}
+            ></button>
+          {/each}
+          <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" />
+        </div>
+        <div class="settings-color-preview">
+          <span class="scp-label">미리보기</span>
+          <span class="scp-dot" style="background: {lineColor}; box-shadow: 0 0 8px {lineColor}88"></span>
+          <span class="scp-btn" style="background: {lineColor}">버튼 예시</span>
+        </div>
+      </div>
+    </div>
   {/if}
 
   <!-- ══════════════════════ DM PANEL ══════════════════════ -->
+  <!-- (DM panel is outside the tab if-chain, always rendered when showDM) -->
   {#if showDM && user}
     <div class="dm-overlay" onclick={() => (showDM = false)} onkeydown={(e) => e.key === 'Escape' && (showDM = false)} role="presentation"></div>
     <div class="dm-panel">
@@ -4524,6 +4561,64 @@
   @media (max-width: 640px) {
     .dm-panel { width: 100vw; border-left: none; }
     .dm-inbox { width: 120px; }
+  }
+
+  /* ═══════════════════════════════════════════
+     SETTINGS PAGE
+  ═══════════════════════════════════════════ */
+  .settings-page { max-width: 480px; }
+  .settings-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 22px; font-weight: 900; color: var(--text);
+    margin-bottom: 28px;
+  }
+  .settings-section {
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+  .settings-section-label {
+    font-size: 11px; font-weight: 800; letter-spacing: .6px;
+    text-transform: uppercase; color: var(--text3);
+    margin-bottom: 14px;
+  }
+  .settings-section-desc {
+    font-size: 12px; color: var(--text2); margin-bottom: 14px; line-height: 1.5;
+  }
+  .theme-options { display: flex; gap: 10px; }
+  .theme-option-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px 12px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg3);
+    color: var(--text2);
+    font-size: 13px; font-weight: 700;
+    transition: all .2s;
+  }
+  .theme-option-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg2); }
+  .theme-option-btn.theme-opt-active {
+    border-color: var(--accent);
+    background: var(--bg2);
+    color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+  }
+  .settings-color-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .settings-color-preview {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg3); border-radius: 10px;
+  }
+  .scp-label { font-size: 12px; color: var(--text3); font-weight: 600; }
+  .scp-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .scp-btn {
+    height: 28px; padding: 0 14px; border-radius: 14px;
+    color: #fff; font-size: 12px; font-weight: 700;
   }
 
   /* ═══════════════════════════════════════════
