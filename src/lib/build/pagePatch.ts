@@ -212,14 +212,20 @@ export function patchPageSvelte(code: string): string {
   }
 
   code = code.replace(
-    "cpuThinking = true;\n    try {\n      await send(`0${text}`);\n    } finally {\n      cpuThinking = false;\n    }",
+    "cpuThinking = true;\n    try {\n      await send(`0${text}`);\n      word = '';\n    } catch (err) {\n      // Keep word if failed\n    } finally {\n      cpuThinking = false;\n      await tick();\n      wordInputEl?.focus();\n    }",
     `cpuThinking = true;
     holdPlayingSnapshot = true;
     const targetRoom = room;
-    try { await send(\`0\${text}\`); }
-    finally {
+    try {
+      await send(\`0\${text}\`);
+      word = '';
+    } catch (err) {
+      // Keep word if failed
+    } finally {
       cpuThinking = false;
       if (targetRoom !== room && snapshot?.room === targetRoom) room = targetRoom;
+      await tick();
+      wordInputEl?.focus();
     }`
   );
 

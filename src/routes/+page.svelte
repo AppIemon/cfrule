@@ -715,10 +715,12 @@
     event?.preventDefault?.();
     const text = word.trim();
     if (!text || !canPlay || busy) return;
-    word = '';
     cpuThinking = true;
     try {
       await send(`0${text}`);
+      word = '';
+    } catch (err) {
+      // Keep word if failed
     } finally {
       cpuThinking = false;
       await tick();

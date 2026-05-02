@@ -5,7 +5,7 @@ import { publishRoom } from './realtime.js';
 const logs = new Map();
 const roomMeta = new Map();
 const commandHistory = new Map();
-const restoredRooms = new Set();
+const restorationPromises = new Map(); // room -> Promise (wait for restore)
 const restartTimers = new Map();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 const roomChats = new Map(); // room -> [{ id, sender, text, at }]
@@ -76,27 +76,36 @@ async function loadPersistedRoom(room) {
 }
 
 async function restoreRoom(room) {
-  if (restoredRooms.has(room)) return;
-  restoredRooms.add(room);
-  const persisted = await loadPersistedRoom(room);
-  if (!persisted) return;
-  if (persisted.meta) roomMeta.set(room, persisted.meta);
-  if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
-  if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
-
-  // Best effort replay for active rooms. This keeps the VM game object alive after a serverless cold start.
-  // Rating-changing commands are not replayed after a finished game because persisted.snapshot is used instead.
-  const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
-  const replayable = lastPhase && lastPhase !== 'ended' && lastPhase !== 'finished' && !/종료|승리|패배/.test((persisted.log || []).slice(-8).map((x) => x.text).join('\n'));
-  if (!replayable) return;
-  const commands = (persisted.commands || []).slice(-120);
-  for (const item of commands) {
+  if (restorationPromises.has(room)) return restorationPromises.get(room);
+  
+  const promise = (async () => {
     try {
-      await dispatchBotMessage(room, item.command, item.sender);
-    } catch {
-      break;
+      const persisted = await loadPersistedRoom(room);
+      if (!persisted) return;
+      if (persisted.meta) roomMeta.set(room, persisted.meta);
+      if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
+      if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
+
+      const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
+      const replayable = lastPhase && lastPhase !== 'ended' && lastPhase !== 'finished' && !/종료|승리|패배/.test((persisted.log || []).slice(-8).map((x) => x.text).join('\n'));
+      if (!replayable) return;
+      
+      const commands = (persisted.commands || []).slice(-120);
+      for (const item of commands) {
+        try {
+          await dispatchBotMessage(room, item.command, item.sender, true);
+        } catch {
+          break;
+        }
+      }
+    } catch (e) {
+      restorationPromises.delete(room);
+      throw e;
     }
-  }
+  })();
+  
+  restorationPromises.set(room, promise);
+  return promise;
 }
 
 function normalizeRankingRow(row) {

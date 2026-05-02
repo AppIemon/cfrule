@@ -297,7 +297,7 @@ function buildCpuThoughtLines(bot, room, msg) {
   return replies;
 }
 
-export async function dispatchBotMessage(room, msg, sender) {
+export async function dispatchBotMessage(room, msg, sender, isRestore = false) {
   const bot = await getBotEngine();
   const context = bot.context;
   installCpuStrategyPatch(context);
@@ -318,7 +318,7 @@ export async function dispatchBotMessage(room, msg, sender) {
   }
 
   const replies = [];
-  const thoughtLines = buildCpuThoughtLines(bot, room, cleanMsg);
+  const thoughtLines = isRestore ? [] : buildCpuThoughtLines(bot, room, cleanMsg);
   if (thoughtLines.length) replies.push(`[시스템]: 컴퓨터가 생각 중입니다... 계산 과정을 문장화합니다.`);
   const replier = {
     reply(text) {
@@ -345,7 +345,7 @@ export async function dispatchBotMessage(room, msg, sender) {
     replies.push(...unlockLines);
   }
   syncRatingsToMongo(getTierPlayers(context));
-  await flushRatingSyncs();
+  if (!isRestore) await flushRatingSyncs();
   return replies;
 }
 
