@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { createRoom, getRoomSnapshot, joinRoom } from '$lib/server/gameService.js';
+import { createRoom, getRoomSnapshot, joinRoom, listRooms } from '$lib/server/gameService.js';
 import { rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
 const ROOM_RE = /^[A-F0-9]{6}$/;
@@ -33,7 +33,9 @@ export async function POST({ request, locals }) {
       nickname,
       mode: Number.isFinite(mode) ? mode : 1,
       practice: !!body?.practice,
-      cpuJob: String(body?.cpuJob || '').slice(0, CPU_JOB_MAX)
+      cpuJob: String(body?.cpuJob || '').slice(0, CPU_JOB_MAX),
+      timer: body?.timer,
+      disabledJobs: body?.disabledJobs
     }));
   } catch (error) {
     console.error('room POST failed', error);
@@ -44,6 +46,9 @@ export async function POST({ request, locals }) {
 export async function GET({ url }) {
   try {
     const room = String(url.searchParams.get('room') || '').toUpperCase();
+    if (url.searchParams.get('action') === 'list' || !room) {
+      return json(await listRooms());
+    }
     if (room && !ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
     return json(await getRoomSnapshot(room));
   } catch (error) {

@@ -8906,12 +8906,13 @@ with (Bot.scope) {
             state.barrier_cooldown = 4;
             state.barrier_turns = dur;
             state.barrier_chosungs = ["ㄱ", "ㄴ"];
-            replyJob(replier, state.job, getJobDialogue(state.job, "active", "결계", "결계를 펼친다.") + " " + dur + "턴 동안 유지된다.");
+            replyJob(replier, state.job, getJobDialogue(state.job, "active", "결계", "공간을 뒤틀어 어둠의 장벽을 세웁니다.") + " [" + state.barrier_chosungs.join(", ") + "] 초성으로 끝나는 단어를 봉쇄합니다. (지속: " + dur + "턴)");
           } else if (ability === "왜곡") {
             if (state.distort_uses >= 2 || state.barrier_turns === 0) return;
             if (state.distort_cooldown > 0) return;
             state.distort_uses++;
             state.distort_cooldown = 1;
+            let oldChosungs = state.barrier_chosungs.slice();
             let dict = {
               "ㄱ": "ㅎ",
               "ㄴ": "ㅍ",
@@ -8932,7 +8933,7 @@ with (Bot.scope) {
               if (__botLoop137) return __botLoop137;
             }
             if (state.barrier_chosungs.length >= 4) oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
-            replyJob(replier, state.job, getJobDialogue(state.job, "active", "왜곡", "결계를 왜곡한다."));
+            replyJob(replier, state.job, getJobDialogue(state.job, "active", "왜곡", "결계의 파동을 뒤틀어 성질을 변화시킵니다.") + " [" + oldChosungs.join(", ") + "] 가 소용돌이쳐 [" + state.barrier_chosungs.join(", ") + "] 으로 변모합니다.");
           }
         } else if (state.job === "기자" && !isAbilityDisabled) {
           if (ability === "거짓 보도") {
@@ -8942,6 +8943,7 @@ with (Bot.scope) {
             state.report_cooldown = 2;
             state.report_turns = 1;
             oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
+            replyJob(replier, state.job, "📢 [속보] 근거 없는 낭설이 퍼지기 시작합니다! 상대는 혼란에 빠져 1턴간 능력을 사용할 수 없으며, 예외단어 사용 시 검열됩니다.");
             oppState.no_du_eum_turns = Math.max(oppState.no_du_eum_turns, 1);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "거짓 보도", "거짓 보도를 내보낸다.") + " 1턴 동안 보도가 유지된다.");
           }
@@ -9575,7 +9577,7 @@ with (Bot.scope) {
         }
         if (oppState && oppState.job === "고죠" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0) {
           if (word[0] === word[word.length - 1]) {
-            replier.reply("고죠 패시브 [무하한]: 되돌림단어(첫음절과 끝음절이 같은 단어)를 사용할 수 없습니다.");
+            replier.reply("무하한의 경계에 닿았습니다. 시작과 끝이 같은 되돌림단어는 이 공간에서 허락되지 않습니다.");
             return;
           }
         }
@@ -9613,7 +9615,7 @@ with (Bot.scope) {
           let lastDecomposed = decomposeSyllable(word[word.length - 1]);
           let lastChosung = lastDecomposed ? lastDecomposed.chosung : "";
           if (lastChosung !== "ㅎ" && lastChosung !== "ㅅ") {
-            replier.reply("혜성전사 패시브 [핼리 혜성]: 끝음절 초성이 [ㅎ, ㅅ]인 단어만 사용할 수 있습니다.");
+            replier.reply("영원한 정적 속에서... 오직 [ㅎ, ㅅ]의 울림만이 허락됩니다.");
             return;
           }
         }
@@ -9621,60 +9623,60 @@ with (Bot.scope) {
           let starLast = decomposeSyllable(word[word.length - 1]);
           let starChosung = starLast ? starLast.chosung : "";
           if (["ㅅ", "ㅍ", "ㄴ", "ㅂ"].indexOf(starChosung) === -1) {
-            replier.reply("은하계전사 패시브 [볠]: 끝음절 초성이 [ㅅ, ㅍ, ㄴ, ㅂ]인 단어만 사용할 수 있습니다.");
+            replier.reply("별의 무게가 짓누릅니다. 허락된 끝음절은 [ㅅ, ㅍ, ㄴ, ㅂ] 뿐입니다.");
             return;
           }
         }
         if (state.no_du_eum_turns > 0 && !game.lastLetter.split && word[0] === game.lastLetter.s1 && game.lastLetter.s1 !== game.lastLetter.s2) {
-          replier.reply("디버프: 두음법칙을 사용할 수 없습니다.");
+          replier.reply("법칙의 족쇄가 채워졌습니다. 두음법칙의 자유는 허락되지 않습니다. (남은 지속: " + state.no_du_eum_turns + "턴)");
           return;
         }
         if (state.no_hanbang_turns > 0 && is_hb) {
-          replier.reply("디버프: 한방단어를 사용할 수 없습니다.");
+          replier.reply("날카로운 비수는 거두십시오. 일격(한방단어)은 금지되었습니다. (남은 지속: " + state.no_hanbang_turns + "턴)");
           return;
         }
         if (state.no_yudo_turns > 0 && is_yd) {
-          replier.reply("디버프: 유도단어를 사용할 수 없습니다.");
+          replier.reply("길을 잃었습니다... 유도단어로 다음을 이끌 수 없습니다. (남은 지속: " + state.no_yudo_turns + "턴)");
           return;
         }
         if (state.no_root_turns > 0 && is_rt) {
-          replier.reply("디버프: 루트단어를 사용할 수 없습니다.");
+          replier.reply("뿌리가 뽑혔습니다. 생명력(루트단어)을 품은 단어는 사용할 수 없습니다. (남은 지속: " + state.no_root_turns + "턴)");
           return;
         }
         if (state.otter_clam_turns > 0 && hasOtterClamForbiddenChosung(word)) {
-          replier.reply("해달 [조개]: 받침이 [ㅈ, ㄱ, ㄲ, ㄷ]인 음절이 포함된 단어를 사용할 수 없습니다.");
+          replier.reply("조개의 단단한 껍질이 [ㅈ, ㄱ, ㄲ, ㄷ] 받침을 거부합니다! (남은 지속: " + state.otter_clam_turns + "턴)");
           return;
         }
         if (state.no_all_batchim_turns > 0 && isAllBatchimWord(word)) {
-          replier.reply("디버프: 모든 음절에 받침이 있는 단어를 사용할 수 없습니다.");
+          replier.reply("무거운 받침들은 내려놓으십시오. 모든 음절에 받침이 있는 단어는 금지됩니다. (남은 지속: " + state.no_all_batchim_turns + "턴)");
           return;
         }
         if (state.only_even_turns > 0 && word.length % 2 !== 0) {
-          replier.reply("디버프: 짝수 글자 수의 단어만 사용할 수 있습니다.");
+          replier.reply("균형이 중요합니다. 오직 짝수 글자 수의 단어만이 통과할 수 있습니다. (남은 지속: " + state.only_even_turns + "턴)");
           return;
         }
         if (state.only_length_2_forever && word.length !== 2) {
-          replier.reply("감마선 피폭 상태에서는 2글자 단어만 사용할 수 있습니다.");
+          replier.reply("방사능의 영향으로 사고가 마비됩니다... 오직 두 글자로만 답하십시오.");
           return;
         }
         if (state.no_length_2_turns > 0 && word.length === 2) {
-          replier.reply("디버프: 2글자 단어를 사용할 수 없습니다.");
+          replier.reply("가벼운 단어는 금지입니다. 두 글자 단어는 사용할 수 없습니다. (남은 지속: " + state.no_length_2_turns + "턴)");
           return;
         }
         if (state.only_odd_turns > 0 && word.length % 2 === 0) {
-          replier.reply("디버프: 홀수 글자 수의 단어만 사용할 수 있습니다.");
+          replier.reply("불완전한 아름다움... 홀수 글자 수의 단어만이 허락됩니다. (남은 지속: " + state.only_odd_turns + "턴)");
           return;
         }
         if (state.only_length_2_turns > 0 && word.length !== 2) {
-          replier.reply("디버프: 두 글자 단어만 사용할 수 있습니다.");
+          replier.reply("간결함이 미덕입니다. 오직 두 글자 단어만 사용하십시오. (남은 지속: " + state.only_length_2_turns + "턴)");
           return;
         }
         if (state.only_root_turns > 0 && !is_rt) {
-          replier.reply("디버프: 루트단어만 사용할 수 있습니다.");
+          replier.reply("생존을 위한 사투! 오직 뿌리를 내린 단어(루트단어)만이 살아남습니다. (남은 지속: " + state.only_root_turns + "턴)");
           return;
         }
         if (state.last_route_only_turns > 0 && (!ROUTESYL_SET || !ROUTESYL_SET.has(word[word.length - 1]))) {
-          replier.reply("디버프: 끝음절이 루트음절인 단어만 사용할 수 있습니다.");
+          replier.reply("길의 끝을 보십시오. 루트음절로 끝나는 단어만이 다음으로 이어집니다. (남은 지속: " + state.last_route_only_turns + "턴)");
           return;
         }
         if (state.last_kill_or_root_turns > 0) {
@@ -9682,49 +9684,49 @@ with (Bot.scope) {
           let isRT = ROUTESYL_SET && ROUTESYL_SET.has(lastSyl);
           let isHB = isHanbang(word);
           if (!isRT && !isHB) {
-            replier.reply("디버프: 끝음절이 한방음절 또는 루트음절인 단어만 사용할 수 있습니다.");
+            replier.reply("필사의 일격 혹은 생명의 뿌리. 한방 혹은 루트로 끝나는 단어만이 허락됩니다. (남은 지속: " + state.last_kill_or_root_turns + "턴)");
             return;
           }
         }
         if (state.limited_length > 0 && word.length > state.limited_length) {
-          replier.reply("디버프: " + state.limited_length + "글자 이하의 단어만 사용할 수 있습니다.");
+          replier.reply("언령의 제약! " + state.limited_length + "자 이하의 단어만 읊조릴 수 있습니다.");
           return;
         }
         if (state.job === "스폰지밥" && isSpongebobWanted(state) && word.length >= 5) {
-          replier.reply("현상수배 상태에서는 5글자 이상의 단어를 사용할 수 없습니다.");
+          replier.reply("현상수배범의 압박! 5글자 이상의 긴 단어는 눈에 띕니다. 사용할 수 없습니다.");
           return;
         }
         if (state.min_length > 0 && word.length < state.min_length) {
-          replier.reply("디버프: " + state.min_length + "글자 이상의 단어만 사용할 수 있습니다. (현재 " + word.length + "글자)");
+          replier.reply("더 깊은 울림을... 적어도 " + state.min_length + "자 이상의 단어가 필요합니다. (현재 " + word.length + "자)");
           return;
         }
         if (state.target_active_turns > 0 && word.length >= 5) {
-          replier.reply("비밀요원 타깃 포착 중: 5글자 이상의 단어를 사용할 수 없습니다.");
+          replier.reply("요원의 감시망에 걸렸습니다. 5글자 이상의 단어는 위험합니다! (남은 지속: " + state.target_active_turns + "턴)");
           return;
         }
         if (state.no_long_yudo_turns > 0 && is_yd && word.length >= 3) {
-          replier.reply("디버프: 3글자 이상의 유도단어를 사용할 수 없습니다.");
+          replier.reply("짧은 인도만이 허락됩니다. 3글자 이상의 유도단어는 금지됩니다. (남은 지속: " + state.no_long_yudo_turns + "턴)");
           return;
         }
         if (state.apple_debuff_turns > 0 && (is_hb && word.length >= 3 || is_yd && word.length >= 4)) {
-          replier.reply("사과 디버프: 3글자 이상의 한방단어와 4글자 이상의 유도단어를 사용할 수 없습니다.");
+          replier.reply("사과의 과즙에 끈적하게 묶였습니다. 긴 한방(3자↑)과 유도(4자↑)는 불가능합니다. (남은 지속: " + state.apple_debuff_turns + "턴)");
           return;
         }
         let isAbilityDisabled = isAbilityUseDisabled(state);
         if (state.dino_swallowed) {
           if (word.length > 3 || is_exception) {
-            replier.reply("삼킨 직후에는 3글자 이하 일반단어만 가능합니다.");
+            replier.reply("포식자의 위장 속입니다. 3글자 이하의 평범한 단어로 버텨야 합니다.");
             return;
           }
         }
         if (state.slice_active && is_exception) {
-          replier.reply("가르기 직후에는 한방단어와 유도단어를 사용할 수 없습니다.");
+          replier.reply("날카로운 검기에 베였습니다! 예외단어(한방/유도)를 읊조릴 힘이 없습니다.");
           return;
         }
         if (oppState && oppState.job === "악당" && oppState.barrier_turns > 0) {
           let lastChosung = decomposeSyllable(word[word.length - 1]).chosung;
           if (oppState.barrier_chosungs.includes(lastChosung)) {
-            replier.reply("악당의 결계에 가로막혔습니다! (끝음절 초성 [" + lastChosung + "] 사용 불가)");
+            replier.reply("악당의 칠흑 같은 결계가 앞을 가로막습니다! 끝음절 초성 [" + lastChosung + "]은 결계에 닿아 소멸했습니다. (남은 지속: " + oppState.barrier_turns + "턴)");
             return;
           }
         }
@@ -9732,7 +9734,7 @@ with (Bot.scope) {
           let cometLastDecomposed = decomposeSyllable(word[word.length - 1]);
           let cometLastChosung = cometLastDecomposed ? cometLastDecomposed.chosung : "";
           if (oppState.comet_barrier_chosungs.includes(cometLastChosung)) {
-            replier.reply("혜성전사의 결계에 가로막혔습니다! (끝음절 초성 [" + cometLastChosung + "] 사용 불가)");
+            replier.reply("혜성의 꼬리가 만든 장벽에 부딪혔습니다! 끝음절 초성 [" + cometLastChosung + "]은 사용할 수 없습니다. (남은 지속: " + oppState.comet_barrier_turns + "턴)");
             return;
           }
           // 혜성전사 결계는 끝음절 초성만 막는다. 유도단어 금지는 [성]을 쓴 직후의 no_yudo_turns 1턴으로만 처리한다.
@@ -9742,17 +9744,17 @@ with (Bot.scope) {
             word = word.substring(0, word.length - 1) + "삐";
             state.disabled_turns = Math.max(state.disabled_turns, 1);
             state.no_yudo_turns = Math.max(state.no_yudo_turns, 1);
-            replier.reply("기자 버프 발동: 방송 중 예외단어를 사용하여, 마지막 음절이 '삐'로 변경되었으며 1턴간 유도 및 능력 불가상태가 됩니다.");
+            replier.reply("📢 긴급 속보! 부적절한 단어 사용이 감지되었습니다. 강제 검열되어 마지막 글자가 '삐'로 교체되며, 1턴간 침묵(유도/능력 불가) 상태가 됩니다.");
           }
         }
         if (state.job === "마법사" && state.magic_side_effect_ignore_turns <= 0 && is_yd) {
-          replier.reply("마법사 패시브 [부작용]: 유도단어를 사용할 수 없습니다.");
+          replier.reply("마법의 대가... 뒤틀린 마력의 부작용으로 유도단어를 사용할 수 없습니다.");
           return;
         }
         if (oppState && oppState.job === "기관사" && state.job !== "기관사") {
           if (game.turnCount % 2 === 0) {
             if (word.length > oppState.train_stations) {
-              replier.reply("기관사 전철역 정차 중: 종점까지 남은 역 수(" + oppState.train_stations + ")보다 긴 단어를 사용할 수 없습니다.");
+              replier.reply("철로의 법도입니다. 현재 정차 중인 전철역 수(" + oppState.train_stations + ")보다 긴 단어는 탈선할 위험이 있습니다!");
               return;
             }
           }
@@ -9815,12 +9817,12 @@ with (Bot.scope) {
           state.vault_cooldown = 4;
           oppState.no_yudo_turns = Math.max(oppState.no_yudo_turns, 1);
           oppState.absolutely_disabled = Math.max(oppState.absolutely_disabled, 1);
-          pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "뜀틀", "도약으로 상대 흐름을 끊는다.") + " 상대는 1턴 동안 유도단어와 능력, 패시브를 절대 사용할 수 없다.");
+          pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "뜀틀", "경쾌한 도약으로 상대의 흐름을 완전히 끊어버립니다.") + " 상대는 1턴간 심연의 구속(절대 봉쇄/유도 불가) 상태에 빠집니다.");
         }
         if (oppState && oppState.job === "해커" && oppState.chotohwa_active > 0) {
           if (word.length >= 4 || is_exception) {
             state.lost_abilities = true;
-            pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "초토화", "초토화가 터져 상대 능력을 지워 버린다.") + " " + sender + "의 능력이 영구 상실된다.");
+            pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "초토화", "세상이 잿더미로 변하며 상대의 영혼마저 태워버립니다.") + " " + sender + "의 능력이 영구 상실(영혼의 침묵)되었습니다.");
           }
           oppState.chotohwa_active -= 1;
         }
@@ -9852,7 +9854,7 @@ with (Bot.scope) {
             state.only_even_turns = Math.max(state.only_even_turns, 1);
             state.disabled_turns = Math.max(state.disabled_turns, 1);
             state.no_yudo_turns = Math.max(state.no_yudo_turns, 1);
-            pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "강박증", "홀수 길이를 보고 짝수만 허용하겠다고 몰아붙인다.") + " 상대는 1턴 동안 짝수 글자 단어만 쓸 수 있고 유도단어와 능력도 사용할 수 없다.");
+            pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "강박증", "홀수는 용납할 수 없습니다! 완벽한 균형만이 허락됩니다.") + " 상대는 1턴간 짝수 글자만 사용 가능하며, 능력이 마비(능력/유도 불가)됩니다.");
           }
         }
         if (oppState && oppState.job === "수집가" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
@@ -9883,7 +9885,7 @@ with (Bot.scope) {
           }
           if (deduction > 0) {
             oppState.watch_count -= deduction;
-            pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "감시", "규칙 위반을 세고 감시 수를 깎는다.") + " 감시 수가 " + deduction + " 줄어 현재 " + oppState.watch_count + "가 된다.");
+            pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "감시", "모든 예외는 감시의 대상입니다. 당신의 일거수일투족을 기록하고 있습니다.") + " 감시 수가 " + deduction + " 줄어 현재 " + oppState.watch_count + "입니다.");
             if (oppState.watch_count <= 0) {
               oppState.watch_count = 0;
               pushSystem(msgs, "감시 수가 0이 되어 감시자는 이제 이을 음절과 무관하게 단어를 사용할 수 있다.");
@@ -9894,7 +9896,7 @@ with (Bot.scope) {
           let count = countWolfRoar(word);
           if (count >= 1) {
             oppState.only_even_turns = Math.max(oppState.only_even_turns, 2);
-            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "포효", "단어 속 울음소리로 상대를 위축시킨다.") + " 상대는 2턴 동안 짝수 글자 단어만 사용할 수 있다.");
+            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "포효", "고대의 부르짖음이 대기를 진동시킵니다. 상대는 위축되어 균형에 집착하게 됩니다.") + " 상대는 2턴간 짝수 글자 단어만 사용할 수 있습니다.");
             if (count >= 3) {
               oppState.no_root_turns = Math.max(oppState.no_root_turns || 0, 1);
               pushSystem(msgs, "포효가 깊어져 상대는 1턴 동안 루트단어를 사용할 수 없다.");
@@ -9927,7 +9929,7 @@ with (Bot.scope) {
             oppState.no_hanbang_turns = Math.max(oppState.no_hanbang_turns, 1);
             oppState.no_yudo_turns = Math.max(oppState.no_yudo_turns, 1);
             oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
-            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "실험", "특정 자모가 많은 단어를 보고 실험을 성공시킨다.") + " 상대는 1턴 동안 공격단어와 능력, 패시브를 사용할 수 없다.");
+            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "실험", "실험 성공! 데이터의 정합성이 증명되었습니다.") + " 가설 검증의 여파로 상대는 1턴간 침묵(능력/한방/유도 불가) 상태가 됩니다.");
             if (state.dna_tracking && state.dna_target) {
               state.dna_success_streak++;
               if (state.dna_success_streak >= 2) {
@@ -10230,16 +10232,16 @@ with (Bot.scope) {
             oppState.disabled_turns = Math.max(oppState.disabled_turns, 2);
             oppState.absolutely_disabled = Math.max(oppState.absolutely_disabled, 1);
             oppState.last_route_only_turns = Math.max(oppState.last_route_only_turns, state.star_stacks);
-            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "별인 듯 달 아닌 별", "별과 달의 흔적으로 상대를 묶는다.") + " 상대는 " + state.star_stacks + "턴 동안 끝음절이 루트음절인 단어만 사용할 수 있고, 2턴 동안 능력과 패시브가 봉쇄된다.");
+            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "별인 듯 달 아닌 별", "우주의 파편이 상대의 발목을 잡습니다.") + " 상대는 " + state.star_stacks + "턴간 끝음절 루트 제약을 받으며, 2턴간 모든 능력이 봉쇄됩니다.");
             if (state.star_stacks % 3 === 0) {
               word = word.substring(0, word.length - 1) + "벨";
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "벨", "이번엔 끝음절을 벨로 남긴다.") + " 끝음절이 벨로 고정된다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "벨", "궤적의 끝을 '벨'로 수놓습니다.") + " 끝음절이 '벨'로 강제 고정됩니다.");
             }
             if (state.star_stacks === 9) {
               word = word.substring(0, word.length - 1) + "볠";
               state.star_ult_used = true;
               oppState.star_final_lock = true;
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "볠", "더 강한 흔적으로 끝음을 묶는다.") + " 끝음절이 볠로 바뀌고 상대는 영구적으로 끝음절 초성 [ㅅ, ㅍ, ㄴ, ㅂ]만 사용할 수 있다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "볠", "영겁의 성채 '볠'이 완성되었습니다.") + " 끝음절이 '볠'로 고정되며, 상대는 영구적으로 [ㅅ, ㅍ, ㄴ, ㅂ] 초성만 사용할 수 있게 됩니다.");
             }
           }
         }
@@ -10251,11 +10253,11 @@ with (Bot.scope) {
             oppState.no_yudo_turns = Math.max(oppState.no_yudo_turns, 1);
             if (state.comet_barrier_turns > 0) {
               state.comet_barrier_turns += 1;
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "성과 혜의 흔적으로 결계를 열고 닫는다.") + " 결계 지속 시간이 1턴 늘어나며 상대는 1턴 동안 유도단어를 사용할 수 없다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "혜성의 꼬리가 길게 늘어집니다.") + " 결계가 1턴 연장되었으며, 상대는 다음 턴 유도단어를 사용할 수 없습니다.");
             } else {
               state.comet_barrier_turns = 3;
               state.comet_barrier_chosungs = ["ㄱ", "ㄴ"];
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "성과 혜의 흔적으로 결계를 열고 닫는다.") + " 3턴 동안 혜성 결계가 생성되고 초성은 [ㄱ, ㄴ]으로 시작한다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "푸른 혜성의 궤적이 결계를 형성합니다.") + " 3턴간 초성 [" + state.comet_barrier_chosungs.join(", ") + "] 을 차단하는 결계가 생성됩니다.");
             }
           }
           if (hasHye) {
@@ -10265,15 +10267,15 @@ with (Bot.scope) {
               state.comet_barrier_turns = 0;
               state.comet_barrier_chosungs = [];
               cometBarrierEndedThisTurn = true;
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "성과 혜의 흔적으로 결계를 열고 닫는다.") + " 결계 타이머가 0이 되어 즉시 종료되고 상대는 2턴 동안 유도단어를 사용할 수 없다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "혜성이 대기권으로 사라지며 충격파를 남깁니다.") + " 결계가 소멸하지만, 상대를 2턴간 침묵(유도 불가) 상태에 빠뜨립니다.");
             } else {
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "성과 혜의 흔적으로 결계를 열고 닫는다.") + " 상대는 2턴 동안 유도단어를 사용할 수 없다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "핼리 혜성", "차가운 혜성의 기운이 상대를 얼립니다.") + " 상대는 2턴간 유도단어를 사용할 수 없습니다.");
             }
           }
           if (!state.comet_final_applied && game.turnCount < 16 && state.comet_seong_count >= 5 && state.comet_hye_count >= 1) {
             state.comet_final_applied = true;
             oppState.comet_final_lock = true;
-            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "영구 결계", "궤적이 굳어져 상대의 끝음을 영구히 좁힌다.") + " 상대는 이제 영구적으로 끝음절 초성이 [ㅎ, ㅅ]인 단어만 사용할 수 있다.");
+            pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "영구 결계", "우주의 섭리가 상대를 구속합니다.") + " 상대는 이제 영구적으로 끝음절 초성이 [ㅎ, ㅅ]인 단어만 사용 가능합니다.");
           }
         }
         if (state.job === "사신" && !isAbilityDisabled && !mapPassiveBlocked) {
@@ -10293,9 +10295,9 @@ with (Bot.scope) {
             if (!oppIsEngineer) {
               oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
               oppState.no_yudo_turns = Math.max(oppState.no_yudo_turns, 1);
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "운행", "역에 정차하며 상대의 선택지를 좁힌다.") + " " + (11 - state.train_stations) + "번째 역에 섰다. 남은 역은 " + state.train_stations + "이고 상대는 1턴 동안 유도단어와 능력을 사용할 수 없다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "운행", "강철 궤도 위를 달리는 열차가 정거장에 진입합니다.") + " [" + (11 - state.train_stations) + "]번째 역에 정차했습니다. 종점까지 [" + state.train_stations + "]역 남았습니다. 승객의 안전을 위해 상대는 1턴간 발이 묶입니다(능력/유도 불가).");
             } else {
-              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "운행", "역에 정차하며 상대의 선택지를 좁힌다.") + " " + (11 - state.train_stations) + "번째 역에 섰다. 기관사 대전이므로 추가 제약은 없고 남은 역은 " + state.train_stations + "이다.");
+              pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "운행", "열차가 나란히 철로를 달립니다.") + " [" + (11 - state.train_stations) + "]번째 역에 정차했습니다. 기관사 대전이므로 추가 제약은 없으며, 남은 역은 [" + state.train_stations + "]입니다.");
             }
             if (state.train_stations <= 0) {
               replier.reply(msgs.join("\n"));
@@ -14051,7 +14053,13 @@ Alt-F4 콤보를 준비합니다.`;
                   return;
                 }
                 if (isAbilityUseDisabled(state)) {
-                  replier.reply("능력을 사용할 수 없는 상태입니다.");
+                  if (state.lost_abilities) {
+                    replier.reply("영혼의 침묵... 능력을 영구적으로 상실하여 더 이상 빛을 발할 수 없습니다.");
+                  } else if (state.absolutely_disabled > 0) {
+                    replier.reply("심연의 구속에 갇혔습니다! 어떤 능력도 깨울 수 없습니다. (남은 지속: " + state.absolutely_disabled + "턴)");
+                  } else {
+                    replier.reply("정신이 혼미하여 능력을 사용할 수 없습니다. (남은 지속: " + (state.disabled_turns || 0) + "턴)");
+                  }
                   return;
                 }
                 if (abilityNorm === "?" || abilityNorm === "물음표") {
@@ -15470,7 +15478,13 @@ Alt-F4 콤보를 준비합니다.`;
                   return;
                 }
                 if (isAbilityUseDisabled(state)) {
-                  replier.reply("능력을 사용할 수 없는 상태입니다.");
+                  if (state.lost_abilities) {
+                    replier.reply("영혼의 침묵... 능력을 영구적으로 상실하여 더 이상 빛을 발할 수 없습니다.");
+                  } else if (state.absolutely_disabled > 0) {
+                    replier.reply("심연의 구속에 갇혔습니다! 어떤 능력도 깨울 수 없습니다. (남은 지속: " + state.absolutely_disabled + "턴)");
+                  } else {
+                    replier.reply("정신이 혼미하여 능력을 사용할 수 없습니다. (남은 지속: " + (state.disabled_turns || 0) + "턴)");
+                  }
                   return;
                 }
                 if (abilityNorm === "?" || abilityNorm === "물음표") {
@@ -16441,7 +16455,7 @@ Alt-F4 콤보를 준비합니다.`;
 
     function __ccLabel(k) {
       var m = {
-        lost_abilities:"능력 상실", disabled_turns:"능력/패시브 불가", absolutely_disabled:"절대 봉쇄", no_yudo_turns:"유도 불가", no_root_turns:"루트 불가", no_hanbang_turns:"한방 불가", no_du_eum_turns:"두음 불가", only_even_turns:"짝수만", only_odd_turns:"홀수만", only_length_2_turns:"2글자만", no_length_2_turns:"2글자 금지", only_root_turns:"루트음절만", last_route_only_turns:"끝음절 루트만", last_kill_or_root_turns:"끝음절 한방/루트만", limited_length:"최대 글자", min_length:"최소 글자", no_long_yudo_turns:"긴 유도 금지", no_all_batchim_turns:"올받침 금지", target_active_turns:"타깃", apple_debuff_turns:"사과", otter_clam_turns:"조개 제한",
+        lost_abilities: "영혼의 침묵(능력 상실)", disabled_turns: "일시적 마비(능력 불가)", absolutely_disabled: "심연의 구속(절대 봉쇄)", no_yudo_turns: "인도 거부(유도 불가)", no_root_turns: "생명력 결핍(루트 불가)", no_hanbang_turns: "날카로움 억제(한방 불가)", no_du_eum_turns: "법칙의 저주(두음 불가)", only_even_turns: "균형의 강제(짝수만)", only_odd_turns: "불균형의 미학(홀수만)", only_length_2_turns: "간결함의 굴레(2글자만)", no_length_2_turns: "가벼움 경계(2글자 금지)", only_root_turns: "뿌리의 사투(루트음절만)", last_route_only_turns: "길의 수호(끝음절 루트만)", last_kill_or_root_turns: "극단의 갈림길(끝음절 한방/루트만)", limited_length: "언령의 한계(최대 글자)", min_length: "심연의 울림(최소 글자)", no_long_yudo_turns: "짧은 인도(긴 유도 금지)", no_all_batchim_turns: "무게 덜어내기(올받침 금지)", target_active_turns: "요원의 감시", apple_debuff_turns: "사과의 과즙", otter_clam_turns: "조개의 거부(조개 제한)",
         jojak_cooldown:"조작 쿨", jojak_uses:"조작 사용", jojak_active:"조작 지속", bokje_uses:"복제 사용", chotohwa_cooldown:"초토화 쿨", chotohwa_uses:"초토화 사용", chotohwa_active:"초토화 지속", investor_stock:"빚/주가", juga_jojak_cooldown:"조작 쿨", juga_jojak_uses:"조작 사용", juga_jojak_active:"조작 장전", opcd_cooldown:"강박증 쿨", hallucination_uses:"환각증 사용", patient_no_kill_turns:"환각증 여파", patient_doom_turns:"어지럼 패배까지", collected_syllables:"수집", make_cooldown:"제작 쿨", mine_cooldown:"채굴 쿨", mine_uses:"채굴 사용", mine_active:"채굴 지속", watch_count:"감시 수", detect_cooldown:"탐지 쿨", detect_uses:"탐지 사용", detect_active_turns:"탐지 지속", vault_cooldown:"뜀틀 쿨", vault_uses:"뜀틀 사용", vault_max:"뜀틀 최대", hurdle_uses:"허들 사용", afterimage_uses:"잔상 사용", lightning_cooldown:"직격뢰 쿨", lightning_uses:"직격뢰 사용", train_stations:"남은 역", roar_cooldown:"포효 쿨", shift_uses:"시프트 사용", big_shift_uses:"빅 시프트 사용", targets:"타깃", capture_cooldown:"포획 쿨", capture_uses:"포획 사용", sixtyseven_cooldown:"67 쿨", apple_passive_cooldown:"삭와 쿨", apple_triggered_once:"삭와 발동", sagua_uses:"사구아 사용", execution_count:"처형 수", death_cooldown:"사형 선고 쿨", death_uses:"사형 선고 사용", soul_uses:"영혼 사용", lucas_value:"뤼카 값", lucas_cooldown:"뤼카 쿨", question_uses:"물음표 사용", comma_uses:"쉼표 사용", math_result:"결과 수", experiment_success_total:"실험 성공", dna_cooldown:"DNA 쿨", dna_uses:"DNA 사용", dna_target:"DNA 대상", galileo_moons:"위성", compose_notes:"악보", compose_units:"박자", split_uses:"쪼개기 사용", rest_cooldown:"쉼표 쿨", money:"돈", burger_cooldown:"게살버거 쿨", fries_cooldown:"감자튀김 쿨", bonus_cooldown:"보너스 쿨", bonus_uses:"보너스 사용", bonus_active:"보너스", robber_cooldown:"강도 쿨", robber_turns:"강도 지속", knight_pattern:"L자", checkmate_cooldown:"체크메이트 쿨", checkmate_uses:"체크메이트 사용", exchange_uses:"교환 사용", signal_sequence:"신호", signal_cooldown:"신호 쿨", rescue_cooldown:"구조 쿨", rescue_uses:"구조 사용", barrier_turns:"결계", barrier_chosungs:"결계 초성", distort_cooldown:"왜곡 쿨", report_turns:"보도", report_cooldown:"보도 쿨", stab_cooldown:"찌르기 쿨", stab_uses:"찌르기 사용", slice_cooldown:"가르기 쿨", slice_uses:"가르기 사용", gandhi_stacks:"비폭력", suppress_cooldown:"억제 쿨", star_stacks:"별 스택", star_cooldown:"별 쿨", star_permanent_done:"영구 제한", comet_passive_cooldown:"혜성 쿨", comet_barrier_turns:"혜성 결계", comet_barrier_chosungs:"혜성 초성", comet_seong_count:"성 횟수", comet_hye_count:"혜 횟수", bulletproof_cooldown:"방탄 쿨", bulletproof_uses:"방탄 사용", repair_cooldown:"수리 쿨", repair_uses:"수리 사용", gongcheo_cooldown:"무량공처 쿨", gongcheo_uses:"무량공처 사용", uranium_two_streak:"2글자 연속", uranium_gamma_chain:"감마 수열", radiation_cooldown:"방사선 쿨", fission_uses:"핵분열 사용", fission_turns:"핵분열", fission_syllables:"핵분열 음절", speaki_clean_uses:"물걸레질 사용", speaki_clean_cooldown:"물걸레질 쿨", speaki_pumpkin_cooldown:"호박 쿨", speaki_pumpkin_uses:"호박 사용", otter_clam_cooldown:"조개 쿨", otter_clam_uses:"조개 사용", otter_smash_uses:"깨부수기 사용", programmer_restarted:"Restart", programmer_restart_turn:"Restart 턴", programmer_shift_uses:"Shift 사용", programmer_caps_uses:"Caps 사용", programmer_caps_cooldown:"Caps 쿨", programmer_backspace_uses:"Backspace 사용", used_active_this_turn:"이번 턴 능력"
       };
       return m[k] || "";
@@ -16458,7 +16472,7 @@ Alt-F4 콤보를 준비합니다.`;
       return "";
     }
     function __ccParts(state, onlyEffects) {
-      var effectKeys = {lost_abilities:1,disabled_turns:1,absolutely_disabled:1,no_yudo_turns:1,no_root_turns:1,no_hanbang_turns:1,no_du_eum_turns:1,only_even_turns:1,only_odd_turns:1,only_length_2_turns:1,no_length_2_turns:1,only_root_turns:1,last_route_only_turns:1,last_kill_or_root_turns:1,limited_length:1,min_length:1,no_long_yudo_turns:1,no_all_batchim_turns:1,target_active_turns:1,apple_debuff_turns:1,otter_clam_turns:1};
+      var effectKeys = {lost_abilities:1,disabled_turns:1,absolutely_disabled:1,no_yudo_turns:1,no_root_turns:1,no_hanbang_turns:1,no_du_eum_turns:1,only_even_turns:1,only_odd_turns:1,only_length_2_turns:1,no_length_2_turns:1,only_root_turns:1,last_route_only_turns:1,last_kill_or_root_turns:1,limited_length:1,min_length:1,no_long_yudo_turns:1,no_all_batchim_turns:1,target_active_turns:1,apple_debuff_turns:1,otter_clam_turns:1,barrier_turns:1,barrier_chosungs:1,comet_barrier_turns:1,comet_barrier_chosungs:1,report_turns:1,dino_swallowed:1,slice_active:1};
       var out=[], keys=Object.keys(state||{}).sort();
       for(var i=0;i<keys.length;i++){var k=keys[i]; if(k==="job"||k==="destroyed_active_abilities")continue; if(onlyEffects&&!effectKeys[k])continue; if(!onlyEffects&&effectKeys[k])continue; var lab=__ccLabel(k), val=__ccVal(k,state[k]); if(lab&&val)out.push(lab+" "+val);}
       return out;

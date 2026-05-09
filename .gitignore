@@ -6,6 +6,12 @@ data/runtime
 .env
 .env.app
 *.log
+.claude/
+artifacts/
+verification-*.png
+image.txt
+hanbang_lines.txt
+finalizeMatch_calls.txt
 
 # Android / Capacitor (generated in CI)
 android/
