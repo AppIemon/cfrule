@@ -1,5 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { getBotEngine } from '$lib/server/botEngine.js';
+import { clientIp, rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
+
+const QUERY_MAX = 32;
+const USED_MAX = 4096;
 
 function setToArray(value) {
   if (!value) return [];
@@ -40,13 +44,24 @@ function replyCount(context, word) {
   return 0;
 }
 
-export async function GET({ url }) {
-  const q = String(url.searchParams.get('q') || '').trim();
+export async function GET(event) {
+  const { url, locals } = event;
+  const key = locals.user?.id ? `wordsearch:u:${locals.user.id}` : `wordsearch:ip:${clientIp(event)}`;
+  const rl = rateLimit(key, { limit: 60, windowMs: 60_000 });
+  if (!rl.ok) return rateLimitResponse(rl.retryAfter);
+
+  const q = String(url.searchParams.get('q') || '').trim().slice(0, QUERY_MAX);
   const start = String(url.searchParams.get('start') || '').trim().slice(0, 1);
   const limit = Math.min(100, Math.max(10, Number(url.searchParams.get('limit') || 50)));
   const bot = await getBotEngine();
   const context = bot.context;
-  const used = new Set(String(url.searchParams.get('used') || '').split(',').map((v) => v.trim()).filter(Boolean));
+  const used = new Set(
+    String(url.searchParams.get('used') || '')
+      .slice(0, USED_MAX)
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean)
+  );
   let pool = getWordPool(context, start);
 
   if (q) pool = pool.filter((word) => String(word || '').includes(q));

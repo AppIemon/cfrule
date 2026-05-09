@@ -440,9 +440,18 @@
     return null;
   }
 
+  let lastProcessedLogId = $state(null);
+  $effect(() => {
+    room; // reset on room change
+    lastProcessedLogId = null;
+  });
   $effect(() => {
     if (log.length > 0) {
       const last = log[log.length - 1];
+      if (last.id === lastProcessedLogId) return;
+      const isFirstSeen = lastProcessedLogId === null;
+      lastProcessedLogId = last.id;
+      if (isFirstSeen) return;
       if (last.type === 'system') {
         const text = last.text?.replace('[시스템]: ', '').trim() || '';
 
@@ -634,7 +643,7 @@
     const data = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nickname: user.nickname, mode: Number(mode), practice, cpuJob })
+      body: JSON.stringify({ mode: Number(mode), practice, cpuJob })
     });
     room = data.room;
     snapshot = data;
@@ -652,7 +661,7 @@
     const data = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'join', room: target, nickname: user.nickname })
+      body: JSON.stringify({ action: 'join', room: target })
     });
     room = data.room;
     snapshot = data;
@@ -698,7 +707,7 @@
     }
     startPolling();
     if (browser && room) {
-      const url = wsUrl(`/ws?room=${encodeURIComponent(room)}&nickname=${encodeURIComponent(nickname)}`);
+      const url = wsUrl(`/ws?room=${encodeURIComponent(room)}`);
       if (!url) return;
       try {
         socket = new WebSocket(url);
@@ -729,7 +738,7 @@
   async function fetchOngoingGames() {
     if (!nickname) return;
     try {
-      const res = await fetch(apiUrl(`/api/my-games?nickname=${encodeURIComponent(nickname)}`), { credentials: 'include' });
+      const res = await fetch(apiUrl('/api/my-games'), { credentials: 'include' });
       if (res.ok) ongoingGames = await res.json();
     } catch {}
   }
@@ -763,7 +772,7 @@
     snapshot = await request('/api/action', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ room, nickname: user.nickname, command: commandText.trim() })
+      body: JSON.stringify({ room, command: commandText.trim() })
     });
   }
 

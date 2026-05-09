@@ -1,6 +1,29 @@
 import { randomBytes } from 'node:crypto';
 import { botBootStatus, botRankings, botRoomState, dispatchBotMessage } from './botEngine.js';
 import { publishRoom } from './realtime.js';
+import { getSessionCookieName, getUserByToken } from './auth.js';
+
+// Re-exported for the standalone WebSocket server (server.js) so it can resolve
+// a nickname from the session cookie without reaching into a separate auth chunk.
+export { getSessionCookieName, getUserByToken };
+
+export async function lookupSessionFromCookieHeader(cookieHeader) {
+  if (!cookieHeader) return null;
+  const name = getSessionCookieName();
+  const target = `${name}=`;
+  for (const part of String(cookieHeader).split(';')) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(target)) {
+      const raw = trimmed.slice(target.length);
+      try {
+        return await getUserByToken(decodeURIComponent(raw));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
 
 const logs = new Map();
 const roomMeta = new Map();

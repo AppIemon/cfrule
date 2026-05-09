@@ -46,7 +46,7 @@ export async function signup({ username, password, nickname }) {
   const db = await getDb();
   const clean = normalizeUsername(username);
   if (clean.length < 2) throw new Error('username_too_short');
-  if (String(password || '').length < 4) throw new Error('password_too_short');
+  if (String(password || '').length < 8) throw new Error('password_too_short');
   const now = new Date();
   const user = {
     username: clean,
@@ -111,7 +111,7 @@ export function setSessionCookie(cookies, token, request) {
     path: '/',
     httpOnly: true,
     sameSite: crossOrigin ? 'none' : 'lax',
-    secure: crossOrigin ? true : false,
+    secure: crossOrigin ? true : process.env.NODE_ENV === 'production',
     maxAge: sessionDays * 24 * 60 * 60
   });
 }
