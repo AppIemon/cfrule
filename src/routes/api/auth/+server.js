@@ -23,7 +23,7 @@ export async function POST({ request, cookies }) {
       return json({ user: null });
     }
     const result = body.action === 'signup' ? await signup(body) : await login(body);
-    setSessionCookie(cookies, result.token);
+    setSessionCookie(cookies, result.token, request);
     return json({ user: result.user });
   } catch (error) {
     return json({ error: error?.message || 'auth_failed' }, { status: 400 });

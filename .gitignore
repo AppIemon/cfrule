@@ -4,4 +4,11 @@ node_modules
 build
 data/runtime
 .env
+.env.app
 *.log
+
+# Android / Capacitor (generated in CI)
+android/
+*.keystore
+*.jks
+keystore.b64

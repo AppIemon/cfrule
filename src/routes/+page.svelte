@@ -5,6 +5,7 @@
     BarChart3, Bot, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
     Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Vote, X
   } from 'lucide-svelte';
+  import { apiUrl, wsUrl } from '$lib/api-base';
 
   const TIER_INFO = [
     { name: '아이언 V',      min: 0,    max: 39,       color: '#9E9E9E' },
@@ -161,7 +162,7 @@
   async function fetchDMConversation() {
     if (!dmTarget.trim() || !user) return;
     try {
-      const res = await fetch(`/api/dm?with=${encodeURIComponent(dmTarget.trim())}`);
+      const res = await fetch(apiUrl(`/api/dm?with=${encodeURIComponent(dmTarget.trim())}`), { credentials: 'include' });
       if (res.ok) { const d = await res.json(); dmMessages = d.messages || []; }
     } catch {}
   }
@@ -169,7 +170,7 @@
   async function fetchDMInbox() {
     if (!user) return;
     try {
-      const res = await fetch('/api/dm');
+      const res = await fetch(apiUrl('/api/dm'), { credentials: 'include' });
       if (res.ok) { const d = await res.json(); dmInbox = d.inbox || []; }
     } catch {}
   }
@@ -181,8 +182,9 @@
     if (!text || !to || !user) return;
     dmInput = '';
     try {
-      await fetch('/api/dm', {
+      await fetch(apiUrl('/api/dm'), {
         method: 'POST',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ to, text })
       });
@@ -561,7 +563,7 @@
 
   $effect(() => {
     if (browser) {
-      fetch('/api/job-info').then(r => r.json()).then(d => { jobInfoByJob = d; }).catch(() => {});
+      fetch(apiUrl('/api/job-info')).then(r => r.json()).then(d => { jobInfoByJob = d; }).catch(() => {});
     }
   });
 
@@ -569,7 +571,7 @@
     busy = true;
     error = '';
     try {
-      const res = await fetch(path, options);
+      const res = await fetch(apiUrl(path), { credentials: 'include', ...options });
       if (!res.ok) throw new Error(await res.text());
       return await res.json();
     } catch (err) {
@@ -648,7 +650,7 @@
   async function refresh(targetRoom = room) {
     if (!targetRoom) return;
     try {
-      const res = await fetch(`/api/room?room=${encodeURIComponent(targetRoom)}`, { cache: 'no-store' });
+      const res = await fetch(apiUrl(`/api/room?room=${encodeURIComponent(targetRoom)}`), { cache: 'no-store', credentials: 'include' });
       if (!res.ok || targetRoom !== room) return;
       snapshot = await res.json();
     } catch {}
@@ -683,9 +685,10 @@
     }
     startPolling();
     if (browser && room) {
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+      const url = wsUrl(`/ws?room=${encodeURIComponent(room)}&nickname=${encodeURIComponent(nickname)}`);
+      if (!url) return;
       try {
-        socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}&nickname=${encodeURIComponent(nickname)}`);
+        socket = new WebSocket(url);
         socket.onopen = () => { wsRetryDelay = 1000; };
         socket.onmessage = (event) => {
           try {
@@ -713,7 +716,7 @@
   async function fetchOngoingGames() {
     if (!nickname) return;
     try {
-      const res = await fetch(`/api/my-games?nickname=${encodeURIComponent(nickname)}`);
+      const res = await fetch(apiUrl(`/api/my-games?nickname=${encodeURIComponent(nickname)}`), { credentials: 'include' });
       if (res.ok) ongoingGames = await res.json();
     } catch {}
   }
@@ -856,7 +859,7 @@
   async function searchInGame() {
     const tabObj = activeInGameTab;
     if (!tabObj || !tabObj.query.trim()) return;
-    const data = await fetch(`/api/search?q=${encodeURIComponent(tabObj.query)}`).then(r => r.json()).catch(() => ({}));
+    const data = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(tabObj.query)}`), { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
     tabObj.results = data.results || [];
   }
 
@@ -1386,6 +1389,9 @@
                   <div class="player-job">
                     {playerJob || '미선택'}
                   </div>
+                  {#if playerJob && jobInfoByJob[playerJob]}
+                    <div class="job-tooltip job-tooltip--player"><pre class="job-tooltip-text">{jobInfoByJob[playerJob]}</pre></div>
+                  {/if}
                   {#if getJobStatuses(game.playerStates?.[player]).length}
                     <div class="job-status-list">
                       {#each getJobStatuses(game.playerStates?.[player]) as st}
@@ -1460,6 +1466,9 @@
                   <span>{jobInitial(myState.job)}</span>
                 </div>
                 <div class="mj-name">{myState.job}</div>
+                {#if jobInfoByJob[myState.job]}
+                  <div class="job-tooltip job-tooltip--myjob"><pre class="job-tooltip-text">{jobInfoByJob[myState.job]}</pre></div>
+                {/if}
                 {#if myStatusList.length}
                   <div class="mj-status-list">
                     {#each myStatusList as st}
@@ -1758,7 +1767,12 @@
         <!-- 직업별 랭킹 -->
         <div class="job-rank-selector">
           {#each jobRankingList.slice(0, 20) as [job]}
-            <button class="jrs-btn" class:jrs-active={rankJob === job} onclick={() => (rankJob = job)}>{job}</button>
+            <button class="jrs-btn" class:jrs-active={rankJob === job} onclick={() => (rankJob = job)}>
+              {job}
+              {#if jobInfoByJob[job]}
+                <div class="job-tooltip job-tooltip--jrs"><pre class="job-tooltip-text">{jobInfoByJob[job]}</pre></div>
+              {/if}
+            </button>
           {/each}
         </div>
         {#if rankJob && jobRanking[rankJob]}
@@ -3082,6 +3096,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: inherit;
     background: linear-gradient(135deg, rgba(99,102,241,.08), transparent);
     pointer-events: none;
   }
@@ -3570,6 +3585,36 @@
     margin: 0;
   }
   .job-card:hover .job-tooltip { display: block; }
+
+  /* Player card (left in-game column) — anchor to the right of the card */
+  .player-card { overflow: visible; }
+  .player-card .job-tooltip--player {
+    bottom: auto; top: 0; left: calc(100% + 8px); transform: none;
+    width: 280px; max-height: 300px;
+  }
+  .player-card:hover .job-tooltip--player { display: block; }
+
+  /* My-job panel (right control column) — anchor to the left of the panel */
+  .my-job-panel { overflow: visible; }
+  .my-job-panel .job-tooltip--myjob {
+    bottom: auto; top: 0; right: calc(100% + 8px); left: auto; transform: none;
+    width: 280px; max-height: 300px;
+  }
+  .my-job-panel:hover .job-tooltip--myjob { display: block; }
+
+  /* Job-ranking filter button — keep default top-anchored tooltip */
+  .jrs-btn { position: relative; }
+  .jrs-btn .job-tooltip--jrs { width: 280px; max-height: 300px; text-align: left; }
+  .jrs-btn:hover .job-tooltip--jrs { display: block; }
+
+  /* Narrow screens: flip side-anchored tooltips back to top-centered */
+  @media (max-width: 980px) {
+    .player-card .job-tooltip--player,
+    .my-job-panel .job-tooltip--myjob {
+      bottom: calc(100% + 8px); top: auto; left: 50%; right: auto;
+      transform: translateX(-50%);
+    }
+  }
 
   /* ─── Floating word search ─── */
   .syl-search-btn {

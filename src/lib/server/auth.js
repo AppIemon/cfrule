@@ -98,12 +98,20 @@ export async function logout(token) {
   await db.collection('sessions').deleteOne({ tokenHash: hashToken(token) });
 }
 
-export function setSessionCookie(cookies, token) {
+const APP_ORIGINS = new Set([
+  'capacitor://localhost',
+  'http://localhost',
+  'https://localhost'
+]);
+
+export function setSessionCookie(cookies, token, request) {
+  const origin = request?.headers?.get?.('origin') || '';
+  const crossOrigin = APP_ORIGINS.has(origin);
   cookies.set(sessionCookie, token, {
     path: '/',
     httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
+    sameSite: crossOrigin ? 'none' : 'lax',
+    secure: crossOrigin ? true : false,
     maxAge: sessionDays * 24 * 60 * 60
   });
 }
