@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { botBootStatus, botRankings, botRoomState, dispatchBotMessage } from './botEngine.js';
+import { botAllRoomStates, botBootStatus, botRankings, botRoomState, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { publishRoom } from './realtime.js';
 
 const logs = new Map();
@@ -7,12 +7,14 @@ const roomMeta = new Map();
 const commandHistory = new Map();
 const restoredRooms = new Set();
 const restartTimers = new Map();
+const clockTimers = new Map();
+const clockFinalizing = new Set();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 const roomChats = new Map(); // room -> [{ id, sender, text, at }]
 
 const QUEST_COUNT = 16;
 const CPU_RANDOM_JOBS = [
-  '해커','투자자','환자','수집가','감시자','뜀틀선수','전우치','시프터','비밀요원','사과','시인','공룡','마법사','사신','수학자','과학자','작곡가','스폰지밥','나이트','생존자','악당','기자','검객','마하트마간디','수리사','우라늄','고죠','스핔이','해달','프로그래머'
+  '해커', '투자자', '환자', '수집가', '감시자', '뜀틀선수', '전우치', '기관사', '늑대인간', '시프터', '비밀요원', '67', '사과', '시인', '공룡', '마법사', '사신', '수학자', '과학자', '갈릴레오', '작곡가', '스폰지밥', '나이트', '생존자', '악당', '기자', '검객', '마하트마간디', '은하계전사', '혜성전사', '수리사', '우라늄', '고죠', '스핔이', '해달', '피보나치', '?', '프로그래머', '볼링선수', '반장'
 ];
 
 function code() {
@@ -171,12 +173,182 @@ function rememberCommand(room, sender, command) {
   commandHistory.set(room, list);
 }
 
-export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '' }) {
+function sanitizeMode(value) {
+  const num = Math.floor(Number(value) || 1);
+  return Math.min(3, Math.max(1, num));
+}
+
+function sanitizeJobs(value) {
+  const list = Array.isArray(value) ? value : [];
+  const seen = new Set();
+  const out = [];
+  for (const raw of list) {
+    const job = String(raw || '').trim();
+    if (!job || seen.has(job)) continue;
+    seen.add(job);
+    out.push(job);
+  }
+  return out;
+}
+
+function normalizeTimer(value = {}) {
+  const enabled = !!value.enabled;
+  const minutes = Math.min(60, Math.max(1, Math.floor(Number(value.minutes) || 10)));
+  const increment = Math.min(60, Math.max(0, Math.floor(Number(value.increment) || 0)));
+  return {
+    enabled,
+    initialSeconds: minutes * 60,
+    incrementSeconds: increment,
+    remaining: {},
+    activePlayer: '',
+    lastStartedAt: 0,
+    expired: false
+  };
+}
+
+function publicTimer(timer) {
+  if (!timer?.enabled) return null;
+  const remaining = { ...(timer.remaining || {}) };
+  if (timer.activePlayer && timer.lastStartedAt && remaining[timer.activePlayer] !== undefined) {
+    const elapsed = Math.max(0, Math.floor((Date.now() - timer.lastStartedAt) / 1000));
+    remaining[timer.activePlayer] = Math.max(0, remaining[timer.activePlayer] - elapsed);
+  }
+  return {
+    enabled: true,
+    initialSeconds: timer.initialSeconds,
+    incrementSeconds: timer.incrementSeconds,
+    remaining,
+    activePlayer: timer.activePlayer || '',
+    expired: !!timer.expired
+  };
+}
+
+function metaForSnapshot(room) {
+  const meta = roomMeta.get(room);
+  if (!meta) return null;
+  return {
+    ...meta,
+    timer: publicTimer(meta.timer)
+  };
+}
+
+function ensureClockLoop(room) {
+  if (clockTimers.has(room)) return;
+  const timer = setInterval(async () => {
+    try {
+      await updateRoomClock(room, { publish: true, finalize: true });
+    } catch {}
+  }, 1000);
+  clockTimers.set(room, timer);
+}
+
+function stopClockLoop(room) {
+  const timer = clockTimers.get(room);
+  if (timer) clearInterval(timer);
+  clockTimers.delete(room);
+}
+
+async function updateRoomClock(room, options = {}) {
+  const meta = roomMeta.get(room);
+  const timer = meta?.timer;
+  if (!timer?.enabled || timer.expired) return null;
+  const game = await botRoomState(room);
+  if (!game || game.phase === 'ended' || game.phase === 'finished') {
+    stopClockLoop(room);
+    return game;
+  }
+  if (game.phase !== 'playing' || !game.currentPlayer) return game;
+
+  const now = Date.now();
+  for (const player of game.players || []) {
+    if (timer.remaining[player] === undefined) timer.remaining[player] = timer.initialSeconds;
+  }
+
+  if (!timer.activePlayer) {
+    timer.activePlayer = game.currentPlayer;
+    timer.lastStartedAt = now;
+  } else if (timer.activePlayer !== game.currentPlayer) {
+    if (timer.remaining[timer.activePlayer] !== undefined) {
+      timer.remaining[timer.activePlayer] += timer.incrementSeconds;
+    }
+    timer.activePlayer = game.currentPlayer;
+    timer.lastStartedAt = now;
+  } else if (timer.lastStartedAt) {
+    const elapsed = Math.max(0, Math.floor((now - timer.lastStartedAt) / 1000));
+    if (elapsed > 0) {
+      timer.remaining[timer.activePlayer] = Math.max(0, (timer.remaining[timer.activePlayer] ?? timer.initialSeconds) - elapsed);
+      timer.lastStartedAt = now;
+    }
+  } else {
+    timer.lastStartedAt = now;
+  }
+
+  if (timer.remaining[timer.activePlayer] <= 0 && options.finalize && !clockFinalizing.has(room)) {
+    clockFinalizing.add(room);
+    timer.expired = true;
+    try {
+      const loser = timer.activePlayer;
+      append(room, 'system', '', [`[시스템]: ${loser}님의 시간이 모두 소진되었습니다.`]);
+      const replies = await dispatchBotMessage(room, 'ㅈㅈ', loser);
+      rememberCommand(room, loser, 'ㅈㅈ');
+      append(room, loser, '시간패', replies);
+      const state = await buildRoomSnapshot(room, false);
+      await persistRoom(room, state);
+      publishRoom(room, state);
+    } finally {
+      clockFinalizing.delete(room);
+      stopClockLoop(room);
+    }
+    return await botRoomState(room);
+  }
+
+  if (options.publish) {
+    const state = await buildRoomSnapshot(room, false);
+    publishRoom(room, state);
+  }
+  return game;
+}
+
+async function applyRoomOptions(room) {
+  const meta = roomMeta.get(room);
+  if (!meta) return;
+  const disabled = sanitizeJobs(meta.disabledJobs);
+  if (disabled.length) {
+    await configureBotRoom(room, { disabledJobs: disabled });
+  }
+  if (meta.timer?.enabled) ensureClockLoop(room);
+}
+
+function selectionBlocked(room, command) {
+  const meta = roomMeta.get(room);
+  const disabled = sanitizeJobs(meta?.disabledJobs);
+  if (!disabled.length) return '';
+  const match = String(command || '').match(/^1(?:ㅈㅅ|직업)\s+(.+)$/);
+  if (!match) return '';
+  const requested = match[1].trim();
+  return disabled.find((job) => job === requested || job.replace(/\s+/g, '') === requested.replace(/\s+/g, '')) || '';
+}
+
+export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '', timer = {}, disabledJobs = [] }) {
   const room = code();
-  roomMeta.set(room, { createdAt: Date.now(), mode, practice, cpuJob, owner: String(nickname || '').trim() || 'player', practiceGuest: null });
+  const cleanMode = sanitizeMode(mode);
+  const cleanDisabledJobs = sanitizeJobs(disabledJobs);
+  const cleanCpuJob = cleanDisabledJobs.includes(cpuJob) ? '' : String(cpuJob || '').trim();
+  roomMeta.set(room, {
+    createdAt: Date.now(),
+    mode: cleanMode,
+    practice,
+    cpuJob: cleanCpuJob,
+    owner: String(nickname || '').trim() || 'player',
+    practiceGuest: null,
+    disabledJobs: cleanDisabledJobs,
+    timer: normalizeTimer(timer)
+  });
   logs.set(room, []);
   commandHistory.set(room, []);
-  return sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
+  const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
+  await applyRoomOptions(room);
+  return await getRoomSnapshot(room);
 }
 
 export async function joinRoom({ room, nickname }) {
@@ -202,9 +374,15 @@ export async function sendCommand({ room, nickname, command }) {
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
   const msg = String(command || '').trim();
-  const replies = msg ? await dispatchBotMessage(room, msg, sender) : [];
+  await updateRoomClock(room, { finalize: true });
+  const blockedJob = selectionBlocked(room, msg);
+  const replies = blockedJob
+    ? [`[시스템]: ${blockedJob} 직업은 이 방에서 선택 불가능합니다.`]
+    : (msg ? await dispatchBotMessage(room, msg, sender) : []);
   if (msg) rememberCommand(room, sender, msg);
   append(room, sender, msg, replies);
+  await applyRoomOptions(room);
+  await updateRoomClock(room, { finalize: true });
   scheduleAutoRestart(room, sender, replies);
   const state = await getRoomSnapshot(room);
   await persistRoom(room, state);
@@ -241,7 +419,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
   const game = await botRoomState(room);
   const state = {
     room,
-    meta: roomMeta.get(room) || null,
+    meta: metaForSnapshot(room),
     status: await botBootStatus(),
     game,
     log: logs.get(room) || [],
@@ -265,6 +443,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
 
 export async function getRoomSnapshot(room) {
   await restoreRoom(room);
+  await updateRoomClock(room, { finalize: true });
   const state = await buildRoomSnapshot(room, true);
   if (state.game || state.meta) persistRoom(room, state).catch(() => {});
   return state;
@@ -290,7 +469,6 @@ export async function getOngoingGames(nickname) {
   const sender = String(nickname || '').trim();
   if (!sender) return [];
 
-  const { botAllRoomStates } = await import('./botEngine.js');
   const allGames = await botAllRoomStates();
 
   for (const [room, game] of Object.entries(allGames)) {
@@ -306,4 +484,44 @@ export async function getOngoingGames(nickname) {
     }
   }
   return ongoing;
+}
+
+export async function listRooms() {
+  const allGames = await botAllRoomStates().catch(() => ({}));
+  const rooms = [];
+  const seen = new Set();
+  for (const [room, meta] of roomMeta.entries()) {
+    const game = allGames[room] || null;
+    if (game?.phase === 'ended' || game?.phase === 'finished') continue;
+    seen.add(room);
+    rooms.push({
+      room,
+      meta: metaForSnapshot(room),
+      phase: game?.phase || 'waiting',
+      players: game?.players || [],
+      currentPlayer: game?.currentPlayer || '',
+      turnCount: game?.turnCount || 1,
+      requiredPlayers: Number(meta?.mode || 1) * 2,
+      createdAt: meta?.createdAt || 0
+    });
+  }
+  for (const [room, game] of Object.entries(allGames)) {
+    if (seen.has(room) || game?.phase === 'ended' || game?.phase === 'finished') continue;
+    rooms.push({
+      room,
+      meta: metaForSnapshot(room),
+      phase: game?.phase || 'waiting',
+      players: game?.players || [],
+      currentPlayer: game?.currentPlayer || '',
+      turnCount: game?.turnCount || 1,
+      requiredPlayers: Number(game?.teamMode || 1) * 2,
+      createdAt: 0
+    });
+  }
+  return rooms.sort((a, b) => {
+    const openA = a.phase === 'waiting' || a.phase === 'job_selection';
+    const openB = b.phase === 'waiting' || b.phase === 'job_selection';
+    if (openA !== openB) return openA ? -1 : 1;
+    return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+  });
 }

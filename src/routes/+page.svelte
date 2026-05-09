@@ -2,7 +2,7 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    BarChart3, Bot, Flag, Info, LogIn, LogOut, MessageSquare, Plus,
+    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, MessageSquare, Plus,
     Search, Send, Shuffle, Sparkles, Swords, UserRoundPlus, Vote, X
   } from 'lucide-svelte';
 
@@ -46,36 +46,72 @@
 
   const ACTIVE_BY_JOB = {
     해커: ['조작', '복제', '초토화'],
-    투자자: ['주가 조작'],
+    투자자: ['조작', '도박'],
     환자: ['환각증'],
     수집가: ['제작', '채굴'],
     감시자: ['탐지'],
-    뜀틀선수: ['허들 넘기'],
+    뜀틀선수: ['뜀틀', '허들 넘기'],
     전우치: ['직격뢰'],
+    기관사: ['폭주기관차'],
     시프터: ['시프트', '빅 시프트'],
     비밀요원: ['포획'],
     사과: ['사구아'],
-    시인: ['2음절', '시적 허용'],
+    시인: ['2음절', '유도음절', '시적 허용'],
     공룡: ['삼키기', '브레스', '꼬리 날리기'],
     마법사: ['공허', '폭발'],
     사신: ['사형 선고', '영혼'],
-    수학자: ['A', 'B', 'C'],
+    '?': ['?', '물음표', '쉼표', '마침표'],
+    수학자: ['계산', '덧셈', '뺄셈', '곱셈', '교정', '미적분'],
     과학자: ['DNA파괴'],
     작곡가: ['쪼개기', '쉼표'],
     스폰지밥: ['게살버거', '감자튀김', '보너스', '강도 채용'],
     나이트: ['체크메이트', '교환', '울음'],
-    생존자: ['긴급 구조'],
+    생존자: ['아이쿠', '긴급 구조'],
     악당: ['결계', '왜곡'],
     기자: ['거짓 보도', '거짓 뉴스'],
     검객: ['찌르기', '가르기'],
     마하트마간디: ['억제'],
     수리사: ['수리'],
     우라늄: ['핵분열'],
+    피보나치: ['뤼카 수열'],
     고죠: ['무량공처'],
     스핔이: ['물걸레질', '호박'],
     해달: ['조개', '깨부수기'],
-    프로그래머: ['Shift', 'Caps Lock', 'Backspace', 'Tab']
+    프로그래머: ['Shift', 'Caps Lock', 'Backspace', 'Tab', '담임의 가호', '교장의 가호'],
+    볼링선수: ['스트라이크', '스페어'],
+    반장: ['담임의 가호', '교장의 가호']
   };
+
+  const TUTORIAL_STEPS = [
+    {
+      title: '시작하기',
+      body: '로그인 후 방을 만들거나 방 코드로 입장합니다. 1대1, 2대2, 3대3 모드를 고를 수 있고 연습 모드에서는 CPU 직업을 지정하거나 랜덤으로 둘 수 있습니다.'
+    },
+    {
+      title: '직업 선택',
+      body: '직업 선택 화면에서 직업을 고르면 게임에 참가합니다. 밴 단계가 뜨면 상대가 쓰기 까다로운 직업을 최대 개수만큼 막고 확정합니다.'
+    },
+    {
+      title: '단어 입력',
+      body: '내 차례에는 하단 입력창에 이을 음절로 시작하는 단어를 넣습니다. 첫 단어는 자유지만 첫 수에는 한방과 유도 단어가 제한됩니다.'
+    },
+    {
+      title: '능력 사용',
+      body: '내 직업의 액티브 능력은 입력창 위 버튼으로 사용합니다. 대상이 필요한 능력은 플레이어, 음절, 초성을 고르는 창이 먼저 열립니다.'
+    },
+    {
+      title: '단어 검색',
+      body: '검색 탭이나 게임 중 검색 서랍에서 기*, *차, 기? 같은 식으로 찾습니다. K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 수 있습니다.'
+    },
+    {
+      title: '투표와 종료',
+      body: '잘못 입력했을 때는 무효 신청을 보내고, 상대가 요청한 투표에는 동의 또는 거절합니다. 더 진행하기 어렵다면 항복 버튼으로 게임을 끝낼 수 있습니다.'
+    },
+    {
+      title: '티어와 직업 정보',
+      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명과 직업별 랭킹, 레이팅 티어표는 직업 탭에서만 확인합니다.'
+    }
+  ];
 
   let nickname = $state('');
   let username = $state('');
@@ -87,6 +123,10 @@
   let mode = $state(1);
   let practice = $state(false);
   let cpuJob = $state('');
+  let timerEnabled = $state(true);
+  let timerMinutes = $state(10);
+  let timerIncrement = $state(3);
+  let disabledJobs = $state([]);
   let word = $state('');
   let ability = $state('');
   let selectedJob = $state('');
@@ -110,17 +150,21 @@
   let batchAnalysis = $state(null);
   let analysisBusy = $state(false);
   let tab = $state('game');
+  let jobTabJob = $state('해커');
+  let jobFilter = $state('');
   let busy = $state(false);
   let cpuThinking = $state(false);
   let error = $state('');
+  let errorTimer;
   let poller;
   let socket;
   let historyEl = $state();
   let wordInputEl = $state();
   let jobInfoByJob = $state({});
   let showWordSearch = $state(false);
-  let inGameTabs = $state([{ id: Date.now(), query: '', results: [] }]);
-  let activeInGameTabId = $state(inGameTabs[0].id);
+  const initialInGameTabId = Date.now();
+  let inGameTabs = $state([{ id: initialInGameTabId, query: '', results: [] }]);
+  let activeInGameTabId = $state(initialInGameTabId);
   const activeInGameTab = $derived(inGameTabs.find(t => t.id === activeInGameTabId) || inGameTabs[0]);
 
   let showChat = $state(false);
@@ -149,6 +193,7 @@
   let matchBannerTimer;
 
   let ongoingGames = $state([]);
+  let roomList = $state([]);
   let now = $state(Date.now());
 
   const jobs = $derived(snapshot?.status?.jobs || []);
@@ -183,17 +228,20 @@
     detect_cooldown: '탐지 쿨', detect_uses: '탐지 회수',
     vault_cooldown: '허들 쿨', vault_uses: '허들 회수',
     lightning_cooldown: '직격뢰 쿨', lightning_uses: '직격뢰 회수',
+    train_rush_uses: '폭주 회수',
     shift_uses: '시프트 회수', big_shift_uses: '빅시프트 회수',
     capture_cooldown: '포획 쿨', capture_uses: '포획 회수',
     sagua_uses: '사구아 회수',
     poetic_2_cooldown: '2음절 쿨', poetic_2_uses: '2음절 회수',
+    poetic_yudo_cooldown: '유도음절 쿨', poetic_yudo_uses: '유도음절 회수',
     poetic_allow_cooldown: '시적허용 쿨', poetic_allow_uses: '시적허용 회수',
     swallow_cooldown: '삼키기 쿨', swallow_uses: '삼키기 회수',
     breath_uses: '브레스 회수', tail_uses: '꼬리 회수',
     void_cooldown: '공허 쿨', void_uses: '공허 회수',
     explosion_uses: '폭발 회수',
     death_cooldown: '사형선고 쿨', death_uses: '사형선고 회수', soul_uses: '영혼 회수',
-    math_study_uses_left: '학습 회수',
+    math_calc_uses: '계산 회수', math_add_uses: '덧셈 회수', math_sub_uses: '뺄셈 회수', math_mul_uses: '곱셈 회수', math_fix_uses: '교정 회수', math_calculus_uses: '미적분 회수',
+    math_study_uses_left: '공부 회수',
     dna_cooldown: 'DNA 쿨', dna_uses: 'DNA 회수',
     split_uses: '쪼개기 회수', rest_cooldown: '쉼표 쿨',
     burger_cooldown: '버거 쿨', fries_cooldown: '튀김 쿨', bonus_uses: '보너스 회수', robber_uses: '강도 회수',
@@ -208,25 +256,31 @@
     fission_uses: '분열 회수',
     speaki_clean_uses: '물걸레 회수', speaki_pumpkin_uses: '호박 회수',
     otter_clam_uses: '조개 회수', otter_smash_uses: '깨부수기 회수',
-    programmer_shift_uses: 'Shift 회수', programmer_caps_uses: 'Caps 회수', programmer_backspace_uses: 'BS 회수', programmer_tab_uses: 'Tab 회수'
+    programmer_shift_uses: 'Shift 회수', programmer_caps_uses: 'Caps 회수', programmer_backspace_uses: 'BS 회수', programmer_tab_uses: 'Tab 회수',
+    bowling_strike_cooldown: '스트라이크 쿨', bowling_strike_uses: '스트라이크 회수',
+    bowling_spare_cooldown: '스페어 쿨', bowling_spare_uses: '스페어 회수',
+    class_president_homeroom_cooldown: '가호 쿨', class_president_homeroom_uses: '가호 회수', class_president_principal_uses: '교장 회수'
   };
 
   const ABILITY_CONFIG = {
     '조작': { uses: 'jojak_uses', max: 3, cd: 'jojak_cooldown' },
     '복제': { uses: 'bokje_uses', max: 1 },
     '초토화': { uses: 'chotohwa_uses', max: 1, cd: 'chotohwa_cooldown' },
-    '주가 조작': { uses: 'juga_jojak_uses', max: 2, cd: 'juga_jojak_cooldown' },
+    '주가 도박': { uses: 'debtor_gamble_uses', max: 2, cd: 'debtor_gamble_cooldown' },
     '환각증': { uses: 'hallucination_uses', max: 1 },
     '제작': { cd: 'make_cooldown' },
     '채굴': { uses: 'mine_uses', max: 1, cd: 'mine_cooldown' },
     '탐지': { uses: 'detect_uses', max: 1, cd: 'detect_cooldown' },
+    '뜀틀': { uses: 'vault_uses', max: 3, cd: 'vault_cooldown' },
     '허들 넘기': { uses: 'hurdle_uses', max: 1 },
     '직격뢰': { uses: 'lightning_uses', max: 2, cd: 'lightning_cooldown' },
+    '폭주기관차': { uses: 'train_rush_uses', max: 2 },
     '시프트': { uses: 'shift_uses', max: 3 },
     '빅 시프트': { uses: 'big_shift_uses', max: 1 },
     '포획': { uses: 'capture_uses', max: 2, cd: 'capture_cooldown' },
     '사구아': { uses: 'sagua_uses', max: 1 },
     '2음절': { uses: 'poetic_2_uses', max: 2, cd: 'poetic_2_cooldown' },
+    '유도음절': { uses: 'poetic_yudo_uses', max: 2, cd: 'poetic_yudo_cooldown' },
     '시적 허용': { uses: 'poetic_allow_uses', max: 1, cd: 'poetic_allow_cooldown' },
     '삼키기': { uses: 'swallow_uses', max: 1, cd: 'swallow_cooldown' },
     '브레스': { uses: 'breath_uses', max: 1 },
@@ -235,6 +289,12 @@
     '폭발': { uses: 'explosion_uses', max: 1 },
     '사형 선고': { uses: 'death_uses', max: 1, cd: 'death_cooldown' },
     '영혼': { uses: 'soul_uses', max: 1 },
+    '계산': { uses: 'math_calc_uses', max: 10 },
+    '덧셈': { uses: 'math_add_uses', max: 10 },
+    '뺄셈': { uses: 'math_sub_uses', max: 10 },
+    '곱셈': { uses: 'math_mul_uses', max: 10 },
+    '교정': { uses: 'math_fix_uses', max: 10 },
+    '미적분': { uses: 'math_calculus_uses', max: 10 },
     'DNA파괴': { uses: 'dna_uses', max: 2, cd: 'dna_cooldown' },
     '쪼개기': { uses: 'split_uses', max: 1 },
     '쉼표': { cd: 'rest_cooldown' },
@@ -263,7 +323,11 @@
     'Shift': { uses: 'programmer_shift_uses', max: 1 },
     'Caps Lock': { uses: 'programmer_caps_uses', max: 1, cd: 'programmer_caps_cooldown' },
     'Backspace': { uses: 'programmer_backspace_uses', max: 1 },
-    'Tab': { uses: 'programmer_tab_uses', max: 1 }
+    'Tab': { uses: 'programmer_tab_uses', max: 1 },
+    '스트라이크': { uses: 'bowling_strike_uses', max: 3, cd: 'bowling_strike_cooldown' },
+    '스페어': { uses: 'bowling_spare_uses', max: 2, cd: 'bowling_spare_cooldown' },
+    '담임의 가호': { uses: 'class_president_homeroom_uses', max: 2, cd: 'class_president_homeroom_cooldown' },
+    '교장의 가호': { uses: 'class_president_principal_uses', max: 1 }
   };
 
   function getPlayerAbilitiesStatus(playerJob, state) {
@@ -313,7 +377,7 @@
     '조작': 'syllable', '제작': 'syllable', '채굴': 'syllable',
     '복제': 'player', '탐지': 'player', '시프트': 'player', '빅 시프트': 'player', '포획': 'player',
     '찌르기': 'player', '가르기': 'player', 'DNA파괴': 'player', '교환': 'player', '강도 채용': 'player',
-    '결계': 'chosung'
+    '결계': 'chosung', '유도음절': 'syllable'
   };
 
   const myStatusList = $derived.by(() => {
@@ -327,7 +391,7 @@
     if (log.length > 0) {
       const last = log[log.length - 1];
       if (last.type === 'system') {
-        const text = last.text?.replace('[시스템]: ', '').trim() || '';
+        const text = last.text?.replace('[시스템]: ', '').replace(/^\[!\]\s*/, '').trim() || '';
         
         let effectTriggered = false;
 
@@ -340,8 +404,8 @@
           '과학자': ['실험'], '작곡가': ['작곡'], '스폰지밥': ['저금통'],
           '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
           '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
-          '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': [],
-          '스핔이': [], '해달': [], '프로그래머': []
+          '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': ['방사선', '감마 수열'],
+          '스핔이': ['백수가 쪼아요'], '해달': [], '프로그래머': [], '볼링선수': ['볼링'], '반장': ['반장']
         };
         
         const currentPassives = PASSIVE_BY_JOB[myState?.job] || [];
@@ -368,13 +432,13 @@
         // 3. 에러 메시지 감지 및 토스트 표시
         const isError = [
           '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어', 
-          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다',
-          '쿨타임입니다', '모두 사용했습니다', '부족합니다', '지정해주세요'
+          '유도 단어', '루트 단어', '두음법칙', '글자 수가', '불가능합니다', '사용할 수 없습니다'
         ].some(err => text.includes(err));
         
         if (isError && !effectTriggered) {
+          if (errorTimer) clearTimeout(errorTimer);
           error = text;
-          setTimeout(() => { if (error === text) error = ''; }, 3500);
+          errorTimer = setTimeout(() => { error = ''; }, 3500);
         }
       }
     }
@@ -416,11 +480,20 @@
     Object.entries(jobRanking)
       .sort((a, b) => (b[1][0]?.wins || 0) - (a[1][0]?.wins || 0))
   );
+  const jobCatalog = $derived(
+    availableJobs.filter((job) => !jobFilter.trim() || job.includes(jobFilter.trim()))
+  );
+  const jobTabInfo = $derived(jobInfoByJob[jobTabJob] || '직업 정보를 불러오는 중입니다.');
+  const jobTabAbilities = $derived(ACTIVE_BY_JOB[jobTabJob] || []);
+  const jobTabRanking = $derived(jobRanking[jobTabJob] || []);
   const isBanPhase = $derived(game?.phase === 'job_selection' && game?.banPhase);
   const isBanPicker = $derived(isBanPhase && game?.firstPicker === nickname);
   const isBanWaiting = $derived(isBanPhase && game?.firstPicker && game?.firstPicker !== nickname);
   const bannedJobs = $derived(game?.bannedJobs || []);
-  const selectableJobs = $derived(availableJobs.filter((job) => !bannedJobs.includes(job)));
+  const roomDisabledJobs = $derived(snapshot?.meta?.disabledJobs || []);
+  const unavailableJobs = $derived(Array.from(new Set([...(bannedJobs || []), ...(roomDisabledJobs || [])])));
+  const selectableJobs = $derived(availableJobs.filter((job) => !unavailableJobs.includes(job)));
+  const timerState = $derived(snapshot?.meta?.timer || null);
   const maxBanCount = 6;
 
   $effect(() => {
@@ -524,11 +597,19 @@
     const data = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nickname: user.nickname, mode: Number(mode), practice, cpuJob })
+      body: JSON.stringify({
+        nickname: user.nickname,
+        mode: Number(mode),
+        practice,
+        cpuJob,
+        timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
+        disabledJobs
+      })
     });
     room = data.room;
     snapshot = data;
     startLiveUpdates();
+    fetchRoomList();
   }
 
   async function join() {
@@ -546,6 +627,11 @@
     room = data.room;
     snapshot = data;
     startLiveUpdates();
+  }
+
+  async function openListedRoom(target) {
+    roomInput = target;
+    await join();
   }
 
   async function refresh() {
@@ -604,6 +690,14 @@
       const intv = setInterval(fetchOngoingGames, 10000);
       const nowIntv = setInterval(() => { now = Date.now(); }, 1000);
       return () => { clearInterval(intv); clearInterval(nowIntv); };
+    }
+  });
+
+  $effect(() => {
+    if (browser) {
+      fetchRoomList();
+      const intv = setInterval(fetchRoomList, 3000);
+      return () => clearInterval(intv);
     }
   });
 
@@ -681,7 +775,7 @@
   }
 
   function toggleBan(job) {
-    if (!isBanPicker || bannedJobs.includes(job) || myState?.job === job) return;
+    if (!isBanPicker || unavailableJobs.includes(job) || myState?.job === job) return;
     if (selectedBans.includes(job)) {
       selectedBans = selectedBans.filter((item) => item !== job);
       return;
@@ -726,6 +820,41 @@
 
   async function loadRanking() {
     ranking = await request('/api/ranking');
+  }
+
+  async function fetchRoomList() {
+    try {
+      const res = await fetch('/api/room?action=list', { cache: 'no-store' });
+      if (res.ok) roomList = await res.json();
+    } catch {}
+  }
+
+  function toggleDisabledJob(job) {
+    if (disabledJobs.includes(job)) {
+      disabledJobs = disabledJobs.filter((item) => item !== job);
+      return;
+    }
+    disabledJobs = [...disabledJobs, job];
+    if (cpuJob === job) cpuJob = '';
+  }
+
+  function roomPhaseLabel(phase) {
+    if (phase === 'playing') return '진행 중';
+    if (phase === 'job_selection') return '직업 선택';
+    return '입장 가능';
+  }
+
+  function formatClock(seconds) {
+    const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+    const min = Math.floor(safe / 60);
+    const sec = String(safe % 60).padStart(2, '0');
+    return `${min}:${sec}`;
+  }
+
+  function openJobsTab(job = jobTabJob) {
+    tab = 'jobs';
+    if (job) jobTabJob = job;
+    if (!ranking) loadRanking();
   }
 
   function submitSearch(event) {
@@ -849,8 +978,21 @@
     if (job === '고죠' && state.gongcheo_uses !== undefined) {
       statuses.push({ label: '공처', value: `${state.gongcheo_uses}회`, type: 'gojo' });
     }
-    if (job === '피아니스트' && state.pianist_notes) {
-      statuses.push({ label: '악보', value: state.pianist_notes.join(' ') || '비었음', type: 'pianist' });
+    if (job === '기관사' && state.train_stations !== undefined) {
+      statuses.push({ label: '남은 역', value: `${state.train_stations}개`, type: 'engineer' });
+    }
+    if (job === '피보나치' && state.lucas_value !== undefined) {
+      statuses.push({ label: '수열값', value: state.lucas_value, type: 'math' });
+    }
+    if (job === '?' && (state.question_uses !== undefined || state.comma_uses !== undefined)) {
+      statuses.push({ label: '사용', value: `${state.question_uses || 0}/${state.comma_uses || 0}`, type: 'question' });
+    }
+    if (job === '볼링선수' && state.bowling_score !== undefined) {
+      statuses.push({ label: '점수', value: `${state.bowling_score}점`, type: 'bowler' });
+    }
+    if (job === '반장') {
+      if (state.class_president_homeroom_uses !== undefined) statuses.push({ label: '가호', value: `${state.class_president_homeroom_uses}회`, type: 'president' });
+      if (state.class_president_principal_uses !== undefined) statuses.push({ label: '교장', value: `${state.class_president_principal_uses}회`, type: 'president' });
     }
     if (job === '뜀틀선수' && state.vault_uses !== undefined) {
       statuses.push({ label: '도약', value: `${state.vault_uses}/${state.vault_max || 3}`, type: 'vault' });
@@ -917,11 +1059,17 @@
       <button class="nav-btn" class:nav-active={tab === 'search'} onclick={() => (tab = 'search')}>
         <Search size={15} />검색
       </button>
+      <button class="nav-btn" class:nav-active={tab === 'jobs'} onclick={() => openJobsTab()}>
+        <BriefcaseBusiness size={15} />직업
+      </button>
       <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
         <BarChart3 size={15} />랭킹
       </button>
       <button class="nav-btn" class:nav-active={tab === 'analysis'} onclick={() => (tab = 'analysis')}>
         <Bot size={15} />분석
+      </button>
+      <button class="nav-btn" class:nav-active={tab === 'help'} onclick={() => (tab = 'help')}>
+        <BookOpen size={15} />도움말
       </button>
     </nav>
     <div class="top-auth">
@@ -981,6 +1129,32 @@
                   >{m}대{m}</button>
                 {/each}
               </div>
+              <div class="create-settings">
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={timerEnabled} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <Clock size={14} />체스식 타이머
+                </label>
+                {#if timerEnabled}
+                  <div class="timer-row">
+                    <label><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
+                    <label><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+                  </div>
+                {/if}
+                <div class="disabled-job-box">
+                  <div class="disabled-job-head">
+                    <span><Ban size={14} />선택 불가 직업</span>
+                    {#if disabledJobs.length}<button class="tiny-btn" onclick={() => (disabledJobs = [])}>초기화</button>{/if}
+                  </div>
+                  <div class="disabled-job-grid">
+                    {#each availableJobs as job}
+                      <button class="disable-job-chip" class:djc-active={disabledJobs.includes(job)} onclick={() => toggleDisabledJob(job)}>
+                        {job}
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              </div>
               <button class="lobby-cta" onclick={create} disabled={busy}>
                 <Plus size={18} />방 만들기
               </button>
@@ -997,7 +1171,12 @@
                 <Bot size={14} />연습 모드
               </label>
               {#if practice}
-                <input class="lobby-input" bind:value={cpuJob} placeholder="CPU 직업 (비우면 랜덤)" />
+                <select class="lobby-input" bind:value={cpuJob}>
+                  <option value="">CPU 직업 (랜덤)</option>
+                  {#each availableJobs as j}
+                    <option value={j} disabled={disabledJobs.includes(j)}>{j}{disabledJobs.includes(j) ? ' - 선택 불가능' : ''}</option>
+                  {/each}
+                </select>
               {/if}
 
               {#if ongoingGames.length > 0}
@@ -1015,30 +1194,64 @@
                   </div>
                 </div>
               {/if}
+              <div class="ongoing-section">
+                <div class="ongoing-title">현재 방 목록</div>
+                <div class="ongoing-list">
+                  {#if roomList.length}
+                    {#each roomList as r}
+                      <button class="ongoing-card room-list-card" onclick={() => openListedRoom(r.room)} disabled={busy}>
+                        <div class="og-room">{r.room}</div>
+                        <div class="og-meta">
+                          {roomPhaseLabel(r.phase)} · {(r.players || []).length}/{r.requiredPlayers || 2}명 · {r.meta?.timer?.enabled ? `${formatClock(r.meta.timer.initialSeconds)} + ${r.meta.timer.incrementSeconds}초` : '타이머 없음'}
+                        </div>
+                        {#if r.meta?.disabledJobs?.length}
+                          <div class="og-disabled">선택 불가: {r.meta.disabledJobs.slice(0, 5).join(', ')}{r.meta.disabledJobs.length > 5 ? ` 외 ${r.meta.disabledJobs.length - 5}` : ''}</div>
+                        {/if}
+                      </button>
+                    {/each}
+                  {:else}
+                    <div class="room-empty">열려 있는 방이 없습니다.</div>
+                  {/if}
+                </div>
+              </div>
             {/if}
           </div>
         </div>
       </div>
 
     {:else if !practice && (!game || game.phase === 'waiting')}
-      <!-- ─── MATCHING ─── -->
-      <div class="matching-screen">
-        <div class="radar">
-          <div class="radar-ring rr1"></div>
-          <div class="radar-ring rr2"></div>
-          <div class="radar-ring rr3"></div>
-          <div class="radar-ring rr4"></div>
-          <div class="radar-core"><Swords size={28} /></div>
-        </div>
-        <h2 class="matching-label">상대를 찾고 있어요<span class="dots"></span></h2>
-        <div class="room-code-pill">
-          방 코드 <strong>{room}</strong>
+      <!-- ─── WAITING ROOM ─── -->
+      <div class="matching-screen room-wait-screen">
+        <div class="room-wait-card">
+          <div class="room-wait-head">
+            <span class="panel-kicker">WAITING ROOM</span>
+            <h2>방이 열려 있습니다</h2>
+            <div class="room-code-pill">방 코드 <strong>{room}</strong></div>
+          </div>
+          <div class="room-rule-row">
+            <span>{mode}대{mode}</span>
+            <span>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '타이머 없음'}</span>
+            <span>{roomDisabledJobs.length ? `${roomDisabledJobs.length}개 직업 선택 불가` : '전체 직업 선택 가능'}</span>
+          </div>
         </div>
         {#if (game?.players || []).length}
           <div class="players-found">
             {#each game.players as p}
               <div class="found-chip">{p}</div>
             {/each}
+          </div>
+        {/if}
+        {#if roomList.length}
+          <div class="wait-room-list">
+            <div class="ongoing-title">현재 방 목록</div>
+            <div class="ongoing-list">
+              {#each roomList as r}
+                <button class="ongoing-card room-list-card" onclick={() => openListedRoom(r.room)} disabled={busy || r.room === room}>
+                  <div class="og-room">{r.room}{r.room === room ? ' · 현재 방' : ''}</div>
+                  <div class="og-meta">{roomPhaseLabel(r.phase)} · {(r.players || []).length}/{r.requiredPlayers || 2}명</div>
+                </button>
+              {/each}
+            </div>
           </div>
         {/if}
         {#if !showPracticeBar}
@@ -1049,7 +1262,7 @@
           <div class="practice-setup">
             <select class="prac-select" bind:value={cpuJob}>
               <option value="">CPU 직업 (랜덤)</option>
-              {#each availableJobs as j}<option value={j}>{j}</option>{/each}
+              {#each availableJobs as j}<option value={j} disabled={roomDisabledJobs.includes(j)}>{j}{roomDisabledJobs.includes(j) ? ' - 선택 불가능' : ''}</option>{/each}
             </select>
             <button class="accent-btn" onclick={startPractice} disabled={busy}>
               <Bot size={15} />연습 시작
@@ -1121,24 +1334,24 @@
               class:job-selected={selectedJob === job}
               class:job-ban-pick={isBanPicker && selectedBans.includes(job)}
               class:job-banned={bannedJobs.includes(job)}
+              class:job-unavailable={roomDisabledJobs.includes(job)}
               style="--i:{i}"
               onclick={() => isBanPicker ? toggleBan(job) : (selectedJob = job, send(`1ㅈㅅ ${job}`))}
-              disabled={busy || isBanWaiting || (!isBanPicker && bannedJobs.includes(job)) || (isBanPicker && myState?.job === job)}
+              disabled={busy || isBanWaiting || (!isBanPicker && unavailableJobs.includes(job)) || (isBanPicker && (myState?.job === job || unavailableJobs.includes(job)))}
             >
               <span class="jc-portrait">
                 <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
                 <span class="jc-initial">{jobInitial(job)}</span>
               </span>
               <span class="jc-name">{job}</span>
-              {#if isBanPicker && selectedBans.includes(job)}
+              {#if roomDisabledJobs.includes(job)}
+                <span class="jc-check">선택 불가</span>
+              {:else if isBanPicker && selectedBans.includes(job)}
                 <span class="jc-check">밴</span>
               {:else if bannedJobs.includes(job)}
                 <span class="jc-check">잠김</span>
               {:else if selectedJob === job}
                 <span class="jc-check">✓</span>
-              {/if}
-              {#if jobInfoByJob[job]}
-                <div class="job-tooltip"><pre class="job-tooltip-text">{jobInfoByJob[job]}</pre></div>
               {/if}
             </button>
           {/each}
@@ -1151,6 +1364,9 @@
             <div class="job-count">
               선택 가능 <strong>{selectableJobs.length}</strong>개
             </div>
+            <button class="action-btn" onclick={() => openJobsTab(selectedJob || selectableJobs[0])}>
+              <BriefcaseBusiness size={16} />직업 정보
+            </button>
           </div>
         {/if}
         {#if notices.length}
@@ -1174,6 +1390,10 @@
             <span class="syl-meta-item">ROOM <strong>{room}</strong></span>
             <span class="syl-meta-sep">·</span>
             <span class="syl-meta-item">TURN <strong>{game.turnCount || 1}</strong></span>
+            {#if timerState?.enabled}
+              <span class="syl-meta-sep">·</span>
+              <span class="syl-meta-item">CLOCK <strong>{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</strong></span>
+            {/if}
           </div>
           <div class="syl-display">
             <span class="syl-label">이을 음절</span>
@@ -1265,6 +1485,11 @@
                   <div class="player-job">
                     {playerJob || '미선택'}
                   </div>
+                  {#if timerState?.enabled}
+                    <div class="player-clock" class:clock-active={player === timerState.activePlayer}>
+                      <Clock size={12} />{formatClock(timerState.remaining?.[player] ?? timerState.initialSeconds)}
+                    </div>
+                  {/if}
                   {#if getJobStatuses(game.playerStates?.[player]).length}
                     <div class="job-status-list">
                       {#each getJobStatuses(game.playerStates?.[player]) as st}
@@ -1472,8 +1697,20 @@
 
         <!-- Target Selector Overlay -->
         {#if showTargetSelector}
-          <div class="target-selector-overlay" onclick={() => (showTargetSelector = null)}>
-            <div class="target-card" onclick={e => e.stopPropagation()}>
+          <div
+            class="target-selector-overlay"
+            role="button"
+            tabindex="0"
+            onclick={() => (showTargetSelector = null)}
+            onkeydown={(e) => e.key === 'Escape' && (showTargetSelector = null)}
+          >
+            <div
+              class="target-card"
+              role="dialog"
+              tabindex="-1"
+              onclick={e => e.stopPropagation()}
+              onkeydown={e => e.stopPropagation()}
+            >
               <div class="tc-header">
                 <h3>{showTargetSelector.name} 대상 선택</h3>
                 <button class="tc-close" onclick={() => (showTargetSelector = null)}>✕</button>
@@ -1599,6 +1836,84 @@
           {/each}
         </div>
       {/if}
+    </div>
+
+  <!-- ══════════════════════ JOBS TAB ══════════════════════ -->
+  {:else if tab === 'jobs'}
+    <div class="content-page jobs-page">
+      <div class="jobs-layout">
+        <aside class="jobs-list-panel">
+          <div class="jobs-panel-head">
+            <h2>직업</h2>
+            <input class="job-filter-input" bind:value={jobFilter} placeholder="직업 검색" />
+          </div>
+          <div class="jobs-list">
+            {#each jobCatalog as job}
+              <button class="job-list-btn" class:jlb-active={jobTabJob === job} onclick={() => (jobTabJob = job)}>
+                <span class="jlb-icon">
+                  <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                  <span>{jobInitial(job)}</span>
+                </span>
+                <span>{job}</span>
+              </button>
+            {/each}
+          </div>
+        </aside>
+
+        <section class="job-detail-panel">
+          <div class="job-detail-head">
+            <div class="job-title-wrap">
+              <div class="job-detail-icon">
+                <img src={jobImageSrc(jobTabJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                <span>{jobInitial(jobTabJob)}</span>
+              </div>
+              <div>
+                <span class="panel-kicker">JOB INFO</span>
+                <h2>{jobTabJob}</h2>
+              </div>
+            </div>
+            {#if jobTabAbilities.length}
+              <div class="job-ability-strip">
+                {#each jobTabAbilities as ab}<span>{ab}</span>{/each}
+              </div>
+            {/if}
+          </div>
+
+          <pre class="job-info-text">{jobTabInfo}</pre>
+
+          <div class="job-side-grid">
+            <section class="job-stat-card">
+              <div class="job-section-title">직업별 랭킹</div>
+              {#if jobTabRanking.length}
+                {#each jobTabRanking as row, index}
+                  {@const ti = getTierInfo(row.rating)}
+                  <div class="mini-rank-row" style="--tc:{ti.color};--tc-glow:{ti.color}33">
+                    <span class="mini-rank-num">{index + 1}</span>
+                    <span class="mini-rank-name">{row.name}</span>
+                    <span class="mini-rank-record">{row.wins}승 {row.losses}패</span>
+                    <span class="mini-rank-rating">{row.rating}</span>
+                  </div>
+                {/each}
+              {:else}
+                <div class="rank-empty small">이 직업은 아직 표시할 전적이 없습니다.</div>
+              {/if}
+            </section>
+
+            <section class="job-stat-card">
+              <div class="job-section-title">레이팅 티어표</div>
+              <div class="tier-table">
+                {#each TIER_INFO as tier}
+                  <div class="tier-row" style="--tc:{tier.color};--tc-glow:{tier.color}26">
+                    <span class="tier-dot"></span>
+                    <span class="tier-name">{tier.name}</span>
+                    <span class="tier-range">{tier.min} - {tier.max === Infinity ? '∞' : tier.max}</span>
+                  </div>
+                {/each}
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
     </div>
 
   <!-- ══════════════════════ ANALYSIS TAB ══════════════════════ -->
@@ -1778,23 +2093,56 @@
       {/if}
     </div>
 
+  <!-- ══════════════════════ HELP TAB ══════════════════════ -->
+  {:else if tab === 'help'}
+    <div class="content-page help-page">
+      <div class="help-header">
+        <span class="panel-kicker">TUTORIAL</span>
+        <h2>기본 도움말</h2>
+        <p>카카오봇 명령 흐름을 웹 조작에 맞춰 정리했습니다.</p>
+      </div>
+      <div class="tutorial-grid">
+        {#each TUTORIAL_STEPS as step, index}
+          <section class="tutorial-card">
+            <span class="tutorial-num">{index + 1}</span>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </section>
+        {/each}
+      </div>
+      <section class="command-card">
+        <div class="job-section-title">봇 명령 대응표</div>
+        <div class="command-grid">
+          <span>1ㅊㄹ / 1채린</span><strong>일반 게임 참가</strong>
+          <span>1ㅇㅅ / 1연습</span><strong>연습 게임 참가</strong>
+          <span>1ㅈㅅ 직업명</span><strong>직업 선택</strong>
+          <span>1밴 / 1ㅂ</span><strong>직업 밴</strong>
+          <span>0단어</span><strong>단어 입력</strong>
+          <span>2능력명</span><strong>능력 사용</strong>
+          <span>1ㄱㅅ 검색식</span><strong>단어 검색</strong>
+          <span>1상태</span><strong>현재 상태 확인</strong>
+          <span>1무효 / 1무르기</span><strong>투표 요청</strong>
+          <span>ㅈㅈ / 항복</span><strong>기권</strong>
+        </div>
+      </section>
+    </div>
+
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
-  {:else}
+  {:else if tab === 'rank'}
     <div class="content-page rank-page">
       <div class="rank-header">
-        <h2 class="rank-title">랭킹</h2>
-        <div class="rank-mode-tabs">
-          <button class="rmt" class:rmt-active={rankMode === 'overall'} onclick={() => (rankMode = 'overall', rankJob = '')}>전체 랭킹</button>
-          <button class="rmt" class:rmt-active={rankMode === 'job'} onclick={() => { rankMode = 'job'; if (!rankJob && jobRankingList.length) rankJob = jobRankingList[0][0]; }}>직업별 랭킹</button>
-        </div>
+        <h2 class="rank-title">전체 랭킹</h2>
+        <button class="action-btn" onclick={() => openJobsTab(rankJob || jobRankingList[0]?.[0] || '해커')}>
+          <BriefcaseBusiness size={16} />직업별 보기
+        </button>
       </div>
 
-      {#if rankMode === 'overall'}
-        {#each ranking?.ranking || [] as row, index}
+      {#if ranking?.ranking?.length}
+        {#each ranking.ranking || [] as row, index}
           {@const ti = getTierInfo(row.rating)}
           <div class="rank-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
             <div class="rank-num" class:rank-top={index < 3}>
-              {#if index === 0}🥇{:else if index === 1}🥈{:else if index === 2}🥉{:else}{index + 1}{/if}
+              {#if index === 0}1{:else if index === 1}2{:else if index === 2}3{:else}{index + 1}{/if}
             </div>
             <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66);box-shadow:0 4px 14px {ti.color}55">{row.name[0]}</div>
             <div class="rank-info">
@@ -1807,42 +2155,13 @@
             </div>
           </div>
         {/each}
-
       {:else}
-        <!-- 직업별 랭킹 -->
-        <div class="job-rank-selector">
-          {#each jobRankingList.slice(0, 20) as [job]}
-            <button class="jrs-btn" class:jrs-active={rankJob === job} onclick={() => (rankJob = job)}>{job}</button>
-          {/each}
-        </div>
-        {#if rankJob && jobRanking[rankJob]}
-          <div class="job-rank-section">
-            <div class="jr-job-header">
-              <span class="jr-job-name">{rankJob}</span>
-              <span class="jr-job-sub">{jobRanking[rankJob].length}명 · 최소 2게임</span>
-            </div>
-            {#each jobRanking[rankJob] as row, index}
-              {@const ti = getTierInfo(row.rating)}
-              <div class="rank-row jr-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
-                <div class="rank-num" class:rank-top={index < 3}>
-                  {#if index === 0}🥇{:else if index === 1}🥈{:else if index === 2}🥉{:else}{index + 1}{/if}
-                </div>
-                <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66);box-shadow:0 4px 14px {ti.color}55">{row.name[0]}</div>
-                <div class="rank-info">
-                  <span class="rank-name">{row.name}</span>
-                  <span class="rank-record">{row.wins}승 {row.losses}패 (총 {row.picks}게임)</span>
-                </div>
-                <div class="rank-tier-col">
-                  <span class="rank-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{ti.name}</span>
-                  <span class="rank-rating">{row.rating}</span>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {:else if rankMode === 'job'}
-          <div class="rank-empty">직업을 선택하세요</div>
-        {/if}
+        <div class="rank-empty">랭킹 데이터를 불러오고 있습니다.</div>
       {/if}
+    </div>
+  {:else}
+    <div class="content-page">
+      <div class="rank-empty">탭을 선택하세요.</div>
     </div>
   {/if}
 
@@ -2007,19 +2326,32 @@
      ERROR TOAST
   ═══════════════════════════════════════════ */
   .toast-error {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 12px 20px 0;
-    padding: 12px 16px;
-    background: rgba(239,68,68,.12);
-    border: 1px solid rgba(239,68,68,.3);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    color: #b91c1c;
-    animation: slideIn .22s ease both;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #e11d48;
+    animation: toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+    pointer-events: none;
   }
   .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: pulse 1.4s ease-in-out infinite; }
+
+  @keyframes toastSlideIn {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
 
   /* ═══════════════════════════════════════════
      LOBBY
@@ -2168,6 +2500,62 @@
     transition: transform .2s, background .2s;
   }
   .practice-toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); background: #fff; }
+  .create-settings {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg3);
+  }
+  .timer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .timer-row label {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text2);
+  }
+  .mini-num { width: 54px; height: 28px; padding: 0 6px; text-align: center; font-weight: 900; }
+  .disabled-job-box { display: grid; gap: 8px; }
+  .disabled-job-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--text2);
+  }
+  .disabled-job-head span { display: inline-flex; align-items: center; gap: 6px; }
+  .tiny-btn {
+    height: 26px;
+    padding: 0 9px;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    border: 1px solid var(--border2);
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text2);
+  }
+  .disabled-job-grid { display: flex; flex-wrap: wrap; gap: 6px; max-height: 96px; overflow: auto; }
+  .disable-job-chip {
+    min-height: 28px;
+    padding: 0 9px;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .disable-job-chip.djc-active { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
 
   /* ═══════════════════════════════════════════
      MATCHING SCREEN
@@ -2183,6 +2571,33 @@
     position: relative;
     overflow: hidden;
   }
+  .room-wait-screen { justify-content: flex-start; padding-top: 48px; }
+  .room-wait-card {
+    width: min(620px, 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+    box-shadow: 0 16px 34px rgba(15,23,42,.07);
+  }
+  .room-wait-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .room-wait-head h2 { font-size: 22px; font-weight: 900; }
+  .room-rule-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .room-rule-row span {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 11px;
+    background: #fff;
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .wait-room-list { width: min(620px, 100%); }
   .matching-bg { position: absolute; inset: 0; pointer-events: none; }
   .radar {
     position: relative;
@@ -2499,6 +2914,20 @@
     filter: grayscale(.8);
     opacity: .55;
   }
+  .job-card.job-unavailable {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    cursor: not-allowed;
+  }
+  .job-card.job-unavailable .jc-initial,
+  .job-card.job-unavailable .jc-name,
+  .job-card.job-unavailable .jc-check {
+    color: #be123c;
+  }
+  .job-card.job-unavailable .jc-portrait {
+    filter: grayscale(.85);
+    opacity: .5;
+  }
   .jc-check {
     position: absolute;
     top: 7px; right: 9px;
@@ -2691,12 +3120,32 @@
   .player-body { flex: 1; min-width: 0; }
   .player-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
   .player-job { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .player-clock {
+    width: fit-content;
+    min-height: 24px;
+    margin-top: 6px;
+    padding: 0 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--text2);
+  }
+  .player-clock.clock-active {
+    border-color: rgba(37,99,235,.35);
+    color: var(--accent2);
+    background: #eff6ff;
+  }
   .player-ability-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; width: 100%; }
-  .pa-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); border-radius: 4px; padding: 3px 6px; font-size: 11px; border-left: 2px solid #555; }
+  .pa-item { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 4px; padding: 3px 6px; font-size: 11px; border-left: 2px solid #cbd5e1; }
   .pa-item.pa-ready { border-left-color: var(--accent); }
   .pa-item.pa-exhausted { opacity: 0.5; border-left-color: var(--red); }
-  .pa-name { font-weight: 600; color: #eee; }
-  .pa-status { color: #aaa; font-size: 10px; }
+  .pa-name { font-weight: 700; color: var(--text); }
+  .pa-status { color: var(--text3); font-size: 10px; }
   .pa-item.pa-ready .pa-status { color: var(--accent); }
   .pa-item.pa-exhausted .pa-status { color: var(--red); }
   .effect-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
@@ -3154,6 +3603,190 @@
     animation: fadeUp .28s ease both;
   }
 
+  /* Jobs */
+  .jobs-page { max-width: 1180px; }
+  .jobs-layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 16px;
+    min-height: calc(100dvh - 110px);
+  }
+  .jobs-list-panel,
+  .job-detail-panel,
+  .job-stat-card,
+  .command-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+  }
+  .jobs-list-panel {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .jobs-panel-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .jobs-panel-head h2,
+  .job-detail-head h2,
+  .help-header h2 { font-size: 24px; font-weight: 900; letter-spacing: 0; }
+  .job-filter-input { width: 100%; height: 38px; font-size: 13px; }
+  .jobs-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .job-list-btn {
+    min-height: 44px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 800;
+    text-align: left;
+  }
+  .job-list-btn:hover,
+  .job-list-btn.jlb-active { background: #eff6ff; color: var(--accent2); }
+  .jlb-icon,
+  .job-detail-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e0ecff;
+    color: var(--accent2);
+    font-size: 14px;
+    font-weight: 900;
+    position: relative;
+  }
+  .jlb-icon img,
+  .job-detail-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .jlb-icon img:not([hidden]) + span,
+  .job-detail-icon img:not([hidden]) + span { display: none; }
+  .job-detail-panel {
+    padding: 18px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .job-detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .job-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .job-detail-icon { width: 54px; height: 54px; font-size: 22px; }
+  .job-ability-strip { display: flex; flex-wrap: wrap; gap: 6px; max-width: 420px; justify-content: flex-end; }
+  .job-ability-strip span {
+    border: 1px solid rgba(37,99,235,.18);
+    background: #eff6ff;
+    color: var(--accent2);
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .job-info-text {
+    margin: 0;
+    max-height: 360px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--text2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    padding: 14px;
+  }
+  .job-side-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; }
+  .job-stat-card { padding: 14px; min-width: 0; }
+  .job-section-title { font-size: 13px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
+  .mini-rank-row,
+  .tier-row {
+    min-height: 34px;
+    display: grid;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .mini-rank-row { grid-template-columns: 26px minmax(0,1fr) auto auto; }
+  .mini-rank-num { font-weight: 900; color: var(--tc, var(--accent)); }
+  .mini-rank-name { font-weight: 800; overflow-wrap: anywhere; }
+  .mini-rank-record { color: var(--text3); }
+  .mini-rank-rating { color: var(--tc, var(--accent)); font-weight: 900; }
+  .tier-table { max-height: 340px; overflow: auto; }
+  .tier-row { grid-template-columns: 10px minmax(0, 1fr) auto; }
+  .tier-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tc); box-shadow: 0 0 10px var(--tc-glow); }
+  .tier-name { font-weight: 800; }
+  .tier-range { color: var(--text3); font-weight: 700; }
+
+  /* Help */
+  .help-page { max-width: 980px; }
+  .help-header { display: flex; flex-direction: column; gap: 4px; }
+  .help-header p { color: var(--text2); font-size: 14px; }
+  .tutorial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .tutorial-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    padding: 14px;
+    display: grid;
+    gap: 7px;
+  }
+  .tutorial-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .tutorial-card h3 { font-size: 15px; font-weight: 900; }
+  .tutorial-card p { font-size: 13px; line-height: 1.55; color: var(--text2); }
+  .command-card { padding: 14px; }
+  .command-grid {
+    display: grid;
+    grid-template-columns: minmax(110px, 1fr) minmax(0, 1.2fr);
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .command-grid span,
+  .command-grid strong {
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--border);
+  }
+  .command-grid span { background: var(--bg3); color: var(--text2); font-weight: 800; }
+  .command-grid strong { background: #fff; color: var(--text); }
+  .command-grid span:nth-last-child(-n+2),
+  .command-grid strong:nth-last-child(-n+2) { border-bottom: none; }
+
   /* Search */
   .search-bar { display: flex; gap: 10px; }
   .search-input { flex: 1; height: 48px; font-size: 16px; border-radius: var(--radius); }
@@ -3536,38 +4169,117 @@
   }
   @media (max-width:1000px) {
     .game-columns { grid-template-columns: 190px minmax(0,1fr) 220px; }
+    .jobs-layout { grid-template-columns: 220px minmax(0, 1fr); }
+    .job-side-grid { grid-template-columns: 1fr; }
   }
   @media (max-width:800px) {
-    .ingame { min-height: calc(100dvh - 104px); }
-    .game-columns { grid-template-columns: 1fr; overflow-y: auto; }
-    .col-players { border-right: none; border-bottom: 1px solid var(--border); max-height: 180px; flex-direction: row; flex-wrap: wrap; gap: 8px; }
-    .col-control { border-left: none; border-top: 1px solid var(--border); }
-    .col-board { min-height: 300px; }
+    .ingame { min-height: calc(100dvh - 96px); }
+    .game-columns {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(220px, 1fr) auto;
+      overflow-y: auto;
+    }
+    .col-players {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      max-height: 132px;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 10px;
+    }
+    .col-players .col-label { display: none; }
+    .player-card { width: 180px; flex: 0 0 auto; padding: 9px; }
+    .player-ability-list,
+    .job-status-list { display: none; }
+    .col-control {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+    .my-job-panel,
+    .game-status-panel,
+    .game-guide-panel,
+    .vote-panel { margin: 0; }
+    .game-status-panel { display: none; }
+    .ctrl-actions { grid-column: 1 / -1; flex-direction: row; }
+    .col-board { min-height: 240px; padding: 10px; }
+    .word-history { min-height: 220px; }
+    .jobs-layout { grid-template-columns: 1fr; min-height: auto; }
+    .jobs-list-panel { max-height: 220px; }
+    .jobs-list { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
     .job-pair-row { flex-direction: column; }
     .jp-vs { display: none; }
   }
   @media (max-width:640px) {
-    .topbar { height: auto; padding: 10px 14px; flex-wrap: wrap; gap: 10px; }
-    .top-nav { order: 3; width: 100%; }
-    .nav-btn { flex: 1; justify-content: center; }
-    .top-auth { margin-left: 0; }
-    .auth-input { width: 100px; }
-    .syl-hero { grid-template-columns: 1fr auto; gap: 12px; padding: 12px 16px; }
+    .topbar {
+      height: auto;
+      padding: 8px 10px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px;
+    }
+    .brand { font-size: 18px; }
+    .top-nav {
+      grid-column: 1 / -1;
+      order: initial;
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 1px;
+    }
+    .top-nav::-webkit-scrollbar { display: none; }
+    .nav-btn { flex: 0 0 auto; justify-content: center; height: 32px; padding: 0 10px; font-size: 12px; }
+    .top-auth { margin-left: 0; justify-content: flex-end; gap: 5px; min-width: 0; }
+    .auth-name { max-width: 82px; overflow: hidden; text-overflow: ellipsis; }
+    .auth-input { width: 74px; height: 32px; font-size: 12px; padding: 0 8px; }
+    .auth-select { width: 76px; height: 32px; font-size: 12px; padding: 0 6px; }
+    .icon-btn { width: 32px; height: 32px; }
+    .lobby { align-items: flex-start; padding: 16px 12px; }
+    .lobby-card { padding: 22px 18px; gap: 16px; }
+    .lobby-title h1 { font-size: 30px; }
+    .syl-hero { grid-template-columns: 1fr auto auto; gap: 10px; padding: 8px 12px; }
     .syl-meta { display: none; }
-    .syl-main { font-size: 38px; }
-    .job-grid { grid-template-columns: repeat(auto-fill, minmax(88px,1fr)); }
+    .syl-main { font-size: 34px; }
+    .syl-player-name { font-size: 13px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .job-screen { padding: 12px; gap: 12px; }
+    .job-screen-header h2 { font-size: 20px; }
+    .ban-panel { padding: 12px; }
+    .job-grid { grid-template-columns: repeat(auto-fill, minmax(78px,1fr)); gap: 7px; }
+    .job-card { height: 76px; border-radius: 8px; }
+    .jc-portrait { width: 38px; height: 38px; }
+    .jc-name { font-size: 11px; }
     .ban-group { margin-left: 0; }
     .job-actions { flex-wrap: wrap; }
     .word-grid { grid-template-columns: 1fr 1fr; }
     .batch-grid { grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); }
-    .content-page { padding: 16px; }
+    .content-page { padding: 12px; gap: 12px; }
+    .job-detail-panel { padding: 12px; }
+    .job-detail-icon { width: 44px; height: 44px; }
+    .job-info-text { max-height: 300px; font-size: 12px; }
+    .tutorial-grid { grid-template-columns: 1fr; }
+    .command-grid { grid-template-columns: 1fr; }
+    .command-grid span { border-bottom: none; }
     .match-title { font-size: 40px; }
     .match-swords { font-size: 64px; }
-    .bottom-composer { padding: 10px; }
+    .bottom-composer { padding: 8px; gap: 7px; }
+    .input-zone { padding: 4px; gap: 6px; }
+    .word-input { height: 44px; font-size: 14px; }
+    .send-btn { width: 44px; height: 44px; }
     .ability-bar { grid-template-columns: 1fr; }
     .ability-grid { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
-    .ab-btn { flex: 0 0 auto; }
+    .ab-btn { flex: 0 0 auto; height: 34px; font-size: 12px; }
     .word-search-float { width: calc(100vw - 32px); right: 16px; left: 16px; }
+    .floating-chat-container { bottom: 72px; }
+    .rank-row { padding: 10px; gap: 9px; }
+    .rank-avatar { width: 34px; height: 34px; }
+    .rank-tier-badge { white-space: normal; text-align: right; }
+    .rank-rating { font-size: 17px; }
   }
 
   /* ─── Job Tooltip ─── */
@@ -3914,8 +4626,22 @@
   .ongoing-list { display: flex; flex-direction: column; gap: 8px; }
   .ongoing-card { display: flex; flex-direction: column; align-items: flex-start; padding: 12px 16px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); transition: all 0.2s; text-align: left; }
   .ongoing-card:hover { background: #fff; border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+  .ongoing-card:disabled { cursor: default; opacity: .72; transform: none; }
+  .room-list-card { width: 100%; }
   .og-room { font-size: 15px; font-weight: 800; color: var(--accent); }
   .og-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .og-disabled { font-size: 11px; color: #be123c; margin-top: 5px; font-weight: 800; }
+  .room-empty {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border: 1px dashed var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text3);
+    font-size: 12px;
+    font-weight: 800;
+  }
 
   .online-dot { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-left: 6px; box-shadow: 0 0 8px rgba(34,197,94,0.6); }
   .offline-label { font-size: 10px; color: var(--text3); font-weight: 500; margin-left: 6px; }

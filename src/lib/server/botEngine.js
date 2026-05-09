@@ -369,6 +369,17 @@ export async function botRoomState(room) {
   return serializeGame(raw);
 }
 
+export async function configureBotRoom(room, options = {}) {
+  const bot = await getBotEngine();
+  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  if (!raw) return null;
+  if (Array.isArray(options.disabledJobs) && options.disabledJobs.length) {
+    const current = Array.isArray(raw.bannedJobs) ? raw.bannedJobs : [];
+    raw.bannedJobs = Array.from(new Set([...current, ...options.disabledJobs]));
+  }
+  return serializeGame(raw);
+}
+
 export async function botAllRoomStates() {
   const bot = await getBotEngine();
   const games = bot.context.__Bot?.scope?.games || bot.context.games || {};

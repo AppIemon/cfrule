@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { createRoom, getRoomSnapshot, joinRoom } from '$lib/server/gameService.js';
+import { createRoom, getRoomSnapshot, joinRoom, listRooms } from '$lib/server/gameService.js';
 
 export async function POST({ request }) {
   try {
@@ -15,6 +15,9 @@ export async function POST({ request }) {
 
 export async function GET({ url }) {
   try {
+    if (url.searchParams.get('action') === 'list' || !url.searchParams.get('room')) {
+      return json(await listRooms());
+    }
     return json(await getRoomSnapshot(url.searchParams.get('room') || ''));
   } catch (error) {
     console.error('room GET failed', error);
