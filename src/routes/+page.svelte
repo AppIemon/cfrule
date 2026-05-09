@@ -619,7 +619,7 @@
     const data = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nickname: user.nickname, mode: Number(mode), practice, cpuJob })
+      body: JSON.stringify({ mode: Number(mode), practice, cpuJob })
     });
     room = data.room;
     snapshot = data;
@@ -637,7 +637,7 @@
     const data = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'join', room: target, nickname: user.nickname })
+      body: JSON.stringify({ action: 'join', room: target })
     });
     room = data.room;
     snapshot = data;
@@ -685,7 +685,7 @@
     if (browser && room) {
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
       try {
-        socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}&nickname=${encodeURIComponent(nickname)}`);
+        socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}`);
         socket.onopen = () => { wsRetryDelay = 1000; };
         socket.onmessage = (event) => {
           try {
@@ -713,7 +713,7 @@
   async function fetchOngoingGames() {
     if (!nickname) return;
     try {
-      const res = await fetch(`/api/my-games?nickname=${encodeURIComponent(nickname)}`);
+      const res = await fetch('/api/my-games');
       if (res.ok) ongoingGames = await res.json();
     } catch {}
   }
@@ -747,7 +747,7 @@
     snapshot = await request('/api/action', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ room, nickname: user.nickname, command: commandText.trim() })
+      body: JSON.stringify({ room, command: commandText.trim() })
     });
   }
 
