@@ -54,6 +54,15 @@ jobs:
           fi
         shell: bash
 
+      - name: Generate app icon assets
+        run: |
+          if [ -f "resources/icon.png" ]; then
+            npx capacitor-assets generate --android
+          else
+            echo "::warning::resources/icon.png not found — using default Capacitor icon."
+          fi
+        shell: bash
+
       - name: Patch build.gradle for release signing
         run: node scripts/patch-android-signing.mjs
 
