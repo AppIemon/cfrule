@@ -35,7 +35,6 @@ server.on('upgrade', (request, socket, head) => {
 
   wss.handleUpgrade(request, socket, head, async (ws) => {
     const room = url.searchParams.get('room') || '';
-    const nickname = url.searchParams.get('nickname') || '';
     let isAlive = true;
 
     const send = (payload) => {
@@ -57,10 +56,19 @@ server.on('upgrade', (request, socket, head) => {
     const updatePresence = game.updatePresence || (() => {});
     const addChatMessage = game.addChatMessage || (() => {});
     const addDirectMessage = game.addDirectMessage || (() => {});
+    const lookupSession = game.lookupSessionFromCookieHeader;
 
     if (!getRoomSnapshot) {
       ws.close(1011, 'server error');
       return;
+    }
+
+    let nickname = '';
+    if (typeof lookupSession === 'function') {
+      try {
+        const sessionUser = await lookupSession(request.headers.cookie || '');
+        nickname = sessionUser?.nickname || '';
+      } catch {}
     }
 
     if (nickname) updatePresence(room, nickname, true);
@@ -90,12 +98,19 @@ server.on('upgrade', (request, socket, head) => {
     });
 
     ws.on('message', async (data) => {
+      if (!nickname) return;
       try {
-        const payload = JSON.parse(data.toString());
+        const buf = data.toString();
+        if (buf.length > 2048) return;
+        const payload = JSON.parse(buf);
         if (payload.type === 'chat' && payload.text) {
-          await addChatMessage({ room, nickname, text: payload.text });
+          await addChatMessage({ room, nickname, text: String(payload.text).slice(0, 500) });
         } else if (payload.type === 'dm' && payload.to && payload.text) {
-          await addDirectMessage({ from: nickname, to: payload.to, text: payload.text });
+          await addDirectMessage({
+            from: nickname,
+            to: String(payload.to).slice(0, 32),
+            text: String(payload.text).slice(0, 500)
+          });
         }
       } catch {}
     });
