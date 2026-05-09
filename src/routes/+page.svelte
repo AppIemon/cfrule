@@ -5,6 +5,7 @@
     Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
     Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Vote, X
   } from 'lucide-svelte';
+  import { apiUrl, wsUrl } from '$lib/api-base';
 
   const TIER_INFO = [
     { name: '아이언 V',      min: 0,    max: 39,       color: '#9E9E9E' },
@@ -213,7 +214,7 @@
   async function fetchDMConversation() {
     if (!dmTarget.trim() || !user) return;
     try {
-      const res = await fetch(`/api/dm?with=${encodeURIComponent(dmTarget.trim())}`);
+      const res = await fetch(apiUrl(`/api/dm?with=${encodeURIComponent(dmTarget.trim())}`), { credentials: 'include' });
       if (res.ok) { const d = await res.json(); dmMessages = d.messages || []; }
     } catch {}
   }
@@ -221,7 +222,7 @@
   async function fetchDMInbox() {
     if (!user) return;
     try {
-      const res = await fetch('/api/dm');
+      const res = await fetch(apiUrl('/api/dm'), { credentials: 'include' });
       if (res.ok) { const d = await res.json(); dmInbox = d.inbox || []; }
     } catch {}
   }
@@ -233,8 +234,9 @@
     if (!text || !to || !user) return;
     dmInput = '';
     try {
-      await fetch('/api/dm', {
+      await fetch(apiUrl('/api/dm'), {
         method: 'POST',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ to, text })
       });
@@ -483,6 +485,33 @@
       .map(([key, label]) => ({ label, value: myState[key] }));
   });
 
+  const PASSIVE_BY_JOB = {
+    '해커': [], '투자자': ['투자의 귀재'], '환자': ['강박증'], '수집가': ['수집'],
+    '감시자': ['감시'], '뜀틀선수': ['뜀틀'], '전우치': ['잔상'], '시프터': [],
+    '비밀요원': ['타깃 확보'], '사과': ['삭와'], '시인': [], '공룡': [],
+    '마법사': ['부작용'], '사신': ['처형'], '수학자': ['논문 발표', '공부'],
+    '과학자': ['실험'], '작곡가': ['작곡'], '스폰지밥': ['저금통'],
+    '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
+    '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
+    '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': ['방사선', '감마 수열'],
+    '스핔이': ['백수가 쪼아요'], '해달': [], '프로그래머': [], '볼링선수': ['볼링'], '반장': ['반장']
+  };
+
+  function findAbilityMatch(text, dict) {
+    const players = Object.entries(game?.playerStates || {})
+      .map(([player, state]) => ({ player, job: state?.job }))
+      .filter(p => p.job);
+    for (const { job } of players) {
+      const list = dict[job] || [];
+      for (const item of list) {
+        if (text.startsWith(item) || text.includes(`${item} 발동`) || text.includes(`${item} 완료`) || text.includes(`${item} 효과`) || text.includes(`${item} 패시브`)) {
+          return { name: item, job };
+        }
+      }
+    }
+    return null;
+  }
+
   let lastProcessedLogId = $state(null);
   $effect(() => {
     room; // reset on room change
@@ -504,46 +533,31 @@
           effectTriggered = true;
         }
 
-        // 1. 패시브 감지
-        const PASSIVE_BY_JOB = {
-          '해커': [], '투자자': ['투자의 귀재'], '환자': ['강박증'], '수집가': ['수집'],
-          '감시자': ['감시'], '뜀틀선수': ['뜀틀'], '전우치': ['잔상'], '시프터': [],
-          '비밀요원': ['타깃 확보'], '사과': ['삭와'], '시인': [], '공룡': [],
-          '마법사': ['부작용'], '사신': ['처형'], '수학자': ['논문 발표', '공부'],
-          '과학자': ['실험'], '작곡가': ['작곡'], '스폰지밥': ['저금통'],
-          '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
-          '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
-          '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': ['방사선', '감마 수열'],
-          '스핔이': ['백수가 쪼아요'], '해달': [], '프로그래머': [], '볼링선수': ['볼링'], '반장': ['반장']
-        };
-        
-        const currentPassives = PASSIVE_BY_JOB[myState?.job] || [];
-        for (const ps of currentPassives) {
-          if (text.includes(`${ps} 발동`) || text.includes(`${ps} 효과`) || text.includes(`${ps} 패시브`)) {
-            triggerEffect(ps, 'passive');
+        // 1. 패시브 감지 (모든 플레이어 직업 검사)
+        if (!effectTriggered) {
+          const passive = findAbilityMatch(text, PASSIVE_BY_JOB);
+          if (passive) {
+            triggerEffect(passive.name, 'passive', passive.job);
             effectTriggered = true;
-            break;
           }
         }
 
-        // 2. 액티브 능력 감지
+        // 2. 액티브 능력 감지 (모든 플레이어 직업 검사)
         if (!effectTriggered) {
-          const currentAbilities = ACTIVE_BY_JOB[myState?.job] || [];
-          for (const ab of currentAbilities) {
-            if (text.startsWith(ab) || text.includes(`${ab} 발동`) || text.includes(`${ab} 완료`)) {
-              triggerEffect(ab, 'active');
-              effectTriggered = true;
-              break;
-            }
+          const active = findAbilityMatch(text, ACTIVE_BY_JOB);
+          if (active) {
+            triggerEffect(active.name, 'active', active.job);
+            effectTriggered = true;
           }
         }
 
         // 3. 에러 메시지 감지 및 토스트 표시
         const isError = [
-          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어', 
-          '유도 단어', '루트 단어', '두음법칙', '글자 수가', '불가능합니다', '사용할 수 없습니다'
+          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어',
+          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다',
+          '쿨타임입니다', '모두 사용했습니다', '부족합니다', '지정해주세요'
         ].some(err => text.includes(err));
-        
+
         if (isError && !effectTriggered) {
           if (errorTimer) clearTimeout(errorTimer);
           error = text;
@@ -553,9 +567,11 @@
     }
   });
 
-  function triggerEffect(name, type) {
+  function triggerEffect(name, type, jobName = '') {
     const id = Math.random();
-    activeEffects = [...activeEffects, { id, name, type }];
+    const job = jobName || '';
+    const jobImage = job ? jobImageSrc(job) : '';
+    activeEffects = [...activeEffects, { id, name, type, job, jobImage }];
     setTimeout(() => {
       activeEffects = activeEffects.filter(e => e.id !== id);
     }, 2000);
@@ -650,7 +666,7 @@
 
   $effect(() => {
     if (browser) {
-      fetch('/api/job-info').then(r => r.json()).then(d => { jobInfoByJob = d; }).catch(() => {});
+      fetch(apiUrl('/api/job-info')).then(r => r.json()).then(d => { jobInfoByJob = d; }).catch(() => {});
     }
   });
 
@@ -658,7 +674,7 @@
     busy = true;
     error = '';
     try {
-      const res = await fetch(path, options);
+      const res = await fetch(apiUrl(path), { credentials: 'include', ...options });
       if (!res.ok) throw new Error(await res.text());
       return await res.json();
     } catch (err) {
@@ -749,7 +765,7 @@
   async function refresh(targetRoom = room) {
     if (!targetRoom) return;
     try {
-      const res = await fetch(`/api/room?room=${encodeURIComponent(targetRoom)}`, { cache: 'no-store' });
+      const res = await fetch(apiUrl(`/api/room?room=${encodeURIComponent(targetRoom)}`), { cache: 'no-store', credentials: 'include' });
       if (!res.ok || targetRoom !== room) return;
       snapshot = await res.json();
     } catch {}
@@ -784,9 +800,10 @@
     }
     startPolling();
     if (browser && room) {
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+      const url = wsUrl(`/ws?room=${encodeURIComponent(room)}`);
+      if (!url) return;
       try {
-        socket = new WebSocket(`${protocol}://${location.host}/ws?room=${encodeURIComponent(room)}`);
+        socket = new WebSocket(url);
         socket.onopen = () => { wsRetryDelay = 1000; };
         socket.onmessage = (event) => {
           try {
@@ -814,7 +831,7 @@
   async function fetchOngoingGames() {
     if (!nickname) return;
     try {
-      const res = await fetch('/api/my-games');
+      const res = await fetch(apiUrl('/api/my-games'), { credentials: 'include' });
       if (res.ok) ongoingGames = await res.json();
     } catch {}
   }
@@ -965,7 +982,7 @@
   async function searchInGame() {
     const tabObj = activeInGameTab;
     if (!tabObj || !tabObj.query.trim()) return;
-    const data = await fetch(`/api/search?q=${encodeURIComponent(tabObj.query)}`).then(r => r.json()).catch(() => ({}));
+    const data = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(tabObj.query)}`), { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
     tabObj.results = data.results || [];
   }
 
@@ -1661,6 +1678,9 @@
                       <Clock size={12} />{formatClock(timerState.remaining?.[player] ?? timerState.initialSeconds)}
                     </div>
                   {/if}
+                  {#if playerJob && jobInfoByJob[playerJob]}
+                    <div class="job-tooltip job-tooltip--player"><pre class="job-tooltip-text">{jobInfoByJob[playerJob]}</pre></div>
+                  {/if}
                   {#if getJobStatuses(game.playerStates?.[player]).length}
                     <div class="job-status-list">
                       {#each getJobStatuses(game.playerStates?.[player]) as st}
@@ -1735,6 +1755,9 @@
                   <span>{jobInitial(myState.job)}</span>
                 </div>
                 <div class="mj-name">{myState.job}</div>
+                {#if jobInfoByJob[myState.job]}
+                  <div class="job-tooltip job-tooltip--myjob"><pre class="job-tooltip-text">{jobInfoByJob[myState.job]}</pre></div>
+                {/if}
                 {#if myStatusList.length}
                   <div class="mj-status-list">
                     {#each myStatusList as st}
@@ -1921,6 +1944,17 @@
               <div class="splash-bg"></div>
               <div class="splash-text">
                 <span class="splash-kicker">{eff.type === 'passive' ? 'PASSIVE' : eff.type === 'surrender' ? 'SURRENDER' : 'ABILITY'}</span>
+                {#if eff.job && eff.type !== 'surrender'}
+                  <div class="splash-job">
+                    <span class="splash-job-portrait">
+                      <span class="splash-job-initial">{jobInitial(eff.job)}</span>
+                      {#if eff.jobImage}
+                        <img class="splash-job-img" src={eff.jobImage} alt="" onerror={hideBrokenImage} />
+                      {/if}
+                    </span>
+                    <span class="splash-job-name">{eff.job}</span>
+                  </div>
+                {/if}
                 <span class="splash-name">{eff.name}</span>
               </div>
             </div>
@@ -3754,6 +3788,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: inherit;
     background: linear-gradient(135deg, rgba(99,102,241,.08), transparent);
     pointer-events: none;
   }
@@ -4494,6 +4529,36 @@
   }
   .job-card:hover .job-tooltip { display: block; }
 
+  /* Player card (left in-game column) — anchor to the right of the card */
+  .player-card { overflow: visible; }
+  .player-card .job-tooltip--player {
+    bottom: auto; top: 0; left: calc(100% + 8px); transform: none;
+    width: 280px; max-height: 300px;
+  }
+  .player-card:hover .job-tooltip--player { display: block; }
+
+  /* My-job panel (right control column) — anchor to the left of the panel */
+  .my-job-panel { overflow: visible; }
+  .my-job-panel .job-tooltip--myjob {
+    bottom: auto; top: 0; right: calc(100% + 8px); left: auto; transform: none;
+    width: 280px; max-height: 300px;
+  }
+  .my-job-panel:hover .job-tooltip--myjob { display: block; }
+
+  /* Job-ranking filter button — keep default top-anchored tooltip */
+  .jrs-btn { position: relative; }
+  .jrs-btn .job-tooltip--jrs { width: 280px; max-height: 300px; text-align: left; }
+  .jrs-btn:hover .job-tooltip--jrs { display: block; }
+
+  /* Narrow screens: flip side-anchored tooltips back to top-centered */
+  @media (max-width: 980px) {
+    .player-card .job-tooltip--player,
+    .my-job-panel .job-tooltip--myjob {
+      bottom: calc(100% + 8px); top: auto; left: 50%; right: auto;
+      transform: translateX(-50%);
+    }
+  }
+
   /* ─── Floating word search ─── */
   .syl-search-btn {
     background: none;
@@ -4792,6 +4857,11 @@
   .activation-splash.passive .splash-bg { background: radial-gradient(circle, rgba(16,185,129,0.8) 0%, transparent 70%); }
   .activation-splash.surrender .splash-bg { background: radial-gradient(circle, rgba(239,68,68,0.82) 0%, rgba(15,23,42,0.2) 44%, transparent 72%); }
   .activation-splash.surrender .splash-name { color: #fee2e2; }
+  .splash-job { display: inline-flex; align-items: center; gap: 10px; margin: 8px 0 6px; padding: 6px 14px 6px 6px; background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; backdrop-filter: blur(8px); }
+  .splash-job-portrait { position: relative; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 2px 12px rgba(0,0,0,0.35); background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .splash-job-portrait .splash-job-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 20px; }
+  .splash-job-portrait .splash-job-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .splash-job-name { font-size: 20px; font-weight: 800; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.5); letter-spacing: 0.02em; }
   
   @keyframes splashOut {
     0% { transform: scale(0.5); opacity: 0; }

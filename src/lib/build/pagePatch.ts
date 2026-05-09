@@ -193,7 +193,7 @@ export function patchPageSvelte(code: string): string {
     floatingSearchBusy = true;
     try {
       const used = encodeURIComponent((game?.history || []).join(','));
-      const res = await fetch(\`/api/word-search?q=\${encodeURIComponent(floatingSearchText)}&start=\${encodeURIComponent(nextSyllable === '자유' ? '' : nextSyllable[0])}&used=\${used}\`, { cache: 'no-store' });
+      const res = await fetch(apiUrl(\`/api/word-search?q=\${encodeURIComponent(floatingSearchText)}&start=\${encodeURIComponent(nextSyllable === '자유' ? '' : nextSyllable[0])}&used=\${used}\`), { cache: 'no-store', credentials: 'include' });
       if (!res.ok) throw new Error('검색 실패');
       const data = await res.json();
       floatingSearchResults = data.results || [];
