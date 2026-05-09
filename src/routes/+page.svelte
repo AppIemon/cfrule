@@ -411,12 +411,21 @@
       .map(([key, label]) => ({ label, value: myState[key] }));
   });
 
+  let lastProcessedLogId = $state(null);
+  $effect(() => {
+    room; // reset on room change
+    lastProcessedLogId = null;
+  });
   $effect(() => {
     if (log.length > 0) {
       const last = log[log.length - 1];
+      if (last.id === lastProcessedLogId) return;
+      const isFirstSeen = lastProcessedLogId === null;
+      lastProcessedLogId = last.id;
+      if (isFirstSeen) return;
       if (last.type === 'system') {
         const text = last.text?.replace('[시스템]: ', '').trim() || '';
-        
+
         let effectTriggered = false;
 
         if (text.includes('ㅈㅈ를 쳤다') || text.includes('항복') || text.includes('기권')) {
