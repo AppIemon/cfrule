@@ -5,3 +5,9 @@ build
 data/runtime
 .env
 *.log
+.claude/
+artifacts/
+verification-*.png
+image.txt
+hanbang_lines.txt
+finalizeMatch_calls.txt

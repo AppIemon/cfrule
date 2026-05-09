@@ -175,6 +175,7 @@ Bot.scope = {
   getSelectableJobs: undefined,
   getMaxBanCount: undefined,
   getPlayerTeamIndex: undefined,
+  isPlayersTeamTurn: undefined,
   getSelectedEnemyJobs: undefined,
   getSelectedAllyJobs: undefined,
   scoreRecommendedJob: undefined,
@@ -4044,7 +4045,22 @@ with (Bot.scope) {
   getPlayerTeamIndex = function getPlayerTeamIndex(game, player) {
     let __botResult = function () {
       if (!game || !game.players) return -1;
-      return game.players.indexOf(player) % 2;
+      let idx = game.players.indexOf(player);
+      if (idx < 0) return -1;
+      return game.teamMode > 1 ? idx % 2 : idx;
+    }.call(this);
+    if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
+    return __botResult;
+  };
+  isPlayersTeamTurn = function isPlayersTeamTurn(game, player) {
+    let __botResult = function () {
+      if (!game || !game.players || game.currentTurnIndex === -1) return true;
+      let currentPlayer = game.players[game.currentTurnIndex];
+      if (player === currentPlayer) return true;
+      if (game.teamMode <= 1) return false;
+      let playerTeam = getPlayerTeamIndex(game, player);
+      let currentTeam = getPlayerTeamIndex(game, currentPlayer);
+      return playerTeam !== -1 && playerTeam === currentTeam;
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -4065,7 +4081,7 @@ with (Bot.scope) {
         }, function () {
           let name = game.players[i];
           if (name === player) return Bot.functions.control("continue");
-          if (i % 2 === teamIndex) return Bot.functions.control("continue");
+          if (getPlayerTeamIndex(game, name) === teamIndex) return Bot.functions.control("continue");
           if (game.playerStates[name] && game.playerStates[name].job) out.push(game.playerStates[name].job);
         });
         if (__botLoop55) return __botLoop55;
@@ -4091,7 +4107,7 @@ with (Bot.scope) {
         }, function () {
           let name = game.players[i];
           if (name === player) return Bot.functions.control("continue");
-          if (i % 2 !== teamIndex) return Bot.functions.control("continue");
+          if (getPlayerTeamIndex(game, name) !== teamIndex) return Bot.functions.control("continue");
           if (game.playerStates[name] && game.playerStates[name].job) out.push(game.playerStates[name].job);
         });
         if (__botLoop56) return __botLoop56;
@@ -4183,6 +4199,22 @@ with (Bot.scope) {
       if (!game || !game.isPractice) return;
       let preferredJob = game.practiceCpuJobArg ? normalizeJobName(game.practiceCpuJobArg) : null;
       let bannedJobs = game.bannedJobs || [];
+      let alreadyPicked = {};
+      {
+        let pickedNames = Object.keys(game.playerStates || {});
+        let pi;
+        let __botLoop60p = Bot.functions.forLoop(function () {
+          pi = 0;
+        }, function () {
+          return pi < pickedNames.length;
+        }, function () {
+          pi++;
+        }, function () {
+          let pickedState = game.playerStates[pickedNames[pi]];
+          if (pickedState && pickedState.job) alreadyPicked[pickedState.job] = true;
+        });
+        if (__botLoop60p) return __botLoop60p;
+      }
       {
         let i;
         let __botLoop60 = Bot.functions.forLoop(function () {
@@ -4197,16 +4229,27 @@ with (Bot.scope) {
           if (game.playerStates[player]) return Bot.functions.control("continue");
           let selectableJobs = ALL_JOBS.filter(function (job) {
             let __botResult = function () {
-              return bannedJobs.indexOf(job) === -1;
+              return bannedJobs.indexOf(job) === -1 && !alreadyPicked[job];
             }.call(this);
             if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
             return __botResult;
           });
+          if (selectableJobs.length === 0) {
+            selectableJobs = ALL_JOBS.filter(function (job) {
+              let __botResult = function () {
+                return bannedJobs.indexOf(job) === -1;
+              }.call(this);
+              if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
+              return __botResult;
+            });
+          }
           if (selectableJobs.length === 0) selectableJobs = ALL_JOBS.slice();
-          let cpuJob = chooseRecommendedJobForPlayer(game, player, selectableJobs, preferredJob);
+          let cpuPreferredJob = preferredJob && !alreadyPicked[preferredJob] ? preferredJob : null;
+          let cpuJob = chooseRecommendedJobForPlayer(game, player, selectableJobs, cpuPreferredJob);
           if (!cpuJob) cpuJob = selectableJobs[Math.floor(Math.random() * selectableJobs.length)];
+          alreadyPicked[cpuJob] = true;
           game.playerStates[player] = initJobState(cpuJob);
-          let teamIndex = i % 2;
+          let teamIndex = getPlayerTeamIndex(game, player);
           if (game.teamStates && game.teamStates[teamIndex]) attachTeamState(game.playerStates[player], game.teamStates[teamIndex]);
         });
         if (__botLoop60) return __botLoop60;
@@ -4268,8 +4311,9 @@ with (Bot.scope) {
           }, function () {
             let player = game.players[i];
             if (isCpuPlayerName(player)) hasCpuPlayer = true;
-            teams[i % 2].players.push(player);
-            teams[i % 2].jobs.push(game.playerStates[player] ? game.playerStates[player].job : null);
+            let teamIndex = getPlayerTeamIndex(game, player);
+            teams[teamIndex].players.push(player);
+            teams[teamIndex].jobs.push(game.playerStates[player] ? game.playerStates[player].job : null);
           });
           if (__botLoop61a) return __botLoop61a;
         }
@@ -4312,7 +4356,7 @@ with (Bot.scope) {
         return true;
       }
       game.playerStates[sender] = initJobState(job);
-      let tIndex = game.players.indexOf(sender) % 2;
+      let tIndex = getPlayerTeamIndex(game, sender);
       if (game.teamStates && game.teamStates[tIndex]) attachTeamState(game.playerStates[sender], game.teamStates[tIndex]);
       let pickedText = pickedByRandom ? "로 랜덤 선택됐다." : "로 선택됐다.";
       if (!game.firstPicker) {
@@ -8099,8 +8143,8 @@ with (Bot.scope) {
           replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
           return;
         }
-        if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-          replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+        if (!isPlayersTeamTurn(game, sender)) {
+          replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
           return;
         }
         if (isMapAbilityBlocked(game)) {
@@ -8676,8 +8720,8 @@ with (Bot.scope) {
           }
         } else if (state.job === "스핔이" && !isAbilityDisabled) {
           if (ability === "물걸레질") {
-            if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-              replier.reply("자기 차례에만 사용할 수 있습니다.");
+            if (!isPlayersTeamTurn(game, sender)) {
+              replier.reply("자기 팀 차례에만 사용할 수 있습니다.");
               return;
             }
             if (state.speaki_clean_uses >= 3) {
@@ -8695,8 +8739,8 @@ with (Bot.scope) {
             if (trySpeakiPassiveWin(room, sender, state, replier)) return;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "물걸레질", "단어를 말끔히 닦는다.") + " 이번 차례에 사용된 단어를 다시 사용할 수 있고 현재 턴 수가 " + game.turnCount + "이 된다.");
           } else if (ability === "호박") {
-            if (game.currentTurnIndex === -1 || sender !== game.players[game.currentTurnIndex]) {
-              replier.reply("호박은 자기 차례에만 사용할 수 있습니다.");
+            if (game.currentTurnIndex === -1 || !isPlayersTeamTurn(game, sender)) {
+              replier.reply("호박은 자기 팀 차례에만 사용할 수 있습니다.");
               return;
             }
             if (game.history.length === 0) {
@@ -9010,8 +9054,8 @@ with (Bot.scope) {
               replier.reply("깨부수기는 이미 사용했습니다.");
               return;
             }
-            if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-              replier.reply("깨부수기는 자기 차례에만 사용할 수 있습니다.");
+            if (!isPlayersTeamTurn(game, sender)) {
+              replier.reply("깨부수기는 자기 팀 차례에만 사용할 수 있습니다.");
               return;
             }
             if (game.history.length === 0) {
@@ -14000,8 +14044,8 @@ Alt-F4 콤보를 준비합니다.`;
                   replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
                   return;
                 }
-                if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-                  replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+                if (!isPlayersTeamTurn(game, sender)) {
+                  replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
                   return;
                 }
                 if (isMapAbilityBlocked(game)) {
@@ -15425,8 +15469,8 @@ Alt-F4 콤보를 준비합니다.`;
                   replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
                   return;
                 }
-                if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-                  replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+                if (!isPlayersTeamTurn(game, sender)) {
+                  replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
                   return;
                 }
                 if (isMapAbilityBlocked(game)) {
@@ -15535,6 +15579,13 @@ Alt-F4 콤보를 준비합니다.`;
         if (!game || !game.players) return -1;
         var idx = game.players.indexOf(sender);
         if (idx < 0 || game.players.length === 0) return -1;
+        if (game.teamMode > 1) {
+          var myTeam = getPlayerTeamIndex(game, sender);
+          for (var ti = 1; ti <= game.players.length; ti++) {
+            var oi = (idx + ti) % game.players.length;
+            if (getPlayerTeamIndex(game, game.players[oi]) !== myTeam) return oi;
+          }
+        }
         return (idx + 1) % game.players.length;
       }
       function __deepOppState(game, sender) {
@@ -15552,8 +15603,8 @@ Alt-F4 콤보를 준비합니다.`;
           replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
           return false;
         }
-        if (game.currentTurnIndex !== -1 && sender !== game.players[game.currentTurnIndex]) {
-          replier.reply("자기 차례에만 능력을 사용할 수 있습니다.");
+        if (!isPlayersTeamTurn(game, sender)) {
+          replier.reply("자기 팀 차례에만 능력을 사용할 수 있습니다.");
           return false;
         }
         if (isMapAbilityBlocked(game)) {
@@ -16118,7 +16169,7 @@ Alt-F4 콤보를 준비합니다.`;
 (function(){
   with(Bot.scope){
     var __ccPrevPickV31 = cpuPickWord;
-    var CHARYNN_BRAIN_V31 = { maxCandidates: 520, deepCandidates: 110, replyBeam: 50, myReplyBeam: 28 };
+    var CHARYNN_BRAIN_V31 = { maxCandidates: 90, deepCandidates: 14, replyBeam: 8, myReplyBeam: 5 };
     try { CPU_MAX_CANDIDATES = Math.max(Number(CPU_MAX_CANDIDATES) || 0, 360); } catch(e) {}
     try { CPU_PICK_TOP_COUNT = Math.max(Number(CPU_PICK_TOP_COUNT) || 0, 40); } catch(e2) {}
     function __ccNum(x, d){ x = Number(x); return isNaN(x) ? d : x; }
@@ -16162,11 +16213,32 @@ Alt-F4 콤보를 준비합니다.`;
       } catch(e2) {}
       return out;
     }
+    function __ccHasSurvivalEscape(state, game){
+      try {
+        if (!state || state.lost_abilities || state.disabled_turns > 0 || state.absolutely_disabled > 0) return false;
+        if (state.job === "뜀틀선수" && (state.vault_uses || 0) < (state.vault_max || 3) && (state.vault_cooldown || 0) <= 0) return true;
+        if (state.job === "기자" && (state.report_uses || 0) < 2 && (state.report_cooldown || 0) <= 0) return true;
+        if (state.job === "고죠" && (state.gongcheo_uses || 0) > 0 && (state.gongcheo_cooldown || 0) <= 0) return true;
+        if (state.job === "생존자" && (state.rescue_uses || 0) < 3 && (state.rescue_cooldown || 0) <= 0 && game && game.history && game.history.length >= 3) return true;
+        if (state.job === "전우치" && game && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) return true;
+        if (state.job === "공룡" && (state.swallow_uses || 0) < 3 && (state.swallow_cooldown || 0) <= 0 && game && game.history && game.history.length >= 2) return true;
+      } catch(e) {}
+      return false;
+    }
     function __ccCollect(game, name, cap){
       cap = cap || CHARYNN_BRAIN_V31.maxCandidates;
       var state = __ccState(game, name), oppName = __ccOppName(game, name), oppState = __ccState(game, oppName);
       var result = [], seen = {};
       function add(w){ if (!w || seen[w] || result.length >= cap) return; seen[w] = true; if (__ccCanAdd(w, game, state, oppState)) result.push(w); }
+      function addClass(arr, cls){
+        for (var j=0; arr && j<arr.length && result.length<cap; j++) {
+          var w = arr[j];
+          if (cls === "hanbang" && !isHanbang(w)) continue;
+          if (cls === "special" && !(isYudo(w) || isRoot(w))) continue;
+          if (cls === "normal" && (isHanbang(w) || isYudo(w) || isRoot(w))) continue;
+          add(w);
+        }
+      }
       try {
         var syls = __ccStartSyllables(game, state);
         if (syls === "HALLUCINATION" || syls === "KNIGHT_EXCHANGE" || syls === null) {
@@ -16176,14 +16248,12 @@ Alt-F4 콤보를 준비합니다.`;
           return { words: result, state: state, oppName: oppName, oppState: oppState };
         }
         syls = __ccArr(syls);
-        for (var pass=0; pass<2 && result.length<cap; pass++) {
+        for (var pass=0; pass<3 && result.length<cap; pass++) {
           for (var si=0; si<syls.length && result.length<cap; si++) {
             var arr = WORDS_BY_START && WORDS_BY_START[syls[si]] ? WORDS_BY_START[syls[si]] : [];
-            for (var j=0; j<arr.length && result.length<cap; j++) {
-              var w = arr[j];
-              if (pass === 0 && !(isHanbang(w) || isYudo(w) || isRoot(w))) continue;
-              add(w);
-            }
+            if (pass === 0) addClass(arr, "hanbang");
+            else if (pass === 1) addClass(arr, "special");
+            else addClass(arr, "normal");
           }
         }
         if (game && game.customWords && result.length<cap) {
@@ -16301,13 +16371,17 @@ Alt-F4 콤보를 준비합니다.`;
         for(var i=0;i<words.length;i++)coarse.push(__ccCoarse(words[i],game,pack.oppState,hintWord));
         coarse.sort(function(a,b){if(b.coarse_score!==a.coarse_score)return b.coarse_score-a.coarse_score;if(a.fast_reply_count!==b.fast_reply_count)return a.fast_reply_count-b.fast_reply_count;return a.word<b.word?-1:(a.word>b.word?1:0);});
         var selectedBase=coarse.slice(0,Math.min(coarse.length,CHARYNN_BRAIN_V31.deepCandidates));
-        var seen={};for(var hi=0;hi<coarse.length;hi++){if(coarse[hi].word===hintWord&&!seen[hintWord]){selectedBase.push(coarse[hi]);break;}}
+        var selectedSeen={};for(var sb=0;sb<selectedBase.length;sb++)selectedSeen[selectedBase[sb].word]=true;
+        for(var hi=0;hi<coarse.length;hi++){if(coarse[hi].word===hintWord&&!selectedSeen[hintWord]){selectedBase.push(coarse[hi]);selectedSeen[hintWord]=true;break;}}
+        for(var si=0;si<coarse.length&&selectedBase.length<CHARYNN_BRAIN_V31.deepCandidates+10;si++){if(coarse[si].fast_kill_risk===0&&!selectedSeen[coarse[si].word]){selectedBase.push(coarse[si]);selectedSeen[coarse[si].word]=true;}}
         var infos=[],wins=[],safe=[],risky=[];
+        var seen={};
         for(var di=0;di<selectedBase.length;di++){var base=selectedBase[di];if(seen[base.word])continue;seen[base.word]=true;var info=__ccTacticalInfo(base,game,cpuName,pack.state,pack.oppName,pack.oppState);infos.push(info);if(info.immediate_win)wins.push(info);else if(!info.forced_loss_risk)safe.push(info);else risky.push(info);}
         wins.sort(__ccCmp);safe.sort(__ccCmp);risky.sort(__ccCmp);infos.sort(__ccCmp);
-        var best=wins.length?wins[0]:(safe.length?safe[0]:(risky.length?risky[0]:null));
+        var canGamble=__ccHasSurvivalEscape(pack.state,game);
+        var best=wins.length?wins[0]:(safe.length?safe[0]:(canGamble&&risky.length?risky[0]:(risky.length?risky[0]:null)));
         if(!best)return hint||null;
-        try{game.lastCpuDecision={mode:"charynn-tactical-v3.1",cpu:cpuName,job:pack.state?pack.state.job:"",opponent:pack.oppName||"",opponent_job:pack.oppState?pack.oppState.job:"",candidate_count:words.length,coarse_count:coarse.length,analyzed_count:infos.length,immediate_win_count:wins.length,safe_count:safe.length,risky_count:risky.length,model_hint_word:hintWord,selected_word:best.word,selected_score:best.score,selected_immediate_win:!!best.immediate_win,selected_safe:!best.forced_loss_risk,selected_opp_reply_count:best.opp_reply_count,selected_min_my_reply_count:best.min_my_reply_count,selected_best_opp_reply:best.best_opp_reply,candidates:infos.slice(0,10).map(function(x){return{w:x.word,s:x.score,win:!!x.immediate_win,safe:!x.forced_loss_risk,or:x.opp_reply_count,ok:x.opp_kill_replies,dy:x.deadly_reply_count,mr:x.min_my_reply_count,bo:x.best_opp_reply,h:!!x.model_hint};})};}catch(e2){}
+        try{game.lastCpuDecision={mode:"charynn-tactical-v3.1",cpu:cpuName,job:pack.state?pack.state.job:"",opponent:pack.oppName||"",opponent_job:pack.oppState?pack.oppState.job:"",candidate_count:words.length,coarse_count:coarse.length,analyzed_count:infos.length,immediate_win_count:wins.length,safe_count:safe.length,risky_count:risky.length,survival_escape:canGamble,model_hint_word:hintWord,selected_word:best.word,selected_score:best.score,selected_immediate_win:!!best.immediate_win,selected_safe:!best.forced_loss_risk,selected_opp_reply_count:best.opp_reply_count,selected_min_my_reply_count:best.min_my_reply_count,selected_best_opp_reply:best.best_opp_reply,candidates:infos.slice(0,10).map(function(x){return{w:x.word,s:x.score,win:!!x.immediate_win,safe:!x.forced_loss_risk,or:x.opp_reply_count,ok:x.opp_kill_replies,dy:x.deadly_reply_count,mr:x.min_my_reply_count,bo:x.best_opp_reply,h:!!x.model_hint};})};}catch(e2){}
         return{word:best.word,score:best.score,tactical:true};
       }.call(this);
       if(__botResult&&__botResult.__botControl&&__botResult.type==="return")return __botResult.value;

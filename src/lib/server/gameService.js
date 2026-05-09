@@ -1,6 +1,29 @@
 import { randomBytes } from 'node:crypto';
 import { botAllRoomStates, botBootStatus, botRankings, botRoomState, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { publishRoom } from './realtime.js';
+import { getSessionCookieName, getUserByToken } from './auth.js';
+
+// Re-exported for the standalone WebSocket server (server.js) so it can resolve
+// a nickname from the session cookie without reaching into a separate auth chunk.
+export { getSessionCookieName, getUserByToken };
+
+export async function lookupSessionFromCookieHeader(cookieHeader) {
+  if (!cookieHeader) return null;
+  const name = getSessionCookieName();
+  const target = `${name}=`;
+  for (const part of String(cookieHeader).split(';')) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(target)) {
+      const raw = trimmed.slice(target.length);
+      try {
+        return await getUserByToken(decodeURIComponent(raw));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
 
 const logs = new Map();
 const roomMeta = new Map();
@@ -11,6 +34,11 @@ const clockTimers = new Map();
 const clockFinalizing = new Set();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 const roomChats = new Map(); // room -> [{ id, sender, text, at }]
+const directMessages = new Map(); // conversationKey -> [{ id, from, to, text, at }]
+
+function dmKey(a, b) {
+  return [a, b].sort().join('\x00');
+}
 
 const QUEST_COUNT = 16;
 const CPU_RANDOM_JOBS = [
@@ -143,7 +171,7 @@ function startCommand(meta) {
 
 function looksLikeGameEnd(replies) {
   const text = (replies || []).join('\n');
-  return /승리|패배|레이팅|티어 변경|경기 종료|게임 종료/.test(text);
+  return /\[\s*(팀\s*)?티어전 결과\s*\]|경기 종료|게임 종료|^.+ 승리! /m.test(text);
 }
 
 function scheduleAutoRestart(room, sender, replies) {
@@ -384,7 +412,7 @@ export async function sendCommand({ room, nickname, command }) {
   await applyRoomOptions(room);
   await updateRoomClock(room, { finalize: true });
   scheduleAutoRestart(room, sender, replies);
-  const state = await getRoomSnapshot(room);
+  const state = await buildRoomSnapshot(room, true);
   await persistRoom(room, state);
   publishRoom(room, state);
   return state;
@@ -524,4 +552,39 @@ export async function listRooms() {
     if (openA !== openB) return openA ? -1 : 1;
     return Number(b.createdAt || 0) - Number(a.createdAt || 0);
   });
+}
+
+export function addDirectMessage({ from, to, text }) {
+  if (!from || !to || !text) return;
+  const key = dmKey(from, to);
+  const list = directMessages.get(key) || [];
+  list.push({
+    id: `${Date.now()}-${Math.random()}`,
+    from: String(from).trim(),
+    to: String(to).trim(),
+    text: String(text).trim(),
+    at: Date.now()
+  });
+  while (list.length > 200) list.shift();
+  directMessages.set(key, list);
+}
+
+export function getDirectMessages(userA, userB) {
+  return directMessages.get(dmKey(userA, userB)) || [];
+}
+
+export function getDMInbox(nickname) {
+  const user = String(nickname || '').trim();
+  if (!user) return [];
+  const convos = [];
+  for (const [key, msgs] of directMessages) {
+    const [a, b] = key.split('\x00');
+    if (a !== user && b !== user) continue;
+    const other = a === user ? b : a;
+    const last = msgs[msgs.length - 1];
+    const unread = msgs.filter(m => m.to === user).length;
+    convos.push({ with: other, last, unread });
+  }
+  convos.sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
+  return convos;
 }

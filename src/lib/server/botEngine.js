@@ -124,7 +124,8 @@ export async function getBotEngine() {
     enginePromise = (async () => {
       let dbRatings = {};
       try {
-        const { loadRatings } = await import('./db.js');
+        const { ensureIndexes, loadRatings } = await import('./db.js');
+        await ensureIndexes();
         dbRatings = await loadRatings();
       } catch (err) {
         console.warn('[botEngine] DB 레이팅 로드 실패:', err?.message);
@@ -272,10 +273,11 @@ function snapshotPlayerStats(players) {
   return out;
 }
 
-function buildCpuThoughtLines(bot, room, msg) {
+function buildCpuThoughtLines(bot, room, msg, sender) {
   const context = bot.context;
   const game = getGames(context)?.[room];
-  if (!game?.isPractice) return [];
+  if (!game?.isPractice || game.phase !== 'playing') return [];
+  if (game.currentTurnIndex !== -1 && game.players?.[game.currentTurnIndex] !== String(sender)) return [];
   if (!/^0/.test(String(msg || ''))) return [];
   const word = String(msg || '').slice(1).trim();
   const next = word ? word[word.length - 1] : game?.lastLetter?.s2 || '';
@@ -315,8 +317,7 @@ export async function dispatchBotMessage(room, msg, sender) {
   }
 
   const replies = [];
-  const thoughtLines = buildCpuThoughtLines(bot, room, cleanMsg);
-  if (thoughtLines.length) replies.push(`[시스템]: 컴퓨터가 생각 중입니다... 계산 과정을 문장화합니다.`);
+  const thoughtLines = [];
   const replier = {
     reply(text) {
       const clean = normalizeLine(text);
