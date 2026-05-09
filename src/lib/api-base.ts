@@ -9,12 +9,13 @@ export function apiUrl(path: string): string {
 
 export function wsUrl(path: string): string | null {
   if (REMOTE_WS === 'none') return null;
-  if (!REMOTE_WS) {
-    if (typeof location === 'undefined') return null;
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${protocol}://${location.host}${path}`;
-  }
-  return REMOTE_WS.replace(/\/$/, '') + path;
+  if (REMOTE_WS) return REMOTE_WS.replace(/\/$/, '') + path;
+  if (typeof location === 'undefined') return null;
+  const host = location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+  if (!isLocal) return null;
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${protocol}://${location.host}${path}`;
 }
 
 export function isAppBuild(): boolean {
