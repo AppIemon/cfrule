@@ -413,12 +413,39 @@
       .map(([key, label]) => ({ label, value: myState[key] }));
   });
 
+  const PASSIVE_BY_JOB = {
+    '해커': [], '투자자': ['투자의 귀재'], '환자': ['강박증'], '수집가': ['수집'],
+    '감시자': ['감시'], '뜀틀선수': ['뜀틀'], '전우치': ['잔상'], '시프터': [],
+    '비밀요원': ['타깃 확보'], '사과': ['삭와'], '시인': [], '공룡': [],
+    '마법사': ['부작용'], '사신': ['처형'], '수학자': ['논문 발표', '공부'],
+    '과학자': ['실험'], '작곡가': ['작곡'], '스폰지밥': ['저금통'],
+    '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
+    '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
+    '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': [],
+    '스핔이': [], '해달': [], '프로그래머': []
+  };
+
+  function findAbilityMatch(text, dict) {
+    const players = Object.entries(game?.playerStates || {})
+      .map(([player, state]) => ({ player, job: state?.job }))
+      .filter(p => p.job);
+    for (const { job } of players) {
+      const list = dict[job] || [];
+      for (const item of list) {
+        if (text.startsWith(item) || text.includes(`${item} 발동`) || text.includes(`${item} 완료`) || text.includes(`${item} 효과`) || text.includes(`${item} 패시브`)) {
+          return { name: item, job };
+        }
+      }
+    }
+    return null;
+  }
+
   $effect(() => {
     if (log.length > 0) {
       const last = log[log.length - 1];
       if (last.type === 'system') {
         const text = last.text?.replace('[시스템]: ', '').trim() || '';
-        
+
         let effectTriggered = false;
 
         if (text.includes('ㅈㅈ를 쳤다') || text.includes('항복') || text.includes('기권')) {
@@ -426,47 +453,31 @@
           effectTriggered = true;
         }
 
-        // 1. 패시브 감지
-        const PASSIVE_BY_JOB = {
-          '해커': [], '투자자': ['투자의 귀재'], '환자': ['강박증'], '수집가': ['수집'],
-          '감시자': ['감시'], '뜀틀선수': ['뜀틀'], '전우치': ['잔상'], '시프터': [],
-          '비밀요원': ['타깃 확보'], '사과': ['삭와'], '시인': [], '공룡': [],
-          '마법사': ['부작용'], '사신': ['처형'], '수학자': ['논문 발표', '공부'],
-          '과학자': ['실험'], '작곡가': ['작곡'], '스폰지밥': ['저금통'],
-          '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
-          '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
-          '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': [],
-          '스핔이': [], '해달': [], '프로그래머': []
-        };
-        
-        const currentPassives = PASSIVE_BY_JOB[myState?.job] || [];
-        for (const ps of currentPassives) {
-          if (text.includes(`${ps} 발동`) || text.includes(`${ps} 효과`) || text.includes(`${ps} 패시브`)) {
-            triggerEffect(ps, 'passive');
+        // 1. 패시브 감지 (모든 플레이어 직업 검사)
+        if (!effectTriggered) {
+          const passive = findAbilityMatch(text, PASSIVE_BY_JOB);
+          if (passive) {
+            triggerEffect(passive.name, 'passive', passive.job);
             effectTriggered = true;
-            break;
           }
         }
 
-        // 2. 액티브 능력 감지
+        // 2. 액티브 능력 감지 (모든 플레이어 직업 검사)
         if (!effectTriggered) {
-          const currentAbilities = ACTIVE_BY_JOB[myState?.job] || [];
-          for (const ab of currentAbilities) {
-            if (text.startsWith(ab) || text.includes(`${ab} 발동`) || text.includes(`${ab} 완료`)) {
-              triggerEffect(ab, 'active');
-              effectTriggered = true;
-              break;
-            }
+          const active = findAbilityMatch(text, ACTIVE_BY_JOB);
+          if (active) {
+            triggerEffect(active.name, 'active', active.job);
+            effectTriggered = true;
           }
         }
 
         // 3. 에러 메시지 감지 및 토스트 표시
         const isError = [
-          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어', 
+          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어',
           '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다',
           '쿨타임입니다', '모두 사용했습니다', '부족합니다', '지정해주세요'
         ].some(err => text.includes(err));
-        
+
         if (isError && !effectTriggered) {
           error = text;
           setTimeout(() => { if (error === text) error = ''; }, 3500);
@@ -475,9 +486,11 @@
     }
   });
 
-  function triggerEffect(name, type) {
+  function triggerEffect(name, type, jobName = '') {
     const id = Math.random();
-    activeEffects = [...activeEffects, { id, name, type }];
+    const job = jobName || '';
+    const jobImage = job ? jobImageSrc(job) : '';
+    activeEffects = [...activeEffects, { id, name, type, job, jobImage }];
     setTimeout(() => {
       activeEffects = activeEffects.filter(e => e.id !== id);
     }, 2000);
@@ -1643,6 +1656,17 @@
               <div class="splash-bg"></div>
               <div class="splash-text">
                 <span class="splash-kicker">{eff.type === 'passive' ? 'PASSIVE' : eff.type === 'surrender' ? 'SURRENDER' : 'ABILITY'}</span>
+                {#if eff.job && eff.type !== 'surrender'}
+                  <div class="splash-job">
+                    <span class="splash-job-portrait">
+                      <span class="splash-job-initial">{jobInitial(eff.job)}</span>
+                      {#if eff.jobImage}
+                        <img class="splash-job-img" src={eff.jobImage} alt="" onerror={hideBrokenImage} />
+                      {/if}
+                    </span>
+                    <span class="splash-job-name">{eff.job}</span>
+                  </div>
+                {/if}
                 <span class="splash-name">{eff.name}</span>
               </div>
             </div>
@@ -3914,6 +3938,11 @@
   .activation-splash.passive .splash-bg { background: radial-gradient(circle, rgba(16,185,129,0.8) 0%, transparent 70%); }
   .activation-splash.surrender .splash-bg { background: radial-gradient(circle, rgba(239,68,68,0.82) 0%, rgba(15,23,42,0.2) 44%, transparent 72%); }
   .activation-splash.surrender .splash-name { color: #fee2e2; }
+  .splash-job { display: inline-flex; align-items: center; gap: 10px; margin: 8px 0 6px; padding: 6px 14px 6px 6px; background: rgba(0,0,0,0.32); border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; backdrop-filter: blur(8px); }
+  .splash-job-portrait { position: relative; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 2px 12px rgba(0,0,0,0.35); background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .splash-job-portrait .splash-job-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 20px; }
+  .splash-job-portrait .splash-job-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .splash-job-name { font-size: 20px; font-weight: 800; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.5); letter-spacing: 0.02em; }
   
   @keyframes splashOut {
     0% { transform: scale(0.5); opacity: 0; }
