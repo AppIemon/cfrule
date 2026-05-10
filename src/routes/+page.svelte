@@ -129,6 +129,10 @@
   let timerIncrement = $state(3);
   let disabledJobs = $state([]);
   let word = $state('');
+  let premoveWord = $state('');
+  let premoveStatus = $state('');
+  let premoveSending = $state(false);
+  let premoveAttemptKey = $state('');
   let ability = $state('');
   let selectedJob = $state('');
   let selectedBans = $state([]);
@@ -155,6 +159,8 @@
   let jobFilter = $state('');
   let busy = $state(false);
   let cpuThinking = $state(false);
+  let lastPlayingGame = $state(null);
+  let holdPlayingSnapshot = $state(false);
   let error = $state('');
   let errorTimer;
   let hasMatched = $state(false);
@@ -311,6 +317,13 @@
       item.text?.includes('계산 중')
     )).slice(-5)
   );
+
+  $effect(() => {
+    if (snapshot?.game?.phase === 'playing') {
+      lastPlayingGame = snapshot.game;
+    }
+    holdPlayingSnapshot = !!cpuThinking;
+  });
 
   // --- New features ---
   let activeEffects = $state([]);
@@ -609,6 +622,7 @@
     availableJobs.filter((job) => !jobFilter.trim() || job.includes(jobFilter.trim()))
   );
   const jobTabInfo = $derived(jobInfoByJob[jobTabJob] || '직업 정보를 불러오는 중입니다.');
+  const jobTabInfoCards = $derived(jobInfoCards(jobTabInfo));
   const jobTabAbilities = $derived(ACTIVE_BY_JOB[jobTabJob] || []);
   const jobTabRanking = $derived(jobRanking[jobTabJob] || []);
   const isBanPhase = $derived(game?.phase === 'job_selection' && game?.banPhase);
@@ -880,7 +894,14 @@
   async function sendWord(event) {
     event?.preventDefault?.();
     const text = word.trim();
-    if (!text || !canPlay || busy) return;
+    if (!text || busy) return;
+    if (!canPlay) {
+      premoveWord = text;
+      premoveStatus = '상대 입력 직후 가능하면 자동으로 둡니다.';
+      premoveAttemptKey = '';
+      word = '';
+      return;
+    }
     word = '';
     cpuThinking = true;
     try {
@@ -891,6 +912,77 @@
       wordInputEl?.focus();
     }
   }
+
+  function cancelPremove() {
+    premoveWord = '';
+    premoveStatus = '';
+    premoveSending = false;
+    premoveAttemptKey = '';
+  }
+
+  function candidateStartsFromDisplay(display) {
+    const value = String(display || '').trim();
+    if (!value || value === '자유') return [];
+    const parts = [];
+    const primary = value.match(/^([가-힣])/u)?.[1];
+    if (primary) parts.push(primary);
+    const alt = value.match(/\(([가-힣])\)/u)?.[1];
+    if (alt) parts.push(alt);
+    return Array.from(new Set(parts));
+  }
+
+  async function isLegalPremove(text) {
+    const clean = String(text || '').trim();
+    if (!clean || !game || game.phase !== 'playing') return false;
+    if ((game.history || []).includes(clean)) return false;
+    const starts = candidateStartsFromDisplay(nextSyllable);
+    if (starts.length && !starts.includes(clean[0])) return false;
+
+    const queryStarts = starts.length ? starts : [clean[0] || ''];
+    const used = encodeURIComponent((game.history || []).join(','));
+    for (const start of queryStarts) {
+      const data = await fetch(apiUrl(`/api/word-search?start=${encodeURIComponent(start)}&q=${encodeURIComponent(clean)}&limit=20&used=${used}`), {
+        credentials: 'include',
+        cache: 'no-store'
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+      const found = data?.results?.find((row) => row.word === clean);
+      if (!found) continue;
+      if (!(game.history || []).length && /한방|유도/.test(found.kind || '')) return false;
+      return true;
+    }
+    return false;
+  }
+
+  async function tryPlayPremove() {
+    if (!premoveWord || !canPlay || busy || premoveSending) return;
+    const queued = premoveWord;
+    const attemptKey = `${room}:${game?.turnCount || 0}:${currentPlayer}:${queued}:${(game?.history || []).length}`;
+    if (attemptKey === premoveAttemptKey) return;
+    premoveAttemptKey = attemptKey;
+    premoveSending = true;
+    premoveStatus = '예약 단어 확인 중...';
+    try {
+      if (await isLegalPremove(queued)) {
+        premoveWord = '';
+        premoveStatus = '';
+        cpuThinking = true;
+        await send(`0${queued}`);
+        await tick();
+        wordInputEl?.focus();
+      } else {
+        premoveStatus = '현재 음절에 맞지 않거나 사용할 수 없는 단어입니다.';
+      }
+    } finally {
+      cpuThinking = false;
+      premoveSending = false;
+    }
+  }
+
+  $effect(() => {
+    if (premoveWord && canPlay) {
+      tryPlayPremove();
+    }
+  });
 
   async function sendChat(event) {
     event?.preventDefault?.();
@@ -992,7 +1084,7 @@
 
   async function fetchRoomList() {
     try {
-      const res = await fetch('/api/room?action=list', { cache: 'no-store' });
+      const res = await fetch(apiUrl('/api/room?action=list'), { cache: 'no-store' });
       if (res.ok) roomList = await res.json();
     } catch {}
   }
@@ -1202,6 +1294,29 @@
 
   function jobImageSrc(name) {
     return `/job-images/${encodeURIComponent(encodeURIComponent(name))}.jpg`;
+  }
+
+  function jobInfoCards(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return [];
+    const withoutTitle = raw.replace(/^\[\s*채린룰\s+.+?(?:직업\s*)?정보\s*\]\s*/u, '').trim();
+    const cards = [];
+    const re = /<\s*([^>]+?)\s*>\s*(?:-\s*([^\n]+))?\n*([\s\S]*?)(?=\n\s*<|$)/g;
+    let match;
+    let firstIndex = -1;
+    while ((match = re.exec(withoutTitle))) {
+      if (firstIndex < 0) firstIndex = match.index;
+      const meta = String(match[2] || '').trim();
+      const body = String(match[3] || '').trim();
+      cards.push({
+        name: match[1].trim(),
+        meta: meta ? meta.split('|').map((part) => part.trim()).filter(Boolean) : [],
+        lines: body.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+      });
+    }
+    const intro = firstIndex > 0 ? withoutTitle.slice(0, firstIndex).trim() : '';
+    if (intro) cards.unshift({ name: '개요', meta: [], lines: intro.split(/\n+/).map((line) => line.trim()).filter(Boolean) });
+    return cards.length ? cards : [{ name: '직업 설명', meta: [], lines: withoutTitle.split(/\n+/).map((line) => line.trim()).filter(Boolean) }];
   }
 
   function hideBrokenImage(event) {
@@ -1876,19 +1991,38 @@
               </div>
             </div>
           {/if}
-          <form class="input-zone" class:input-active={canPlay} onsubmit={sendWord}>
+          <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} onsubmit={sendWord}>
             <input
               class="word-input"
               bind:this={wordInputEl}
               bind:value={word}
-              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
-              disabled={!canPlay || busy}
+              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대 차례에 미리 둘 단어 입력'}
+              disabled={busy}
               autocomplete="off"
             />
-            <button class="send-btn" class:send-ready={canPlay && word.trim() && !busy} type="submit" disabled={!canPlay || !word.trim() || busy}>
+            <button
+              class="send-btn"
+              class:send-ready={word.trim() && !busy}
+              class:premove-ready={!canPlay && word.trim() && !busy}
+              type="submit"
+              disabled={!word.trim() || busy}
+              title={canPlay ? '입력' : '미리두기 예약'}
+            >
               <Send size={17} />
             </button>
           </form>
+          {#if premoveWord}
+            <div class="premove-panel">
+              <div>
+                <span class="premove-kicker">미리두기</span>
+                <strong>{premoveWord}</strong>
+                {#if premoveStatus}<p>{premoveStatus}</p>{/if}
+              </div>
+              <button class="premove-cancel" onclick={cancelPremove} disabled={premoveSending}>
+                <X size={14} />취소
+              </button>
+            </div>
+          {/if}
         </div>
 
         <!-- Target Selector Overlay -->
@@ -2086,7 +2220,27 @@
             {/if}
           </div>
 
-          <pre class="job-info-text">{jobTabInfo}</pre>
+          <div class="job-info-gui">
+            {#each jobTabInfoCards as card}
+              <section class="job-info-card">
+                <div class="jic-head">
+                  <span class="jic-name">{card.name}</span>
+                  {#if card.meta.length}
+                    <div class="jic-meta">
+                      {#each card.meta as tag}
+                        <span>{tag}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+                <div class="jic-body">
+                  {#each card.lines as line}
+                    <p class:jic-bullet={line.startsWith('-')}>{line.replace(/^-+\s*/, '')}</p>
+                  {/each}
+                </div>
+              </section>
+            {/each}
+          </div>
 
           <div class="job-side-grid">
             <section class="job-stat-card">
@@ -2521,13 +2675,21 @@
      TOKENS & RESET
   ═══════════════════════════════════════════ */
   :global(*) { box-sizing: border-box; margin: 0; padding: 0; }
-  :global(html) { scroll-behavior: smooth; }
+  :global(html) {
+    height: 100%;
+    overflow: hidden;
+    scroll-behavior: smooth;
+    overscroll-behavior: none;
+  }
   :global(body) {
     font-family: 'Pretendard', 'Noto Sans KR', Inter, ui-sans-serif, system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -2592,7 +2754,15 @@
   }
   input, select { height: 42px; padding: 0 14px; font-size: 16px; }
   select option { background: var(--bg2); color: var(--text); }
-  .app { min-height: 100vh; display: flex; flex-direction: column; }
+  .app {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
 
   /* ═══════════════════════════════════════════
      TOPBAR
@@ -2609,8 +2779,8 @@
     padding-left: max(20px, env(safe-area-inset-left));
     padding-right: max(20px, env(safe-area-inset-right));
     gap: 12px;
-    position: sticky;
-    top: 0;
+    position: relative;
+    flex: 0 0 auto;
     z-index: 100;
     will-change: transform;
     transform: translateZ(0);
@@ -2700,12 +2870,15 @@
   ═══════════════════════════════════════════ */
   .lobby {
     flex: 1;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
     position: relative;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .lobby-card {
     position: relative;
@@ -2944,6 +3117,7 @@
   ═══════════════════════════════════════════ */
   .matching-screen {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2951,7 +3125,9 @@
     gap: 28px;
     padding: 60px 20px;
     position: relative;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .room-wait-screen { justify-content: flex-start; padding-top: 48px; }
   .room-wait-card {
@@ -3073,6 +3249,7 @@
   ═══════════════════════════════════════════ */
   .job-screen {
     flex: 1;
+    min-height: 0;
     padding: 28px 24px;
     max-width: 980px;
     width: 100%;
@@ -3080,6 +3257,9 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     animation: fadeUp .3s ease both;
   }
   .job-screen-header {
@@ -3383,7 +3563,8 @@
     flex: 1;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    min-height: calc(100dvh - 56px);
+    min-height: 0;
+    overflow: hidden;
     animation: fadeUp .25s ease both;
   }
 
@@ -3428,6 +3609,7 @@
     display: grid;
     grid-template-columns: 220px minmax(0,1fr) 260px;
     min-height: 0;
+    height: 100%;
     overflow: hidden;
   }
   .col-label {
@@ -3689,6 +3871,13 @@
     background: rgba(239,246,255,.72);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
   }
+  .input-zone.premove-input {
+    border-color: rgba(245,158,11,.25);
+    background: color-mix(in srgb, var(--gold) 7%, var(--bg2));
+  }
+  .input-zone.premove-input .word-input {
+    color: var(--text);
+  }
   .send-btn {
     width: 54px; height: 54px;
     border-radius: calc(var(--radius) + 2px);
@@ -3705,6 +3894,60 @@
     color: #fff;
     box-shadow: 0 4px 20px rgba(99,102,241,.45);
     animation: sendPulse 1.8s ease-in-out infinite;
+  }
+  .send-btn.premove-ready {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #111827;
+    box-shadow: 0 4px 18px rgba(245,158,11,.28);
+  }
+  .premove-panel {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    min-height: 48px;
+    padding: 9px 10px 9px 13px;
+    border: 1px solid rgba(245,158,11,.28);
+    border-radius: calc(var(--radius) + 4px);
+    background: color-mix(in srgb, var(--gold) 10%, var(--bg2));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 6px 18px rgba(15,23,42,.06);
+  }
+  .premove-kicker {
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #b45309;
+  }
+  .premove-panel strong {
+    display: block;
+    margin-top: 1px;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .premove-panel p {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .premove-cancel {
+    min-width: 74px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(180,83,9,.28);
+    background: var(--bg2);
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
   }
 
   /* Ability bar */
@@ -3986,6 +4229,7 @@
   ═══════════════════════════════════════════ */
   .content-page {
     flex: 1;
+    min-height: 0;
     padding: 24px;
     max-width: 1120px;
     width: 100%;
@@ -3993,6 +4237,9 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     animation: fadeUp .28s ease both;
   }
 
@@ -4002,7 +4249,8 @@
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
     gap: 16px;
-    min-height: calc(100dvh - 110px);
+    min-height: 0;
+    flex: 1;
   }
   .jobs-list-panel,
   .job-detail-panel,
@@ -4094,21 +4342,73 @@
     font-size: 11px;
     font-weight: 800;
   }
-  .job-info-text {
-    margin: 0;
-    max-height: 360px;
+  .job-info-gui {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+    max-height: 420px;
     overflow: auto;
-    white-space: pre-wrap;
+    padding-right: 2px;
+  }
+  .job-info-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    overflow: hidden;
+    box-shadow: 0 6px 16px rgba(15,23,42,.04);
+  }
+  .jic-head {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--bg2)), var(--bg2));
+    display: grid;
+    gap: 7px;
+  }
+  .jic-name {
+    font-size: 15px;
+    font-weight: 950;
+    color: var(--text);
+  }
+  .jic-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .jic-meta span {
+    min-height: 22px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(37,99,235,.18);
+    background: #eff6ff;
+    color: var(--accent2);
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .jic-body {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+  }
+  .jic-body p {
+    font-size: 13px;
+    line-height: 1.58;
+    color: var(--text2);
     word-break: keep-all;
     overflow-wrap: anywhere;
-    font-family: inherit;
-    font-size: 13px;
-    line-height: 1.65;
-    color: var(--text2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: #fff;
-    padding: 14px;
+  }
+  .jic-body p.jic-bullet {
+    position: relative;
+    padding-left: 14px;
+  }
+  .jic-body p.jic-bullet::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    top: .72em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
   }
   .job-side-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; }
   .job-stat-card { padding: 14px; min-width: 0; }
@@ -4386,16 +4686,16 @@
     .job-side-grid { grid-template-columns: 1fr; }
   }
   @media (max-width:800px) {
-    .ingame { min-height: calc(100dvh - 96px); }
+    .ingame { min-height: 0; }
     .game-columns {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(220px, 1fr) auto;
-      overflow-y: auto;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      overflow: hidden;
     }
     .col-players {
       border-right: none;
       border-bottom: 1px solid var(--border);
-      max-height: 132px;
+      max-height: 112px;
       flex-direction: row;
       flex-wrap: nowrap;
       gap: 8px;
@@ -4414,6 +4714,9 @@
       grid-template-columns: 1fr 1fr;
       gap: 10px;
       padding: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
     .my-job-panel,
     .game-status-panel,
@@ -4421,8 +4724,8 @@
     .vote-panel { margin: 0; }
     .game-status-panel { display: none; }
     .ctrl-actions { grid-column: 1 / -1; flex-direction: row; }
-    .col-board { min-height: 240px; padding: 10px; }
-    .word-history { min-height: 220px; }
+    .col-board { min-height: 0; padding: 10px; }
+    .word-history { min-height: 0; }
     .jobs-layout { grid-template-columns: 1fr; min-height: auto; }
     .jobs-list-panel { max-height: 220px; }
     .jobs-list { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
@@ -4478,13 +4781,18 @@
     .content-page { padding: 12px; gap: 12px; }
     .job-detail-panel { padding: 12px; }
     .job-detail-icon { width: 44px; height: 44px; }
-    .job-info-text { max-height: 300px; font-size: 12px; }
+    .job-info-gui { max-height: 300px; grid-template-columns: 1fr; }
     .tutorial-grid { grid-template-columns: 1fr; }
     .command-grid { grid-template-columns: 1fr; }
     .command-grid span { border-bottom: none; }
     .match-title { font-size: 40px; }
     .match-swords { font-size: 64px; }
     .bottom-composer { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 7px; }
+    .bottom-composer {
+      max-height: 34dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
     .input-zone { padding: 4px; gap: 6px; }
     .word-input { height: 44px; font-size: 16px; }
     .send-btn { width: 44px; height: 44px; }
