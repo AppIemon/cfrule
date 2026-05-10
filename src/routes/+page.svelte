@@ -210,8 +210,6 @@
   let jobFilter = $state('');
   let busy = $state(false);
   let cpuThinking = $state(false);
-  let lastPlayingGame = $state(null);
-  let holdPlayingSnapshot = $state(false);
   let error = $state('');
   let errorTimer;
   let hasMatched = $state(false);
@@ -368,13 +366,6 @@
       item.text?.includes('계산 중')
     )).slice(-5)
   );
-
-  $effect(() => {
-    if (snapshot?.game?.phase === 'playing') {
-      lastPlayingGame = snapshot.game;
-    }
-    holdPlayingSnapshot = !!cpuThinking;
-  });
 
   // --- New features ---
   let activeEffects = $state([]);
