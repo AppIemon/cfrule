@@ -86,50 +86,40 @@
   const TUTORIAL_CHAPTERS = [
     {
       title: '채린룰이란?',
-      lead: '기본 끝말잇기 룰을 바탕으로, 단어 분류와 직업 능력으로 수 싸움을 만드는 채린룰식 끝말잇기입니다.',
+      lead: '기본 끝말잇기에 단어 분류와 직업 능력이 붙은 게임입니다. 단어 하나를 내도 “상대가 다음에 무엇을 받을지”까지 보는 방식입니다.',
       points: [
-        '단어는 사전에 실린 표준어를 기준으로 사용하며, 사이트는 표준국어대사전 구버전 기반 단어 목록을 사용합니다.',
-        '표준 두음법칙을 적용합니다. 예를 들어 라/나, 래/내, 로/노, 루/누, 리/이처럼 이어질 수 있습니다.',
-        '채린룰은 검색 허용 게임입니다. 검색 탭과 게임 중 검색 서랍을 써서 가능한 단어, 공격 음절, 방어 수를 확인하세요.',
-        '첫 수에는 한방단어와 유도단어를 사용할 수 없으므로, 초반에는 안전한 일반단어로 판을 열고 이후 압박을 설계합니다.'
+        '예: “사과”를 내면 다음 사람은 “과”로 시작하는 단어를 찾아야 합니다. 여기까지는 일반 끝말잇기와 같습니다.',
+        '예: 끝음절이 “릇”처럼 받기 어려운 음절이면 공격이 됩니다. 그래서 단어의 뜻보다 끝음절의 위험도가 중요합니다.',
+        '예: “라”로 받아야 할 때 두음법칙으로 “나”도 이어질 수 있습니다. 래/내, 로/노, 루/누, 리/이도 같은 식으로 봅니다.',
+        '예: 첫 수부터 바로 끝내는 한방단어를 던지면 게임이 너무 짧아지므로, 첫 수에는 한방단어와 유도단어가 제한됩니다.'
       ]
     },
     {
       title: '한방단어 이해하기',
-      lead: '핵심은 “상대가 받은 끝음절에서 이어갈 수 있는가”입니다. 음절의 위험도를 보면 단어의 역할이 보입니다.',
+      lead: '한방은 “상대가 받은 음절로 다음 단어를 거의 못 찾는 상황”입니다. 검색 결과의 분류를 예시처럼 읽으면 됩니다.',
       terms: [
-        ['한방음절', '그 음절로 시작하는 합법 단어가 사실상 없어 받으면 지기 쉬운 음절입니다. 예: 특정 희귀 끝음절로 끝내 상대의 다음 수를 막는 상황.'],
-        ['유도음절', '바로 끝내지는 않지만 상대가 대응하면 다시 한방음절로 몰리기 쉬운 음절입니다. 예: 상대가 몇 수 안에 위험 음절을 받을 가능성이 커지는 길목.'],
-        ['루트음절', '한방이나 유도로 이어지는 공격 루트의 출발점입니다. 즉시 치명타는 아니지만 공격 전개가 시작되는 음절입니다.'],
-        ['한방단어', '끝음절이 한방음절인 단어입니다. 상대에게 바로 패배 압박을 줍니다.'],
-        ['유도단어', '끝음절이 유도음절인 단어입니다. 상대의 선택지를 줄이고 다음 공격을 유도합니다.'],
-        ['루트단어', '끝음절이 루트음절인 단어입니다. 초중반 빌드업이나 능력 조건을 맞출 때 중요합니다.'],
-        ['돌림단어', '시작음절과 끝음절이 같거나 다시 자기에게 유리한 흐름으로 돌아오게 만드는 단어입니다. 막혔을 때 템포를 벌기 좋습니다.']
+        ['한방음절', '예: “릇”처럼 시작 단어가 거의 없는 음절입니다. 상대가 이 음절을 받으면 바로 막힐 가능성이 큽니다.'],
+        ['유도음절', '예: 지금 당장은 받을 수 있지만, 상대가 평범하게 대응하면 다음에 한방음절로 몰리기 쉬운 길목입니다.'],
+        ['루트음절', '예: 바로 이기지는 않지만 유도나 한방으로 이어지는 출발점입니다. 공격을 준비하는 음절로 보면 됩니다.'],
+        ['한방단어', '예: 끝음절이 한방음절인 단어입니다. 내 단어의 마지막 글자가 상대의 위기가 됩니다.'],
+        ['유도단어', '예: 끝음절이 유도음절인 단어입니다. 상대가 둘 수는 있어도 선택지가 점점 좁아집니다.'],
+        ['루트단어', '예: 끝음절이 루트음절인 단어입니다. 초반에 바로 때리기보다 공격 루트를 만드는 단어입니다.'],
+        ['돌림단어', '예: 시작음절과 끝음절이 같거나, 흐름을 다시 안전한 쪽으로 돌리는 단어입니다. 막혔을 때 시간을 벌기 좋습니다.']
       ],
       points: [
-        '검색 결과의 K는 한방, I는 유도, R은 루트로 보면 됩니다. A는 주요 공격 음절 묶음으로, 한방 K와 완전히 같은 뜻은 아닙니다.',
-        '좋은 공격은 한방단어 하나를 외우는 것보다 루트단어에서 유도단어, 한방단어로 이어지는 길을 아는 것입니다.',
-        '상대가 직업 능력으로 한방/유도를 막을 수 있다면, 바로 치기보다 루트단어로 능력을 빼는 선택도 강합니다.'
+        '예: 검색 결과에 K가 붙으면 한방, I가 붙으면 유도, R이 붙으면 루트로 읽으면 됩니다.',
+        '예: “지금 K 단어를 낼 수 있는가”만 보지 말고, R 단어로 시작해서 I 단어를 거쳐 K 단어로 이어지는지도 봅니다.',
+        '예: 상대가 한방을 막는 능력을 들고 있으면 바로 K를 내기보다, 먼저 R이나 I로 상대 능력을 빼게 만들 수 있습니다.'
       ]
     },
     {
       title: '직업 시스템',
-      lead: '직업은 단어 실력 위에 얹히는 전술 카드입니다. 내 직업의 승리 조건과 상대 직업의 방해 수단을 함께 봐야 합니다.',
+      lead: '직업은 단어 싸움에 끼어드는 특수 규칙입니다. 같은 단어 상황이라도 직업에 따라 정답이 달라질 수 있습니다.',
       points: [
-        '직업 선택 전에는 직업 탭에서 패시브, 액티브, 쿨타임, 사용 횟수, 조건을 먼저 읽습니다.',
-        '밴 단계에서는 내가 싫어하는 직업보다 내 직업의 핵심 플랜을 끊는 직업을 우선으로 막는 편이 좋습니다.',
-        '능력은 “막혔을 때 탈출”뿐 아니라 “상대의 방어 능력을 먼저 빼기”, “한방 금지 턴 만들기”, “유도 루트 보존하기”에도 씁니다.',
-        '상태 패널의 한방불가, 유도금지, 두음금지, 능력불가 같은 디버프를 매턴 확인하면 실수를 크게 줄일 수 있습니다.'
-      ]
-    },
-    {
-      title: '실전 운영 팁',
-      lead: '단어 검색을 많이 하는 게임일수록, 검색 결과를 “지금 둘 단어”가 아니라 “다음 세 턴의 모양”으로 읽는 습관이 중요합니다.',
-      points: [
-        '내가 낼 단어의 끝음절만 보지 말고, 상대가 그 음절에서 낼 수 있는 대표 대응 단어의 끝음절까지 확인합니다.',
-        '한방단어를 바로 낼 수 있어도 상대가 한방불가 능력을 가졌다면, 유도단어로 돌아가거나 직업 능력 사용을 기다립니다.',
-        '불리할 때는 긴 단어보다 안전한 돌림단어, 루트 회피 단어, 두음법칙으로 빠지는 단어가 더 가치 있을 수 있습니다.',
-        '팀전에서는 내가 공격을 못 해도 다음 팀원이 공격하기 좋은 음절을 넘기는 것이 강한 수가 됩니다.'
+        '예: 해커는 조작/복제/초토화처럼 단어 흐름을 비트는 능력이 있으니, 단순히 좋은 단어만 찾으면 안 됩니다.',
+        '예: 마법사가 “공허”로 위기를 넘길 수 있다면, 한방단어를 바로 쓰기보다 먼저 능력을 쓰게 만드는 수가 좋을 수 있습니다.',
+        '예: 밴 단계에서는 강해 보이는 직업보다 내 직업의 핵심 공격을 막는 직업을 먼저 밴하는 편이 안전합니다.',
+        '예: 상태 패널에 한방불가, 유도금지, 두음금지 같은 표시가 있으면 그 턴에는 평소와 다른 단어를 골라야 합니다.'
       ]
     }
   ];
@@ -411,35 +401,43 @@
     programmer_shift_uses: 'Shift 회수', programmer_caps_uses: 'Caps 회수', programmer_backspace_uses: 'BS 회수', programmer_tab_uses: 'Tab 회수',
     bowling_strike_cooldown: '스트라이크 쿨', bowling_strike_uses: '스트라이크 회수',
     bowling_spare_cooldown: '스페어 쿨', bowling_spare_uses: '스페어 회수',
-    class_president_homeroom_cooldown: '가호 쿨', class_president_homeroom_uses: '가호 회수', class_president_principal_uses: '교장 회수'
+    class_president_homeroom_cooldown: '가호 쿨', class_president_homeroom_uses: '가호 회수', class_president_principal_uses: '교장 회수',
+    lost_abilities: '능력 상실',
+    hallucination_active: '환각증',
+    patient_doom_turns: '어지럼 패배까지',
+    mine_active: '채굴 지속',
+    detect_active_turns: '탐지 지속',
+    barrier_turns: '결계 지속',
+    report_turns: '보도 지속',
+    robber_turns: '강도 지속'
   };
 
   const ABILITY_CONFIG = {
     '조작': { uses: 'jojak_uses', max: 3, cd: 'jojak_cooldown' },
     '복제': { uses: 'bokje_uses', max: 1 },
-    '초토화': { uses: 'chotohwa_uses', max: 1, cd: 'chotohwa_cooldown' },
-    '주가 도박': { uses: 'debtor_gamble_uses', max: 2, cd: 'debtor_gamble_cooldown' },
+    '초토화': { uses: 'chotohwa_uses', max: 2, cd: 'chotohwa_cooldown' },
+    '도박': { uses: 'debtor_gamble_uses', max: 2, cd: 'debtor_gamble_cooldown' },
     '환각증': { uses: 'hallucination_uses', max: 1 },
-    '제작': { cd: 'make_cooldown' },
-    '채굴': { uses: 'mine_uses', max: 1, cd: 'mine_cooldown' },
-    '탐지': { uses: 'detect_uses', max: 1, cd: 'detect_cooldown' },
-    '뜀틀': { uses: 'vault_uses', max: 3, cd: 'vault_cooldown' },
+    '제작': { cd: 'make_cooldown', uses: 'make_uses', max: 10 },
+    '채굴': { uses: 'mine_uses', max: 3, cd: 'mine_cooldown' },
+    '탐지': { uses: 'detect_uses', max: 2, cd: 'detect_cooldown' },
+    '뜀틀': { uses: 'vault_uses', max: 3, cd: 'vault_cooldown', isRemaining: true },
     '허들 넘기': { uses: 'hurdle_uses', max: 1 },
-    '직격뢰': { uses: 'lightning_uses', max: 2, cd: 'lightning_cooldown' },
-    '폭주기관차': { uses: 'train_rush_uses', max: 2 },
+    '직격뢰': { uses: 'lightning_uses', max: 3, cd: 'lightning_cooldown' },
+    '폭주기관차': { uses: 'train_rush_uses', max: 2, isRemaining: true },
     '시프트': { uses: 'shift_uses', max: 3 },
     '빅 시프트': { uses: 'big_shift_uses', max: 1 },
     '포획': { uses: 'capture_uses', max: 2, cd: 'capture_cooldown' },
-    '사구아': { uses: 'sagua_uses', max: 1 },
-    '2음절': { uses: 'poetic_2_uses', max: 2, cd: 'poetic_2_cooldown' },
-    '유도음절': { uses: 'poetic_yudo_uses', max: 2, cd: 'poetic_yudo_cooldown' },
-    '시적 허용': { uses: 'poetic_allow_uses', max: 1, cd: 'poetic_allow_cooldown' },
-    '삼키기': { uses: 'swallow_uses', max: 1, cd: 'swallow_cooldown' },
-    '브레스': { uses: 'breath_uses', max: 1 },
+    '사구아': { uses: 'sagua_uses', max: 2, isRemaining: true },
+    '2음절': { uses: 'poetic_2_uses', max: 10, cd: 'poetic_2_cooldown' },
+    '유도음절': { uses: 'poetic_yudo_uses', max: 10, cd: 'poetic_yudo_cooldown' },
+    '시적 허용': { uses: 'poetic_allow_uses', max: 3, cd: 'poetic_allow_cooldown' },
+    '삼키기': { uses: 'swallow_uses', max: 3, cd: 'swallow_cooldown' },
+    '브레스': { uses: 'breath_uses', max: 2, cd: 'breath_cooldown' },
     '꼬리 날리기': { uses: 'tail_uses', max: 1 },
     '공허': { uses: 'void_uses', max: 2, cd: 'void_cooldown' },
     '폭발': { uses: 'explosion_uses', max: 1 },
-    '사형 선고': { uses: 'death_uses', max: 1, cd: 'death_cooldown' },
+    '사형 선고': { uses: 'death_uses', max: 10, cd: 'death_cooldown' },
     '영혼': { uses: 'soul_uses', max: 1 },
     '계산': { uses: 'math_calc_uses', max: 10 },
     '덧셈': { uses: 'math_add_uses', max: 10 },
@@ -448,36 +446,37 @@
     '교정': { uses: 'math_fix_uses', max: 10 },
     '미적분': { uses: 'math_calculus_uses', max: 10 },
     'DNA파괴': { uses: 'dna_uses', max: 2, cd: 'dna_cooldown' },
-    '쪼개기': { uses: 'split_uses', max: 1 },
+    '쪼개기': { uses: 'split_uses', max: 3 },
     '쉼표': { cd: 'rest_cooldown' },
     '게살버거': { cd: 'burger_cooldown' },
     '감자튀김': { cd: 'fries_cooldown' },
-    '보너스': { uses: 'bonus_uses', max: 1 },
-    '강도 채용': { uses: 'robber_uses', max: 1 },
+    '보너스': { uses: 'bonus_uses', max: 4, cd: 'bonus_cooldown' },
+    '강도 채용': { uses: 'robber_uses', max: 3, cd: 'robber_cooldown' },
     '체크메이트': { uses: 'checkmate_uses', max: 1, cd: 'checkmate_cooldown' },
     '교환': { uses: 'exchange_uses', max: 1 },
     '울음': { uses: 'cry_uses', max: 1 },
-    '긴급 구조': { uses: 'rescue_uses', max: 1, cd: 'rescue_cooldown' },
+    '구조': { uses: 'rescue_uses', max: 3, cd: 'rescue_cooldown' },
+    '아이쿠': { uses: 'aiku_uses', max: 1 },
     '결계': { uses: 'barrier_uses', max: 1, cd: 'barrier_cooldown' },
-    '왜곡': { uses: 'distort_uses', max: 1, cd: 'distort_cooldown' },
-    '거짓 보도': { uses: 'report_uses', max: 1, cd: 'report_cooldown' },
+    '왜곡': { uses: 'distort_uses', max: 2, cd: 'distort_cooldown' },
+    '거짓 보도': { uses: 'report_uses', max: 2, cd: 'report_cooldown' },
     '거짓 뉴스': { uses: 'fake_news_uses', max: 1 },
-    '찌르기': { uses: 'stab_uses', max: 2, cd: 'stab_cooldown' },
+    '찌르기': { uses: 'stab_uses', max: 1, cd: 'stab_cooldown' },
     '가르기': { uses: 'slice_uses', max: 1, cd: 'slice_cooldown' },
-    '억제': { cd: 'gandhi_cooldown' },
-    '수리': { cd: 'repair_cooldown', uses: 'repair_uses', max: 1 }, 
+    '방탄수리': { uses: 'bulletproof_uses', max: 7, cd: 'bulletproof_cooldown', isRemaining: true },
+    '수리': { uses: 'repair_uses', max: 3, cd: 'repair_cooldown' },
+    '무량공처': { uses: 'gongcheo_uses', max: 4, cd: 'gongcheo_cooldown', isRemaining: true },
     '핵분열': { uses: 'fission_uses', max: 1 },
-    '무량공처': { uses: 'gongcheo_uses', max: 1, cd: 'gongcheo_cooldown' },
-    '물걸레질': { uses: 'speaki_clean_uses', max: 2, cd: 'speaki_clean_cooldown' },
-    '호박': { uses: 'speaki_pumpkin_uses', max: 1, cd: 'speaki_pumpkin_cooldown' },
-    '조개': { uses: 'otter_clam_uses', max: 1, cd: 'otter_clam_cooldown' },
-    '깨부수기': { uses: 'otter_smash_uses', max: 1 },
-    'Shift': { uses: 'programmer_shift_uses', max: 1 },
-    'Caps Lock': { uses: 'programmer_caps_uses', max: 1, cd: 'programmer_caps_cooldown' },
-    'Backspace': { uses: 'programmer_backspace_uses', max: 1 },
+    '물걸레질': { uses: 'speaki_clean_uses', max: 1 },
+    '호박': { uses: 'speaki_pumpkin_uses', max: 1 },
+    '조개': { uses: 'otter_clam_uses', max: 5 },
+    '깨부수기': { uses: 'otter_smash_uses', max: 2 },
+    'Shift': { uses: 'programmer_shift_uses', max: 5 },
+    'Caps Lock': { uses: 'programmer_caps_uses', max: 2 },
+    'Backspace': { uses: 'programmer_backspace_uses', max: 3 },
     'Tab': { uses: 'programmer_tab_uses', max: 1 },
-    '스트라이크': { uses: 'bowling_strike_uses', max: 3, cd: 'bowling_strike_cooldown' },
-    '스페어': { uses: 'bowling_spare_uses', max: 2, cd: 'bowling_spare_cooldown' },
+    '스트라이크': { uses: 'bowling_strike_uses', max: 2, cd: 'bowling_strike_cooldown' },
+    '스페어': { uses: 'bowling_spare_uses', max: 3, cd: 'bowling_spare_cooldown' },
     '담임의 가호': { uses: 'class_president_homeroom_uses', max: 2, cd: 'class_president_homeroom_cooldown' },
     '교장의 가호': { uses: 'class_president_principal_uses', max: 1 }
   };
@@ -486,7 +485,7 @@
     if (!playerJob || !state) return [];
     const abs = ACTIVE_BY_JOB[playerJob];
     if (!abs) return [];
-    
+
     return abs.map(name => {
       const conf = ABILITY_CONFIG[name];
       let text = '준비됨';
@@ -497,15 +496,21 @@
         let parts = [];
         let used = 0;
         if (conf.max) {
-          used = state[conf.uses] || 0;
-          const remain = Math.max(0, conf.max - used);
+          const rawValue = state[conf.uses] || 0;
+          let remain = 0;
+          if (conf.isRemaining) {
+            remain = rawValue;
+          } else {
+            used = rawValue;
+            remain = Math.max(0, conf.max - used);
+          }
           parts.push(`${remain}/${conf.max}`);
-          if (remain === 0) {
+          if (remain <= 0) {
             isReady = false;
             isExhausted = true;
           }
         }
-        
+
         if (conf.cd) {
           const cd = state[conf.cd] || 0;
           if (cd > 0) {
@@ -516,15 +521,14 @@
 
         if (parts.length > 0) {
           text = parts.join(' · ');
-        } else if (conf.max && used >= conf.max) {
+        } else if (conf.max && (conf.isRemaining ? (state[conf.uses] || 0) <= 0 : (state[conf.uses] || 0) >= conf.max)) {
            text = '소진됨';
         }
       }
-      
+
       return { name, text, isReady, isExhausted };
     });
   }
-
   const ABILITY_TARGET_MAP = {
     '조작': 'syllable', '제작': 'syllable', '채굴': 'syllable',
     '복제': 'player', '탐지': 'player', '시프트': 'player', '빅 시프트': 'player', '포획': 'player',
@@ -672,11 +676,13 @@
       clearTimeout(matchBannerTimer);
       matchBannerTimer = setTimeout(() => (showMatchBanner = false), 3200);
     }
-    if (prevPhase === 'playing' && phase && phase !== 'playing') {
-      const recent = log.filter(item => item.type === 'system').slice(-20);
+    if ((prevPhase === 'playing' || prevPhase === 'job_selection') && phase !== prevPhase && (phase === '' || phase === 'ended' || phase === 'finished' || !phase)) {
+      const recent = log.slice(-30);
       const changes = [];
-      for (const item of recent) {
-        const m = item.text?.match(/^(.+?)\s*:\s*(\d+)에서\s*(\d+)\s*\(([+\-]\d+)\)\s*\/\s*(.+)$/);
+      const ratingRe = /^(.+?)\s*:\s*(\d+)에서\s*(\d+)\s*\(([+\-]\d+)\)\s*\/\s*(.+)$/;
+
+      const checkText = (txt) => {
+        const m = txt?.match(ratingRe);
         if (m) {
           changes.push({
             name: m[1].replace(/\(.+?\)$/, '').trim(),
@@ -687,7 +693,15 @@
             tierName: m[5].trim()
           });
         }
+      };
+
+      for (const item of recent) {
+        checkText(item.text);
+        if (item.replies) {
+          for (const r of item.replies) checkText(r);
+        }
       }
+
       if (changes.length) {
         matchResult = { changes };
         clearTimeout(matchResultTimer);
@@ -1016,9 +1030,17 @@
   async function sendChat(event) {
     event?.preventDefault?.();
     const text = chatInput.trim();
-    if (!text || !room || !socket) return;
-    socket.send(JSON.stringify({ type: 'chat', text }));
+    if (!text || !room || !user?.nickname) return;
     chatInput = '';
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'chat', text }));
+    } else {
+      snapshot = await request('/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ room, text })
+      });
+    }
     await tick();
     if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
   }
@@ -1221,7 +1243,16 @@
       only_root_turns: { label: '루트만', type: 'rule' },
       last_route_only_turns: { label: '끝루트', type: 'rule' },
       limited_length: { label: '최대', type: 'length' },
-      min_length: { label: '최소', type: 'length' }
+      min_length: { label: '최소', type: 'length' },
+      lost_abilities: { label: '능력상실', type: 'danger' },
+      hallucination_active: { label: '환각증', type: 'debuff' },
+      target_active_turns: { label: '감시중', type: 'debuff' },
+      apple_debuff_turns: { label: '사과즙', type: 'debuff' },
+      barrier_turns: { label: '결계', type: 'rule' },
+      report_turns: { label: '보도', type: 'debuff' },
+      robber_turns: { label: '강도', type: 'debuff' },
+      no_long_yudo_turns: { label: '긴유도금지', type: 'debuff' },
+      no_all_batchim_turns: { label: '올받침금지', type: 'debuff' }
     };
     return Object.entries(config)
       .filter(([key]) => state[key])
@@ -1412,7 +1443,6 @@
       {/if}
     </div>
   </header>
-
 
   <!-- ══════════════════════ GAME TAB ══════════════════════ -->
   {#if tab === 'game'}
@@ -2890,7 +2920,6 @@
   .icon-btn:hover:not(:disabled) { background: var(--bg2); color: var(--text); border-color: var(--border2); }
   .icon-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
   .icon-btn.accent:hover:not(:disabled) { background: var(--accent2); border-color: var(--accent2); }
-
 
   /* ═══════════════════════════════════════════
      LOBBY

@@ -57,6 +57,7 @@ server.on('upgrade', (request, socket, head) => {
     const addChatMessage = game.addChatMessage || (() => {});
     const addDirectMessage = game.addDirectMessage || (() => {});
     const lookupSession = game.lookupSessionFromCookieHeader;
+    const realtime = game.realtime || game.r;
 
     if (!getRoomSnapshot) {
       ws.close(1011, 'server error');
@@ -73,16 +74,28 @@ server.on('upgrade', (request, socket, head) => {
 
     if (nickname) updatePresence(room, nickname, true);
 
-    const sendSnapshot = () => getRoomSnapshot(room).then(send).catch(() => {});
+    const sendSnapshot = (payload) => {
+      if (payload) send(payload);
+      else getRoomSnapshot(room).then(send).catch(() => {});
+    };
+
+    // Initial snapshot
     sendSnapshot();
-    const interval = setInterval(sendSnapshot, 1000);
+
+    // Subscribe to real-time updates
+    const onUpdate = (payload) => send(payload);
+    let pollInterval;
+    if (realtime) {
+      realtime.on(`room:${room}`, onUpdate);
+    } else {
+      // Fallback to polling if realtime is not available in the chunk
+      pollInterval = setInterval(() => sendSnapshot(), 2000);
+    }
 
     // Keepalive ping/pong to prevent proxy timeouts (esp. on mobile connections)
     ws.on('pong', () => { isAlive = true; });
     const pingTimer = setInterval(() => {
       if (!isAlive) {
-        clearInterval(interval);
-        clearInterval(pingTimer);
         ws.terminate();
         return;
       }
@@ -90,10 +103,7 @@ server.on('upgrade', (request, socket, head) => {
       try { ws.ping(); } catch {}
     }, PING_INTERVAL);
 
-    // Watchdog: terminate if pong not received within timeout
-    let pongTimeout;
     ws.on('ping', () => {
-      clearTimeout(pongTimeout);
       try { ws.pong(); } catch {}
     });
 
@@ -116,15 +126,15 @@ server.on('upgrade', (request, socket, head) => {
     });
 
     ws.on('error', () => {
-      clearInterval(interval);
+      if (realtime) realtime.off(`room:${room}`, onUpdate);
+      if (pollInterval) clearInterval(pollInterval);
       clearInterval(pingTimer);
-      clearTimeout(pongTimeout);
     });
 
     ws.on('close', () => {
-      clearInterval(interval);
+      if (realtime) realtime.off(`room:${room}`, onUpdate);
+      if (pollInterval) clearInterval(pollInterval);
       clearInterval(pingTimer);
-      clearTimeout(pongTimeout);
       if (nickname) updatePresence(room, nickname, false);
     });
   });

@@ -3301,7 +3301,7 @@ with (Bot.scope) {
     let __botResult = function () {
       let game = games[room];
       if (!game) return;
-      if (game.teamMode > 1) {
+      if (game.teamMode > 1 && winType !== "기권" && winType !== "잠수") {
         let winnerIndex = game.players.indexOf(winner);
         let winTeamIndex = winnerIndex % 2;
         let loserTeamIndex = (winTeamIndex + 1) % 2;
@@ -3312,6 +3312,16 @@ with (Bot.scope) {
           return;
         } else {
           winner = game.players.filter((p, i) => i % 2 === winTeamIndex).join(', ');
+        }
+      } else if (game.teamMode > 1) {
+        // For surrender or AFK in team mode, end the game immediately for the other team
+        let winnerIndex = game.players.indexOf(winner);
+        if (winnerIndex === -1) {
+           // Fallback: winner might be a joined string already if called from somewhere else
+           // but normally it's a single name here.
+        } else {
+           let winTeamIndex = winnerIndex % 2;
+           winner = game.players.filter((p, i) => i % 2 === winTeamIndex).join(', ');
         }
       }
       replier.reply('경기가 끝난다. 승자는 ' + winner + '이다.');
