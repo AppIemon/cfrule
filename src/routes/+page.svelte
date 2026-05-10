@@ -211,7 +211,6 @@
   let busy = $state(false);
   let cpuThinking = $state(false);
   let error = $state('');
-  let errorTimer;
   let hasMatched = $state(false);
   let poller;
   let socket;
@@ -606,18 +605,6 @@
           }
         }
 
-        // 3. 에러 메시지 감지 및 토스트 표시
-        const isError = [
-          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어',
-          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다',
-          '쿨타임입니다', '모두 사용했습니다', '부족합니다', '지정해주세요'
-        ].some(err => text.includes(err));
-
-        if (isError && !effectTriggered) {
-          if (errorTimer) clearTimeout(errorTimer);
-          error = text;
-          errorTimer = setTimeout(() => { error = ''; }, 3500);
-        }
       }
     }
   });
@@ -1426,11 +1413,6 @@
     </div>
   </header>
 
-  {#if error}
-    <div class="toast-error" role="alert">
-      <span class="toast-dot"></span>{error}
-    </div>
-  {/if}
 
   <!-- ══════════════════════ GAME TAB ══════════════════════ -->
   {#if tab === 'game'}
@@ -2909,36 +2891,6 @@
   .icon-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
   .icon-btn.accent:hover:not(:disabled) { background: var(--accent2); border-color: var(--accent2); }
 
-  /* ═══════════════════════════════════════════
-     ERROR TOAST
-  ═══════════════════════════════════════════ */
-  .toast-error {
-    position: fixed;
-    top: 72px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 700;
-    color: #e11d48;
-    animation: toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
-    pointer-events: none;
-  }
-  .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: pulse 1.4s ease-in-out infinite; }
-
-  @keyframes toastSlideIn {
-    from { opacity: 0; transform: translate(-50%, -20px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
-  }
 
   /* ═══════════════════════════════════════════
      LOBBY
