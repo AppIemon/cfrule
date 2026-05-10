@@ -83,7 +83,58 @@
     반장: ['담임의 가호', '교장의 가호']
   };
 
-  const TUTORIAL_STEPS = [
+  const TUTORIAL_CHAPTERS = [
+    {
+      title: '채린룰이란?',
+      lead: '기본 끝말잇기 룰을 바탕으로, 단어 분류와 직업 능력으로 수 싸움을 만드는 채린룰식 끝말잇기입니다.',
+      points: [
+        '단어는 사전에 실린 표준어를 기준으로 사용하며, 사이트는 표준국어대사전 구버전 기반 단어 목록을 사용합니다.',
+        '표준 두음법칙을 적용합니다. 예를 들어 라/나, 래/내, 로/노, 루/누, 리/이처럼 이어질 수 있습니다.',
+        '채린룰은 검색 허용 게임입니다. 검색 탭과 게임 중 검색 서랍을 써서 가능한 단어, 공격 음절, 방어 수를 확인하세요.',
+        '첫 수에는 한방단어와 유도단어를 사용할 수 없으므로, 초반에는 안전한 일반단어로 판을 열고 이후 압박을 설계합니다.'
+      ]
+    },
+    {
+      title: '한방단어 이해하기',
+      lead: '핵심은 “상대가 받은 끝음절에서 이어갈 수 있는가”입니다. 음절의 위험도를 보면 단어의 역할이 보입니다.',
+      terms: [
+        ['한방음절', '그 음절로 시작하는 합법 단어가 사실상 없어 받으면 지기 쉬운 음절입니다. 예: 특정 희귀 끝음절로 끝내 상대의 다음 수를 막는 상황.'],
+        ['유도음절', '바로 끝내지는 않지만 상대가 대응하면 다시 한방음절로 몰리기 쉬운 음절입니다. 예: 상대가 몇 수 안에 위험 음절을 받을 가능성이 커지는 길목.'],
+        ['루트음절', '한방이나 유도로 이어지는 공격 루트의 출발점입니다. 즉시 치명타는 아니지만 공격 전개가 시작되는 음절입니다.'],
+        ['한방단어', '끝음절이 한방음절인 단어입니다. 상대에게 바로 패배 압박을 줍니다.'],
+        ['유도단어', '끝음절이 유도음절인 단어입니다. 상대의 선택지를 줄이고 다음 공격을 유도합니다.'],
+        ['루트단어', '끝음절이 루트음절인 단어입니다. 초중반 빌드업이나 능력 조건을 맞출 때 중요합니다.'],
+        ['돌림단어', '시작음절과 끝음절이 같거나 다시 자기에게 유리한 흐름으로 돌아오게 만드는 단어입니다. 막혔을 때 템포를 벌기 좋습니다.']
+      ],
+      points: [
+        '검색 결과의 K는 한방, I는 유도, R은 루트로 보면 됩니다. A는 주요 공격 음절 묶음으로, 한방 K와 완전히 같은 뜻은 아닙니다.',
+        '좋은 공격은 한방단어 하나를 외우는 것보다 루트단어에서 유도단어, 한방단어로 이어지는 길을 아는 것입니다.',
+        '상대가 직업 능력으로 한방/유도를 막을 수 있다면, 바로 치기보다 루트단어로 능력을 빼는 선택도 강합니다.'
+      ]
+    },
+    {
+      title: '직업 시스템',
+      lead: '직업은 단어 실력 위에 얹히는 전술 카드입니다. 내 직업의 승리 조건과 상대 직업의 방해 수단을 함께 봐야 합니다.',
+      points: [
+        '직업 선택 전에는 직업 탭에서 패시브, 액티브, 쿨타임, 사용 횟수, 조건을 먼저 읽습니다.',
+        '밴 단계에서는 내가 싫어하는 직업보다 내 직업의 핵심 플랜을 끊는 직업을 우선으로 막는 편이 좋습니다.',
+        '능력은 “막혔을 때 탈출”뿐 아니라 “상대의 방어 능력을 먼저 빼기”, “한방 금지 턴 만들기”, “유도 루트 보존하기”에도 씁니다.',
+        '상태 패널의 한방불가, 유도금지, 두음금지, 능력불가 같은 디버프를 매턴 확인하면 실수를 크게 줄일 수 있습니다.'
+      ]
+    },
+    {
+      title: '실전 운영 팁',
+      lead: '단어 검색을 많이 하는 게임일수록, 검색 결과를 “지금 둘 단어”가 아니라 “다음 세 턴의 모양”으로 읽는 습관이 중요합니다.',
+      points: [
+        '내가 낼 단어의 끝음절만 보지 말고, 상대가 그 음절에서 낼 수 있는 대표 대응 단어의 끝음절까지 확인합니다.',
+        '한방단어를 바로 낼 수 있어도 상대가 한방불가 능력을 가졌다면, 유도단어로 돌아가거나 직업 능력 사용을 기다립니다.',
+        '불리할 때는 긴 단어보다 안전한 돌림단어, 루트 회피 단어, 두음법칙으로 빠지는 단어가 더 가치 있을 수 있습니다.',
+        '팀전에서는 내가 공격을 못 해도 다음 팀원이 공격하기 좋은 음절을 넘기는 것이 강한 수가 됩니다.'
+      ]
+    }
+  ];
+
+  const SITE_HELP_STEPS = [
     {
       title: '시작하기',
       body: '로그인 후 방을 만들거나 방 코드로 입장합니다. 1대1, 2대2, 3대3 모드를 고를 수 있고 연습 모드에서는 CPU 직업을 지정하거나 랜덤으로 둘 수 있습니다.'
@@ -129,6 +180,10 @@
   let timerIncrement = $state(3);
   let disabledJobs = $state([]);
   let word = $state('');
+  let premoveWord = $state('');
+  let premoveStatus = $state('');
+  let premoveSending = $state(false);
+  let premoveAttemptKey = $state('');
   let ability = $state('');
   let selectedJob = $state('');
   let selectedBans = $state([]);
@@ -609,6 +664,7 @@
     availableJobs.filter((job) => !jobFilter.trim() || job.includes(jobFilter.trim()))
   );
   const jobTabInfo = $derived(jobInfoByJob[jobTabJob] || '직업 정보를 불러오는 중입니다.');
+  const jobTabInfoCards = $derived(jobInfoCards(jobTabInfo));
   const jobTabAbilities = $derived(ACTIVE_BY_JOB[jobTabJob] || []);
   const jobTabRanking = $derived(jobRanking[jobTabJob] || []);
   const isBanPhase = $derived(game?.phase === 'job_selection' && game?.banPhase);
@@ -880,7 +936,14 @@
   async function sendWord(event) {
     event?.preventDefault?.();
     const text = word.trim();
-    if (!text || !canPlay || busy) return;
+    if (!text || busy) return;
+    if (!canPlay) {
+      premoveWord = text;
+      premoveStatus = '상대 입력 직후 가능하면 자동으로 둡니다.';
+      premoveAttemptKey = '';
+      word = '';
+      return;
+    }
     word = '';
     cpuThinking = true;
     try {
@@ -891,6 +954,77 @@
       wordInputEl?.focus();
     }
   }
+
+  function cancelPremove() {
+    premoveWord = '';
+    premoveStatus = '';
+    premoveSending = false;
+    premoveAttemptKey = '';
+  }
+
+  function candidateStartsFromDisplay(display) {
+    const value = String(display || '').trim();
+    if (!value || value === '자유') return [];
+    const parts = [];
+    const primary = value.match(/^([가-힣])/u)?.[1];
+    if (primary) parts.push(primary);
+    const alt = value.match(/\(([가-힣])\)/u)?.[1];
+    if (alt) parts.push(alt);
+    return Array.from(new Set(parts));
+  }
+
+  async function isLegalPremove(text) {
+    const clean = String(text || '').trim();
+    if (!clean || !game || game.phase !== 'playing') return false;
+    if ((game.history || []).includes(clean)) return false;
+    const starts = candidateStartsFromDisplay(nextSyllable);
+    if (starts.length && !starts.includes(clean[0])) return false;
+
+    const queryStarts = starts.length ? starts : [clean[0] || ''];
+    const used = encodeURIComponent((game.history || []).join(','));
+    for (const start of queryStarts) {
+      const data = await fetch(apiUrl(`/api/word-search?start=${encodeURIComponent(start)}&q=${encodeURIComponent(clean)}&limit=20&used=${used}`), {
+        credentials: 'include',
+        cache: 'no-store'
+      }).then(r => r.ok ? r.json() : null).catch(() => null);
+      const found = data?.results?.find((row) => row.word === clean);
+      if (!found) continue;
+      if (!(game.history || []).length && /한방|유도/.test(found.kind || '')) return false;
+      return true;
+    }
+    return false;
+  }
+
+  async function tryPlayPremove() {
+    if (!premoveWord || !canPlay || busy || premoveSending) return;
+    const queued = premoveWord;
+    const attemptKey = `${room}:${game?.turnCount || 0}:${currentPlayer}:${queued}:${(game?.history || []).length}`;
+    if (attemptKey === premoveAttemptKey) return;
+    premoveAttemptKey = attemptKey;
+    premoveSending = true;
+    premoveStatus = '예약 단어 확인 중...';
+    try {
+      if (await isLegalPremove(queued)) {
+        premoveWord = '';
+        premoveStatus = '';
+        cpuThinking = true;
+        await send(`0${queued}`);
+        await tick();
+        wordInputEl?.focus();
+      } else {
+        premoveStatus = '현재 음절에 맞지 않거나 사용할 수 없는 단어입니다.';
+      }
+    } finally {
+      cpuThinking = false;
+      premoveSending = false;
+    }
+  }
+
+  $effect(() => {
+    if (premoveWord && canPlay) {
+      tryPlayPremove();
+    }
+  });
 
   async function sendChat(event) {
     event?.preventDefault?.();
@@ -992,7 +1126,7 @@
 
   async function fetchRoomList() {
     try {
-      const res = await fetch('/api/room?action=list', { cache: 'no-store' });
+      const res = await fetch(apiUrl('/api/room?action=list'), { cache: 'no-store' });
       if (res.ok) roomList = await res.json();
     } catch {}
   }
@@ -1202,6 +1336,29 @@
 
   function jobImageSrc(name) {
     return `/job-images/${encodeURIComponent(encodeURIComponent(name))}.jpg`;
+  }
+
+  function jobInfoCards(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return [];
+    const withoutTitle = raw.replace(/^\[\s*채린룰\s+.+?(?:직업\s*)?정보\s*\]\s*/u, '').trim();
+    const cards = [];
+    const re = /<\s*([^>]+?)\s*>\s*(?:-\s*([^\n]+))?\n*([\s\S]*?)(?=\n\s*<|$)/g;
+    let match;
+    let firstIndex = -1;
+    while ((match = re.exec(withoutTitle))) {
+      if (firstIndex < 0) firstIndex = match.index;
+      const meta = String(match[2] || '').trim();
+      const body = String(match[3] || '').trim();
+      cards.push({
+        name: match[1].trim(),
+        meta: meta ? meta.split('|').map((part) => part.trim()).filter(Boolean) : [],
+        lines: body.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+      });
+    }
+    const intro = firstIndex > 0 ? withoutTitle.slice(0, firstIndex).trim() : '';
+    if (intro) cards.unshift({ name: '개요', meta: [], lines: intro.split(/\n+/).map((line) => line.trim()).filter(Boolean) });
+    return cards.length ? cards : [{ name: '직업 설명', meta: [], lines: withoutTitle.split(/\n+/).map((line) => line.trim()).filter(Boolean) }];
   }
 
   function hideBrokenImage(event) {
@@ -1876,19 +2033,38 @@
               </div>
             </div>
           {/if}
-          <form class="input-zone" class:input-active={canPlay} onsubmit={sendWord}>
+          <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} onsubmit={sendWord}>
             <input
               class="word-input"
               bind:this={wordInputEl}
               bind:value={word}
-              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대방 차례...'}
-              disabled={!canPlay || busy}
+              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대 차례에 미리 둘 단어 입력'}
+              disabled={busy}
               autocomplete="off"
             />
-            <button class="send-btn" class:send-ready={canPlay && word.trim() && !busy} type="submit" disabled={!canPlay || !word.trim() || busy}>
+            <button
+              class="send-btn"
+              class:send-ready={word.trim() && !busy}
+              class:premove-ready={!canPlay && word.trim() && !busy}
+              type="submit"
+              disabled={!word.trim() || busy}
+              title={canPlay ? '입력' : '미리두기 예약'}
+            >
               <Send size={17} />
             </button>
           </form>
+          {#if premoveWord}
+            <div class="premove-panel">
+              <div>
+                <span class="premove-kicker">미리두기</span>
+                <strong>{premoveWord}</strong>
+                {#if premoveStatus}<p>{premoveStatus}</p>{/if}
+              </div>
+              <button class="premove-cancel" onclick={cancelPremove} disabled={premoveSending}>
+                <X size={14} />취소
+              </button>
+            </div>
+          {/if}
         </div>
 
         <!-- Target Selector Overlay -->
@@ -2086,7 +2262,27 @@
             {/if}
           </div>
 
-          <pre class="job-info-text">{jobTabInfo}</pre>
+          <div class="job-info-gui">
+            {#each jobTabInfoCards as card}
+              <section class="job-info-card">
+                <div class="jic-head">
+                  <span class="jic-name">{card.name}</span>
+                  {#if card.meta.length}
+                    <div class="jic-meta">
+                      {#each card.meta as tag}
+                        <span>{tag}</span>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+                <div class="jic-body">
+                  {#each card.lines as line}
+                    <p class:jic-bullet={line.startsWith('-')}>{line.replace(/^-+\s*/, '')}</p>
+                  {/each}
+                </div>
+              </section>
+            {/each}
+          </div>
 
           <div class="job-side-grid">
             <section class="job-stat-card">
@@ -2305,11 +2501,44 @@
     <div class="content-page help-page">
       <div class="help-header">
         <span class="panel-kicker">TUTORIAL</span>
-        <h2>기본 도움말</h2>
+        <h2>채린룰 입문 강의</h2>
+        <p>끝말잇기의 기본 룰은 아는 사람을 기준으로, 채린룰의 단어 분류와 직업 운영을 정리했습니다.</p>
+      </div>
+      <div class="lecture-stack">
+        {#each TUTORIAL_CHAPTERS as chapter, index}
+          <section class="lecture-card">
+            <div class="lecture-heading">
+              <span class="tutorial-num">{index + 1}</span>
+              <div>
+                <h3>{chapter.title}</h3>
+                <p>{chapter.lead}</p>
+              </div>
+            </div>
+            {#if chapter.terms}
+              <div class="term-grid">
+                {#each chapter.terms as [term, desc]}
+                  <div class="term-row">
+                    <strong>{term}</strong>
+                    <span>{desc}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+            <ul class="lecture-points">
+              {#each chapter.points as point}
+                <li>{point}</li>
+              {/each}
+            </ul>
+          </section>
+        {/each}
+      </div>
+      <div class="help-header help-subheader">
+        <span class="panel-kicker">SITE GUIDE</span>
+        <h2>사이트 조작 도움말</h2>
         <p>카카오봇 명령 흐름을 웹 조작에 맞춰 정리했습니다.</p>
       </div>
       <div class="tutorial-grid">
-        {#each TUTORIAL_STEPS as step, index}
+        {#each SITE_HELP_STEPS as step, index}
           <section class="tutorial-card">
             <span class="tutorial-num">{index + 1}</span>
             <h3>{step.title}</h3>
@@ -2521,13 +2750,21 @@
      TOKENS & RESET
   ═══════════════════════════════════════════ */
   :global(*) { box-sizing: border-box; margin: 0; padding: 0; }
-  :global(html) { scroll-behavior: smooth; }
+  :global(html) {
+    height: 100%;
+    overflow: hidden;
+    scroll-behavior: smooth;
+    overscroll-behavior: none;
+  }
   :global(body) {
     font-family: 'Pretendard', 'Noto Sans KR', Inter, ui-sans-serif, system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -2592,7 +2829,15 @@
   }
   input, select { height: 42px; padding: 0 14px; font-size: 16px; }
   select option { background: var(--bg2); color: var(--text); }
-  .app { min-height: 100vh; display: flex; flex-direction: column; }
+  .app {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
 
   /* ═══════════════════════════════════════════
      TOPBAR
@@ -2609,8 +2854,8 @@
     padding-left: max(20px, env(safe-area-inset-left));
     padding-right: max(20px, env(safe-area-inset-right));
     gap: 12px;
-    position: sticky;
-    top: 0;
+    position: relative;
+    flex: 0 0 auto;
     z-index: 100;
     will-change: transform;
     transform: translateZ(0);
@@ -2700,12 +2945,15 @@
   ═══════════════════════════════════════════ */
   .lobby {
     flex: 1;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
     position: relative;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .lobby-card {
     position: relative;
@@ -2944,6 +3192,7 @@
   ═══════════════════════════════════════════ */
   .matching-screen {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2951,7 +3200,9 @@
     gap: 28px;
     padding: 60px 20px;
     position: relative;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .room-wait-screen { justify-content: flex-start; padding-top: 48px; }
   .room-wait-card {
@@ -3073,6 +3324,7 @@
   ═══════════════════════════════════════════ */
   .job-screen {
     flex: 1;
+    min-height: 0;
     padding: 28px 24px;
     max-width: 980px;
     width: 100%;
@@ -3080,6 +3332,9 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     animation: fadeUp .3s ease both;
   }
   .job-screen-header {
@@ -3383,7 +3638,8 @@
     flex: 1;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    min-height: calc(100dvh - 56px);
+    min-height: 0;
+    overflow: hidden;
     animation: fadeUp .25s ease both;
   }
 
@@ -3428,6 +3684,7 @@
     display: grid;
     grid-template-columns: 220px minmax(0,1fr) 260px;
     min-height: 0;
+    height: 100%;
     overflow: hidden;
   }
   .col-label {
@@ -3689,6 +3946,13 @@
     background: rgba(239,246,255,.72);
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
   }
+  .input-zone.premove-input {
+    border-color: rgba(245,158,11,.25);
+    background: color-mix(in srgb, var(--gold) 7%, var(--bg2));
+  }
+  .input-zone.premove-input .word-input {
+    color: var(--text);
+  }
   .send-btn {
     width: 54px; height: 54px;
     border-radius: calc(var(--radius) + 2px);
@@ -3705,6 +3969,60 @@
     color: #fff;
     box-shadow: 0 4px 20px rgba(99,102,241,.45);
     animation: sendPulse 1.8s ease-in-out infinite;
+  }
+  .send-btn.premove-ready {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #111827;
+    box-shadow: 0 4px 18px rgba(245,158,11,.28);
+  }
+  .premove-panel {
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    min-height: 48px;
+    padding: 9px 10px 9px 13px;
+    border: 1px solid rgba(245,158,11,.28);
+    border-radius: calc(var(--radius) + 4px);
+    background: color-mix(in srgb, var(--gold) 10%, var(--bg2));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 6px 18px rgba(15,23,42,.06);
+  }
+  .premove-kicker {
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #b45309;
+  }
+  .premove-panel strong {
+    display: block;
+    margin-top: 1px;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .premove-panel p {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .premove-cancel {
+    min-width: 74px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(180,83,9,.28);
+    background: var(--bg2);
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
   }
 
   /* Ability bar */
@@ -3986,6 +4304,7 @@
   ═══════════════════════════════════════════ */
   .content-page {
     flex: 1;
+    min-height: 0;
     padding: 24px;
     max-width: 1120px;
     width: 100%;
@@ -3993,6 +4312,9 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     animation: fadeUp .28s ease both;
   }
 
@@ -4002,7 +4324,8 @@
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
     gap: 16px;
-    min-height: calc(100dvh - 110px);
+    min-height: 0;
+    flex: 1;
   }
   .jobs-list-panel,
   .job-detail-panel,
@@ -4094,21 +4417,73 @@
     font-size: 11px;
     font-weight: 800;
   }
-  .job-info-text {
-    margin: 0;
-    max-height: 360px;
+  .job-info-gui {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+    max-height: 420px;
     overflow: auto;
-    white-space: pre-wrap;
+    padding-right: 2px;
+  }
+  .job-info-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    overflow: hidden;
+    box-shadow: 0 6px 16px rgba(15,23,42,.04);
+  }
+  .jic-head {
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--bg2)), var(--bg2));
+    display: grid;
+    gap: 7px;
+  }
+  .jic-name {
+    font-size: 15px;
+    font-weight: 950;
+    color: var(--text);
+  }
+  .jic-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .jic-meta span {
+    min-height: 22px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(37,99,235,.18);
+    background: #eff6ff;
+    color: var(--accent2);
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .jic-body {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+  }
+  .jic-body p {
+    font-size: 13px;
+    line-height: 1.58;
+    color: var(--text2);
     word-break: keep-all;
     overflow-wrap: anywhere;
-    font-family: inherit;
-    font-size: 13px;
-    line-height: 1.65;
-    color: var(--text2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: #fff;
-    padding: 14px;
+  }
+  .jic-body p.jic-bullet {
+    position: relative;
+    padding-left: 14px;
+  }
+  .jic-body p.jic-bullet::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    top: .72em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
   }
   .job-side-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; }
   .job-stat-card { padding: 14px; min-width: 0; }
@@ -4137,6 +4512,48 @@
   .help-page { max-width: 980px; }
   .help-header { display: flex; flex-direction: column; gap: 4px; }
   .help-header p { color: var(--text2); font-size: 14px; }
+  .help-subheader { margin-top: 10px; }
+  .lecture-stack { display: grid; gap: 12px; }
+  .lecture-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    padding: 16px;
+    display: grid;
+    gap: 13px;
+  }
+  .lecture-heading {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .lecture-heading h3 { font-size: 17px; font-weight: 900; }
+  .lecture-heading p { margin-top: 3px; color: var(--text2); font-size: 13px; line-height: 1.55; }
+  .term-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 8px;
+  }
+  .term-row {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    padding: 10px;
+    display: grid;
+    gap: 5px;
+  }
+  .term-row strong { font-size: 13px; font-weight: 900; color: var(--accent); }
+  .term-row span { font-size: 12px; line-height: 1.55; color: var(--text2); }
+  .lecture-points {
+    display: grid;
+    gap: 7px;
+    padding-left: 18px;
+    color: var(--text2);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .lecture-points li::marker { color: var(--accent); }
   .tutorial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .tutorial-card {
     border: 1px solid var(--border);
@@ -4386,16 +4803,16 @@
     .job-side-grid { grid-template-columns: 1fr; }
   }
   @media (max-width:800px) {
-    .ingame { min-height: calc(100dvh - 96px); }
+    .ingame { min-height: 0; }
     .game-columns {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(220px, 1fr) auto;
-      overflow-y: auto;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      overflow: hidden;
     }
     .col-players {
       border-right: none;
       border-bottom: 1px solid var(--border);
-      max-height: 132px;
+      max-height: 112px;
       flex-direction: row;
       flex-wrap: nowrap;
       gap: 8px;
@@ -4414,6 +4831,9 @@
       grid-template-columns: 1fr 1fr;
       gap: 10px;
       padding: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
     .my-job-panel,
     .game-status-panel,
@@ -4421,8 +4841,8 @@
     .vote-panel { margin: 0; }
     .game-status-panel { display: none; }
     .ctrl-actions { grid-column: 1 / -1; flex-direction: row; }
-    .col-board { min-height: 240px; padding: 10px; }
-    .word-history { min-height: 220px; }
+    .col-board { min-height: 0; padding: 10px; }
+    .word-history { min-height: 0; }
     .jobs-layout { grid-template-columns: 1fr; min-height: auto; }
     .jobs-list-panel { max-height: 220px; }
     .jobs-list { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
@@ -4478,13 +4898,18 @@
     .content-page { padding: 12px; gap: 12px; }
     .job-detail-panel { padding: 12px; }
     .job-detail-icon { width: 44px; height: 44px; }
-    .job-info-text { max-height: 300px; font-size: 12px; }
+    .job-info-gui { max-height: 300px; grid-template-columns: 1fr; }
     .tutorial-grid { grid-template-columns: 1fr; }
     .command-grid { grid-template-columns: 1fr; }
     .command-grid span { border-bottom: none; }
     .match-title { font-size: 40px; }
     .match-swords { font-size: 64px; }
     .bottom-composer { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 7px; }
+    .bottom-composer {
+      max-height: 34dvh;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
     .input-zone { padding: 4px; gap: 6px; }
     .word-input { height: 44px; font-size: 16px; }
     .send-btn { width: 44px; height: 44px; }
