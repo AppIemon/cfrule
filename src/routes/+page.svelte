@@ -83,7 +83,58 @@
     반장: ['담임의 가호', '교장의 가호']
   };
 
-  const TUTORIAL_STEPS = [
+  const TUTORIAL_CHAPTERS = [
+    {
+      title: '채린룰이란?',
+      lead: '기본 끝말잇기 룰을 바탕으로, 단어 분류와 직업 능력으로 수 싸움을 만드는 채린룰식 끝말잇기입니다.',
+      points: [
+        '단어는 사전에 실린 표준어를 기준으로 사용하며, 사이트는 표준국어대사전 구버전 기반 단어 목록을 사용합니다.',
+        '표준 두음법칙을 적용합니다. 예를 들어 라/나, 래/내, 로/노, 루/누, 리/이처럼 이어질 수 있습니다.',
+        '채린룰은 검색 허용 게임입니다. 검색 탭과 게임 중 검색 서랍을 써서 가능한 단어, 공격 음절, 방어 수를 확인하세요.',
+        '첫 수에는 한방단어와 유도단어를 사용할 수 없으므로, 초반에는 안전한 일반단어로 판을 열고 이후 압박을 설계합니다.'
+      ]
+    },
+    {
+      title: '한방단어 이해하기',
+      lead: '핵심은 “상대가 받은 끝음절에서 이어갈 수 있는가”입니다. 음절의 위험도를 보면 단어의 역할이 보입니다.',
+      terms: [
+        ['한방음절', '그 음절로 시작하는 합법 단어가 사실상 없어 받으면 지기 쉬운 음절입니다. 예: 특정 희귀 끝음절로 끝내 상대의 다음 수를 막는 상황.'],
+        ['유도음절', '바로 끝내지는 않지만 상대가 대응하면 다시 한방음절로 몰리기 쉬운 음절입니다. 예: 상대가 몇 수 안에 위험 음절을 받을 가능성이 커지는 길목.'],
+        ['루트음절', '한방이나 유도로 이어지는 공격 루트의 출발점입니다. 즉시 치명타는 아니지만 공격 전개가 시작되는 음절입니다.'],
+        ['한방단어', '끝음절이 한방음절인 단어입니다. 상대에게 바로 패배 압박을 줍니다.'],
+        ['유도단어', '끝음절이 유도음절인 단어입니다. 상대의 선택지를 줄이고 다음 공격을 유도합니다.'],
+        ['루트단어', '끝음절이 루트음절인 단어입니다. 초중반 빌드업이나 능력 조건을 맞출 때 중요합니다.'],
+        ['돌림단어', '시작음절과 끝음절이 같거나 다시 자기에게 유리한 흐름으로 돌아오게 만드는 단어입니다. 막혔을 때 템포를 벌기 좋습니다.']
+      ],
+      points: [
+        '검색 결과의 K는 한방, I는 유도, R은 루트로 보면 됩니다. A는 주요 공격 음절 묶음으로, 한방 K와 완전히 같은 뜻은 아닙니다.',
+        '좋은 공격은 한방단어 하나를 외우는 것보다 루트단어에서 유도단어, 한방단어로 이어지는 길을 아는 것입니다.',
+        '상대가 직업 능력으로 한방/유도를 막을 수 있다면, 바로 치기보다 루트단어로 능력을 빼는 선택도 강합니다.'
+      ]
+    },
+    {
+      title: '직업 시스템',
+      lead: '직업은 단어 실력 위에 얹히는 전술 카드입니다. 내 직업의 승리 조건과 상대 직업의 방해 수단을 함께 봐야 합니다.',
+      points: [
+        '직업 선택 전에는 직업 탭에서 패시브, 액티브, 쿨타임, 사용 횟수, 조건을 먼저 읽습니다.',
+        '밴 단계에서는 내가 싫어하는 직업보다 내 직업의 핵심 플랜을 끊는 직업을 우선으로 막는 편이 좋습니다.',
+        '능력은 “막혔을 때 탈출”뿐 아니라 “상대의 방어 능력을 먼저 빼기”, “한방 금지 턴 만들기”, “유도 루트 보존하기”에도 씁니다.',
+        '상태 패널의 한방불가, 유도금지, 두음금지, 능력불가 같은 디버프를 매턴 확인하면 실수를 크게 줄일 수 있습니다.'
+      ]
+    },
+    {
+      title: '실전 운영 팁',
+      lead: '단어 검색을 많이 하는 게임일수록, 검색 결과를 “지금 둘 단어”가 아니라 “다음 세 턴의 모양”으로 읽는 습관이 중요합니다.',
+      points: [
+        '내가 낼 단어의 끝음절만 보지 말고, 상대가 그 음절에서 낼 수 있는 대표 대응 단어의 끝음절까지 확인합니다.',
+        '한방단어를 바로 낼 수 있어도 상대가 한방불가 능력을 가졌다면, 유도단어로 돌아가거나 직업 능력 사용을 기다립니다.',
+        '불리할 때는 긴 단어보다 안전한 돌림단어, 루트 회피 단어, 두음법칙으로 빠지는 단어가 더 가치 있을 수 있습니다.',
+        '팀전에서는 내가 공격을 못 해도 다음 팀원이 공격하기 좋은 음절을 넘기는 것이 강한 수가 됩니다.'
+      ]
+    }
+  ];
+
+  const SITE_HELP_STEPS = [
     {
       title: '시작하기',
       body: '로그인 후 방을 만들거나 방 코드로 입장합니다. 1대1, 2대2, 3대3 모드를 고를 수 있고 연습 모드에서는 CPU 직업을 지정하거나 랜덤으로 둘 수 있습니다.'
@@ -2459,11 +2510,44 @@
     <div class="content-page help-page">
       <div class="help-header">
         <span class="panel-kicker">TUTORIAL</span>
-        <h2>기본 도움말</h2>
+        <h2>채린룰 입문 강의</h2>
+        <p>끝말잇기의 기본 룰은 아는 사람을 기준으로, 채린룰의 단어 분류와 직업 운영을 정리했습니다.</p>
+      </div>
+      <div class="lecture-stack">
+        {#each TUTORIAL_CHAPTERS as chapter, index}
+          <section class="lecture-card">
+            <div class="lecture-heading">
+              <span class="tutorial-num">{index + 1}</span>
+              <div>
+                <h3>{chapter.title}</h3>
+                <p>{chapter.lead}</p>
+              </div>
+            </div>
+            {#if chapter.terms}
+              <div class="term-grid">
+                {#each chapter.terms as [term, desc]}
+                  <div class="term-row">
+                    <strong>{term}</strong>
+                    <span>{desc}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+            <ul class="lecture-points">
+              {#each chapter.points as point}
+                <li>{point}</li>
+              {/each}
+            </ul>
+          </section>
+        {/each}
+      </div>
+      <div class="help-header help-subheader">
+        <span class="panel-kicker">SITE GUIDE</span>
+        <h2>사이트 조작 도움말</h2>
         <p>카카오봇 명령 흐름을 웹 조작에 맞춰 정리했습니다.</p>
       </div>
       <div class="tutorial-grid">
-        {#each TUTORIAL_STEPS as step, index}
+        {#each SITE_HELP_STEPS as step, index}
           <section class="tutorial-card">
             <span class="tutorial-num">{index + 1}</span>
             <h3>{step.title}</h3>
@@ -4437,6 +4521,48 @@
   .help-page { max-width: 980px; }
   .help-header { display: flex; flex-direction: column; gap: 4px; }
   .help-header p { color: var(--text2); font-size: 14px; }
+  .help-subheader { margin-top: 10px; }
+  .lecture-stack { display: grid; gap: 12px; }
+  .lecture-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg2);
+    padding: 16px;
+    display: grid;
+    gap: 13px;
+  }
+  .lecture-heading {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .lecture-heading h3 { font-size: 17px; font-weight: 900; }
+  .lecture-heading p { margin-top: 3px; color: var(--text2); font-size: 13px; line-height: 1.55; }
+  .term-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 8px;
+  }
+  .term-row {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    padding: 10px;
+    display: grid;
+    gap: 5px;
+  }
+  .term-row strong { font-size: 13px; font-weight: 900; color: var(--accent); }
+  .term-row span { font-size: 12px; line-height: 1.55; color: var(--text2); }
+  .lecture-points {
+    display: grid;
+    gap: 7px;
+    padding-left: 18px;
+    color: var(--text2);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .lecture-points li::marker { color: var(--accent); }
   .tutorial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .tutorial-card {
     border: 1px solid var(--border);
