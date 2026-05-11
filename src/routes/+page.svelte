@@ -83,6 +83,14 @@
     반장: ['담임의 가호', '교장의 가호']
   };
 
+  const FALLBACK_JOBS = [
+    '해커', '투자자', '환자', '수집가', '감시자', '뜀틀선수', '전우치', '기관사', '늑대인간',
+    '시프터', '비밀요원', '67', '사과', '시인', '공룡', '마법사', '사신', '피보나치', '?',
+    '수학자', '과학자', '갈릴레오', '작곡가', '스폰지밥', '나이트', '생존자', '악당',
+    '기자', '검객', '마하트마간디', '은하계전사', '혜성전사', '수리사', '우라늄', '고죠',
+    '스핔이', '해달', '프로그래머', '볼링선수'
+  ];
+
   const TUTORIAL_CHAPTERS = [
     {
       title: '채린룰이란?',
@@ -185,6 +193,10 @@
   let ranking = $state(null);
   let rankMode = $state('overall');
   let rankJob = $state('');
+  let rankLoading = $state(false);
+  let lastPlayingGame = $state(null);
+  let holdPlayingSnapshot = $state(false);
+  const abilityNeedsTarget = new Set(['제작', '직격뢰', '포획', 'DNA파괴']);
   let matchResult = $state(null);
   let matchResultTimer;
   let analysisJobA = $state('해커');
@@ -331,7 +343,7 @@
   let now = $state(Date.now());
 
   const jobs = $derived(snapshot?.status?.jobs || []);
-  const availableJobs = $derived(jobs.length ? jobs : Object.keys(ACTIVE_BY_JOB));
+  const availableJobs = $derived(jobs.length ? jobs : (Object.keys(jobInfoByJob).length ? Object.keys(jobInfoByJob).filter((job) => job !== '빚쟁이') : FALLBACK_JOBS));
   const game = $derived(snapshot?.game || null);
   const myState = $derived(game?.playerStates?.[nickname] || null);
   const currentPlayer = $derived(game?.currentPlayer || '');
@@ -413,7 +425,7 @@
   };
 
   const ABILITY_CONFIG = {
-    '조작': { uses: 'jojak_uses', max: 3, cd: 'jojak_cooldown' },
+    '조작': { uses: 'jojak_uses', max: 2, cd: 'jojak_cooldown' },
     '복제': { uses: 'bokje_uses', max: 1 },
     '초토화': { uses: 'chotohwa_uses', max: 2, cd: 'chotohwa_cooldown' },
     '도박': { uses: 'debtor_gamble_uses', max: 2, cd: 'debtor_gamble_cooldown' },
@@ -421,30 +433,30 @@
     '제작': { cd: 'make_cooldown', uses: 'make_uses', max: 10 },
     '채굴': { uses: 'mine_uses', max: 3, cd: 'mine_cooldown' },
     '탐지': { uses: 'detect_uses', max: 2, cd: 'detect_cooldown' },
-    '뜀틀': { uses: 'vault_uses', max: 3, cd: 'vault_cooldown', isRemaining: true },
+    '뜀틀': { uses: 'vault_uses', max: 3, cd: 'vault_cooldown' },
     '허들 넘기': { uses: 'hurdle_uses', max: 1 },
     '직격뢰': { uses: 'lightning_uses', max: 3, cd: 'lightning_cooldown' },
-    '폭주기관차': { uses: 'train_rush_uses', max: 2, isRemaining: true },
-    '시프트': { uses: 'shift_uses', max: 3 },
+    '폭주기관차': { uses: 'train_rush_uses', max: 2 },
+    '시프트': { uses: 'shift_uses', max: 4 },
     '빅 시프트': { uses: 'big_shift_uses', max: 1 },
     '포획': { uses: 'capture_uses', max: 2, cd: 'capture_cooldown' },
-    '사구아': { uses: 'sagua_uses', max: 2, isRemaining: true },
-    '2음절': { uses: 'poetic_2_uses', max: 10, cd: 'poetic_2_cooldown' },
-    '유도음절': { uses: 'poetic_yudo_uses', max: 10, cd: 'poetic_yudo_cooldown' },
-    '시적 허용': { uses: 'poetic_allow_uses', max: 3, cd: 'poetic_allow_cooldown' },
+    '사구아': { uses: 'sagua_uses', max: 2 },
+    '2음절': { uses: 'poetic_2_uses', max: 3, cd: 'poetic_2_cooldown' },
+    '유도음절': { uses: 'poetic_yudo_uses', max: 2, cd: 'poetic_yudo_cooldown' },
+    '시적 허용': { uses: 'poetic_allow_uses', max: 2, cd: 'poetic_allow_cooldown' },
     '삼키기': { uses: 'swallow_uses', max: 3, cd: 'swallow_cooldown' },
     '브레스': { uses: 'breath_uses', max: 2, cd: 'breath_cooldown' },
     '꼬리 날리기': { uses: 'tail_uses', max: 1 },
-    '공허': { uses: 'void_uses', max: 2, cd: 'void_cooldown' },
+    '공허': { uses: 'void_uses', max: 5, cd: 'void_cooldown' },
     '폭발': { uses: 'explosion_uses', max: 1 },
-    '사형 선고': { uses: 'death_uses', max: 10, cd: 'death_cooldown' },
+    '사형 선고': { cd: 'death_cooldown' },
     '영혼': { uses: 'soul_uses', max: 1 },
-    '계산': { uses: 'math_calc_uses', max: 10 },
-    '덧셈': { uses: 'math_add_uses', max: 10 },
-    '뺄셈': { uses: 'math_sub_uses', max: 10 },
-    '곱셈': { uses: 'math_mul_uses', max: 10 },
-    '교정': { uses: 'math_fix_uses', max: 10 },
-    '미적분': { uses: 'math_calculus_uses', max: 10 },
+    '계산': { uses: 'math_calc_uses', max: 2, cd: 'math_calc_cooldown' },
+    '덧셈': { uses: 'math_add_uses', max: 3, cd: 'math_add_cooldown' },
+    '뺄셈': { uses: 'math_sub_uses', max: 2 },
+    '곱셈': { uses: 'math_mul_uses', max: 1 },
+    '교정': { uses: 'math_fix_uses', max: 1, cd: 'math_fix_cooldown' },
+    '미적분': { uses: 'math_calculus_uses', max: 2, cd: 'math_calculus_cooldown' },
     'DNA파괴': { uses: 'dna_uses', max: 2, cd: 'dna_cooldown' },
     '쪼개기': { uses: 'split_uses', max: 3 },
     '쉼표': { cd: 'rest_cooldown' },
@@ -452,31 +464,31 @@
     '감자튀김': { cd: 'fries_cooldown' },
     '보너스': { uses: 'bonus_uses', max: 4, cd: 'bonus_cooldown' },
     '강도 채용': { uses: 'robber_uses', max: 3, cd: 'robber_cooldown' },
-    '체크메이트': { uses: 'checkmate_uses', max: 1, cd: 'checkmate_cooldown' },
-    '교환': { uses: 'exchange_uses', max: 1 },
+    '체크메이트': { uses: 'checkmate_uses', max: 5, cd: 'checkmate_cooldown' },
+    '교환': { uses: 'exchange_uses', max: 2 },
     '울음': { uses: 'cry_uses', max: 1 },
-    '구조': { uses: 'rescue_uses', max: 3, cd: 'rescue_cooldown' },
-    '아이쿠': { uses: 'aiku_uses', max: 1 },
-    '결계': { uses: 'barrier_uses', max: 1, cd: 'barrier_cooldown' },
+    '긴급 구조': { uses: 'rescue_uses', max: 3, cd: 'rescue_cooldown' },
+    '아이쿠': { uses: 'signal_double_uses', max: 2, cd: 'signal_double_cooldown' },
+    '결계': { uses: 'barrier_uses', max: 4, cd: 'barrier_cooldown' },
     '왜곡': { uses: 'distort_uses', max: 2, cd: 'distort_cooldown' },
-    '거짓 보도': { uses: 'report_uses', max: 2, cd: 'report_cooldown' },
+    '거짓 보도': { uses: 'report_uses', max: 4, cd: 'report_cooldown' },
     '거짓 뉴스': { uses: 'fake_news_uses', max: 1 },
-    '찌르기': { uses: 'stab_uses', max: 1, cd: 'stab_cooldown' },
-    '가르기': { uses: 'slice_uses', max: 1, cd: 'slice_cooldown' },
+    '찌르기': { uses: 'stab_uses', max: 2, cd: 'stab_cooldown' },
+    '가르기': { uses: 'slice_uses', max: 3, cd: 'slice_cooldown' },
     '방탄수리': { uses: 'bulletproof_uses', max: 7, cd: 'bulletproof_cooldown', isRemaining: true },
     '수리': { uses: 'repair_uses', max: 3, cd: 'repair_cooldown' },
     '무량공처': { uses: 'gongcheo_uses', max: 4, cd: 'gongcheo_cooldown', isRemaining: true },
     '핵분열': { uses: 'fission_uses', max: 1 },
-    '물걸레질': { uses: 'speaki_clean_uses', max: 1 },
-    '호박': { uses: 'speaki_pumpkin_uses', max: 1 },
-    '조개': { uses: 'otter_clam_uses', max: 5 },
-    '깨부수기': { uses: 'otter_smash_uses', max: 2 },
-    'Shift': { uses: 'programmer_shift_uses', max: 5 },
-    'Caps Lock': { uses: 'programmer_caps_uses', max: 2 },
-    'Backspace': { uses: 'programmer_backspace_uses', max: 3 },
+    '물걸레질': { uses: 'speaki_clean_uses', max: 3, cd: 'speaki_clean_cooldown' },
+    '호박': { uses: 'speaki_pumpkin_uses', max: 2, cd: 'speaki_pumpkin_cooldown' },
+    '조개': { uses: 'otter_clam_uses', max: 3, cd: 'otter_clam_cooldown' },
+    '깨부수기': { uses: 'otter_smash_uses', max: 1 },
+    'Shift': { uses: 'programmer_shift_uses', max: 1 },
+    'Caps Lock': { uses: 'programmer_caps_uses', max: 12, cd: 'programmer_caps_cooldown' },
+    'Backspace': { uses: 'programmer_backspace_uses', max: 1 },
     'Tab': { uses: 'programmer_tab_uses', max: 1 },
-    '스트라이크': { uses: 'bowling_strike_uses', max: 2, cd: 'bowling_strike_cooldown' },
-    '스페어': { uses: 'bowling_spare_uses', max: 3, cd: 'bowling_spare_cooldown' },
+    '스트라이크': { uses: 'bowling_strike_uses', max: 3, cd: 'bowling_strike_cooldown' },
+    '스페어': { uses: 'bowling_spare_uses', max: 2, cd: 'bowling_spare_cooldown' },
     '담임의 가호': { uses: 'class_president_homeroom_uses', max: 2, cd: 'class_president_homeroom_cooldown' },
     '교장의 가호': { uses: 'class_president_principal_uses', max: 1 }
   };
@@ -656,7 +668,7 @@
   );
   const jobTabInfo = $derived(jobInfoByJob[jobTabJob] || '직업 정보를 불러오는 중입니다.');
   const jobTabInfoCards = $derived(jobInfoCards(jobTabInfo));
-  const jobTabAbilities = $derived(ACTIVE_BY_JOB[jobTabJob] || []);
+  const jobTabAbilities = $derived(jobTabInfoCards.map((card) => card.name).filter((name) => name && name !== '직업 설명'));
   const jobTabRanking = $derived(jobRanking[jobTabJob] || []);
   const isBanPhase = $derived(game?.phase === 'job_selection' && game?.banPhase);
   const isBanPicker = $derived(isBanPhase && game?.firstPicker === nickname);
@@ -2338,14 +2350,14 @@
         <div class="jp-side atk">
           <span class="jp-label">⚔ 공격</span>
           <select class="jp-select" bind:value={analysisJobA}>
-            {#each Object.keys(ACTIVE_BY_JOB) as j}<option value={j}>{j}</option>{/each}
+            {#each availableJobs as j}<option value={j}>{j}</option>{/each}
           </select>
         </div>
         <div class="jp-vs">VS</div>
         <div class="jp-side def">
           <span class="jp-label">🛡 수비</span>
           <select class="jp-select" bind:value={analysisJobB}>
-            {#each Object.keys(ACTIVE_BY_JOB) as j}<option value={j}>{j}</option>{/each}
+            {#each availableJobs as j}<option value={j}>{j}</option>{/each}
           </select>
         </div>
       </div>

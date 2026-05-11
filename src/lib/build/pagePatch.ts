@@ -51,7 +51,7 @@ export function patchPageSvelte(code: string): string {
 
   if (!code.includes("let rankLoading")) {
     code = code.replace(
-      "let rankMode = $state('overall');\n  let rankJob = $state('');",
+      /let rankMode = \$state\('overall'\);\r?\n\s*let rankJob = \$state\(''\);/,
       "let rankMode = $state('overall');\n  let rankJob = $state('');\n  let rankLoading = $state(false);\n  let lastPlayingGame = $state(null);\n  let holdPlayingSnapshot = $state(false);\n  const abilityNeedsTarget = new Set(['제작','직격뢰','포획','DNA파괴']);"
     );
   }
@@ -65,7 +65,7 @@ export function patchPageSvelte(code: string): string {
   });
   const game = $derived.by(() => {
     if (rawGame?.phase === 'playing') return rawGame;
-    if ((holdPlayingSnapshot || cpuThinking) && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
+    if (cpuThinking && lastPlayingGame?.phase === 'playing') return lastPlayingGame;
     return rawGame;
   });`
     );
@@ -77,7 +77,7 @@ export function patchPageSvelte(code: string): string {
     if (rawGame?.phase === 'playing') {
       lastPlayingGame = rawGame;
       holdPlayingSnapshot = true;
-    } else if (rawGame && rawGame.phase !== 'waiting' && rawGame.phase !== 'job_selection') {
+    } else if (!rawGame || (rawGame.phase !== 'waiting' && rawGame.phase !== 'job_selection')) {
       holdPlayingSnapshot = false;
     }
   });`
@@ -94,7 +94,7 @@ export function patchPageSvelte(code: string): string {
       if (!res.ok || targetRoom !== room) return;
       const data = await res.json();
       if (data?.room && data.room !== targetRoom) return;
-      if ((cpuThinking || holdPlayingSnapshot) && lastPlayingGame?.phase === 'playing' && (!data?.game || data.game.phase === 'waiting' || data.game.phase === 'job_selection')) {
+      if (cpuThinking && lastPlayingGame?.phase === 'playing' && (!data?.game || data.game.phase === 'waiting' || data.game.phase === 'job_selection')) {
         snapshot = { ...data, room: targetRoom, game: lastPlayingGame };
         return;
       }

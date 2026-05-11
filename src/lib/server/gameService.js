@@ -462,7 +462,7 @@ async function sendCommandInternal({ room, nickname, command }) {
   await applyRoomOptionsInternal(room);
   await updateRoomClockInternal(room, { finalize: true });
   scheduleAutoRestart(room, sender, replies);
-  const state = await buildRoomSnapshot(room, true);
+  const state = await buildRoomSnapshot(room, false);
   await persistRoom(room, state);
   publishRoom(room, state);
   return state;
