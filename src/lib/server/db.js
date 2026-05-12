@@ -22,8 +22,9 @@ export function getMongoClient() {
   if (!clientPromise) {
     if (!uri) throw new Error('MONGODB_URI is not configured.');
     const client = new MongoClient(uri, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000
+      maxPoolSize: 50,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000
     });
     clientPromise = client.connect().catch((error) => {
       clientPromise = null;

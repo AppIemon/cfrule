@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { botAllRoomStates, botBootStatus, botRankings, botRoomState, configureBotRoom, dispatchBotMessage } from './botEngine.js';
-import { publishRoom } from './realtime.js';
+import { publishRoom, realtime } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
+
+export { realtime };
 
 // Re-exported for the standalone WebSocket server (server.js) so it can resolve
 // a nickname from the session cookie without reaching into a separate auth chunk.
@@ -29,12 +31,31 @@ const logs = new Map();
 const roomMeta = new Map();
 const commandHistory = new Map();
 const restoredRooms = new Set();
+const restorationPromises = new Map();
+const roomLocks = new Map(); // room -> Promise (queue of operations)
 const restartTimers = new Map();
 const clockTimers = new Map();
 const clockFinalizing = new Set();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 const roomChats = new Map(); // room -> [{ id, sender, text, at }]
 const directMessages = new Map(); // conversationKey -> [{ id, from, to, text, at }]
+
+async function withRoomLock(room, fn) {
+  if (!roomLocks.has(room)) {
+    roomLocks.set(room, Promise.resolve());
+  }
+  const previous = roomLocks.get(room);
+  const current = previous.then(async () => {
+    try {
+      return await fn();
+    } catch (error) {
+      console.error(`[gameService] Lock operation failed for room ${room}:`, error);
+      throw error;
+    }
+  }).catch(() => {}); // Ensure queue continues even on failure
+  roomLocks.set(room, current);
+  return current;
+}
 
 function dmKey(a, b) {
   return [a, b].sort().join('\x00');
@@ -76,8 +97,9 @@ async function persistRoom(room, stateOverride = null) {
       snapshot: state,
       lastGame: state?.game || null
     });
-  } catch {
+  } catch (error) {
     // Mongo unavailable; in-memory room still works in local/dev.
+    console.warn(`[gameService] persistRoom failed for ${room}:`, error?.message);
   }
 }
 
@@ -92,26 +114,39 @@ async function loadPersistedRoom(room) {
 
 async function restoreRoom(room) {
   if (restoredRooms.has(room)) return;
-  restoredRooms.add(room);
-  const persisted = await loadPersistedRoom(room);
-  if (!persisted) return;
-  if (persisted.meta) roomMeta.set(room, persisted.meta);
-  if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
-  if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
+  if (restorationPromises.has(room)) return restorationPromises.get(room);
 
-  // Best effort replay for active rooms. This keeps the VM game object alive after a serverless cold start.
-  // Rating-changing commands are not replayed after a finished game because persisted.snapshot is used instead.
-  const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
-  const replayable = lastPhase && lastPhase !== 'ended' && lastPhase !== 'finished' && !/종료|승리|패배/.test((persisted.log || []).slice(-8).map((x) => x.text).join('\n'));
-  if (!replayable) return;
-  const commands = (persisted.commands || []).slice(-120);
-  for (const item of commands) {
+  const promise = (async () => {
     try {
-      await dispatchBotMessage(room, item.command, item.sender);
-    } catch {
-      break;
+      const persisted = await loadPersistedRoom(room);
+      if (!persisted) return;
+      if (persisted.meta) roomMeta.set(room, persisted.meta);
+      if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
+      if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
+
+      // Best effort replay for active rooms.
+      const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
+      const replayable = lastPhase && lastPhase !== 'ended' && lastPhase !== 'finished' && !/종료|승리|패배/.test((persisted.log || []).slice(-8).map((x) => x.text).join('\n'));
+      if (replayable) {
+        const commands = (persisted.commands || []).slice(-120);
+        for (const item of commands) {
+          try {
+            await dispatchBotMessage(room, item.command, item.sender);
+          } catch {
+            break;
+          }
+        }
+      }
+      restoredRooms.add(room);
+    } catch (error) {
+      console.error(`[gameService] restoreRoom failed for ${room}:`, error);
+    } finally {
+      restorationPromises.delete(room);
     }
-  }
+  })();
+
+  restorationPromises.set(room, promise);
+  return promise;
 }
 
 function normalizeRankingRow(row) {
@@ -171,7 +206,7 @@ function startCommand(meta) {
 
 function looksLikeGameEnd(replies) {
   const text = (replies || []).join('\n');
-  return /\[\s*(팀\s*)?티어전 결과\s*\]|경기 종료|게임 종료|^.+ 승리! /m.test(text);
+  return /\[\s*(팀\s*)?티어전 결과\s*\]|경기 종료|게임 종료|경기가 끝난다|^.+ 승리! /m.test(text);
 }
 
 function scheduleAutoRestart(room, sender, replies) {
@@ -276,7 +311,7 @@ function stopClockLoop(room) {
   clockTimers.delete(room);
 }
 
-async function updateRoomClock(room, options = {}) {
+async function updateRoomClockInternal(room, options = {}) {
   const meta = roomMeta.get(room);
   const timer = meta?.timer;
   if (!timer?.enabled || timer.expired) return null;
@@ -337,7 +372,11 @@ async function updateRoomClock(room, options = {}) {
   return game;
 }
 
-async function applyRoomOptions(room) {
+export async function updateRoomClock(room, options = {}) {
+  return withRoomLock(room, () => updateRoomClockInternal(room, options));
+}
+
+async function applyRoomOptionsInternal(room) {
   const meta = roomMeta.get(room);
   if (!meta) return;
   const disabled = sanitizeJobs(meta.disabledJobs);
@@ -345,6 +384,10 @@ async function applyRoomOptions(room) {
     await configureBotRoom(room, { disabledJobs: disabled });
   }
   if (meta.timer?.enabled) ensureClockLoop(room);
+}
+
+export async function applyRoomOptions(room) {
+  return withRoomLock(room, () => applyRoomOptionsInternal(room));
 }
 
 function selectionBlocked(room, command) {
@@ -362,6 +405,8 @@ export async function createRoom({ nickname, mode = 1, practice = false, cpuJob 
   const cleanMode = sanitizeMode(mode);
   const cleanDisabledJobs = sanitizeJobs(disabledJobs);
   const cleanCpuJob = cleanDisabledJobs.includes(cpuJob) ? '' : String(cpuJob || '').trim();
+  
+  // No lock needed for a brand new room code
   roomMeta.set(room, {
     createdAt: Date.now(),
     mode: cleanMode,
@@ -374,66 +419,77 @@ export async function createRoom({ nickname, mode = 1, practice = false, cpuJob 
   });
   logs.set(room, []);
   commandHistory.set(room, []);
-  const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
-  await applyRoomOptions(room);
-  return await getRoomSnapshot(room);
+  
+  return withRoomLock(room, async () => {
+    const state = await sendCommandInternal({ room, nickname, command: startCommand(roomMeta.get(room)) });
+    await applyRoomOptionsInternal(room);
+    return state;
+  });
 }
 
 export async function joinRoom({ room, nickname }) {
-  await restoreRoom(room);
-  const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false, owner: String(nickname || '').trim() || 'player', practiceGuest: null };
-  const sender = String(nickname || '').trim() || 'player';
-  if (meta.practice && meta.owner && meta.owner !== sender) {
-    meta.practiceGuest = sender;
-    meta.practiceGuestAt = Date.now();
+  return withRoomLock(room, async () => {
+    await restoreRoom(room);
+    const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false, owner: String(nickname || '').trim() || 'player', practiceGuest: null };
+    const sender = String(nickname || '').trim() || 'player';
+    if (meta.practice && meta.owner && meta.owner !== sender) {
+      meta.practiceGuest = sender;
+      meta.practiceGuestAt = Date.now();
+      roomMeta.set(room, meta);
+      append(room, 'system', '', [`[시스템]: 연습방 알림: ${sender}님이 방 코드로 들어왔습니다. 연습 종료 버튼을 눌러 일반 방으로 전환할 수 있습니다.`]);
+      const state = await buildRoomSnapshot(room, true);
+      await persistRoom(room, state);
+      publishRoom(room, state);
+      return state;
+    }
     roomMeta.set(room, meta);
-    append(room, 'system', '', [`[시스템]: 연습방 알림: ${sender}님이 방 코드로 들어왔습니다. 연습 종료 버튼을 눌러 일반 방으로 전환할 수 있습니다.`]);
-    const state = await getRoomSnapshot(room);
-    await persistRoom(room, state);
-    publishRoom(room, state);
-    return state;
-  }
-  roomMeta.set(room, meta);
-  return sendCommand({ room, nickname, command: startCommand(meta) });
+    return sendCommandInternal({ room, nickname, command: startCommand(meta) });
+  });
 }
 
-export async function sendCommand({ room, nickname, command }) {
+async function sendCommandInternal({ room, nickname, command }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
   const msg = String(command || '').trim();
-  await updateRoomClock(room, { finalize: true });
+  await updateRoomClockInternal(room, { finalize: true });
   const blockedJob = selectionBlocked(room, msg);
   const replies = blockedJob
     ? [`[시스템]: ${blockedJob} 직업은 이 방에서 선택 불가능합니다.`]
     : (msg ? await dispatchBotMessage(room, msg, sender) : []);
   if (msg) rememberCommand(room, sender, msg);
   append(room, sender, msg, replies);
-  await applyRoomOptions(room);
-  await updateRoomClock(room, { finalize: true });
+  await applyRoomOptionsInternal(room);
+  await updateRoomClockInternal(room, { finalize: true });
   scheduleAutoRestart(room, sender, replies);
-  const state = await buildRoomSnapshot(room, true);
+  const state = await buildRoomSnapshot(room, false);
   await persistRoom(room, state);
   publishRoom(room, state);
   return state;
 }
 
+export async function sendCommand({ room, nickname, command }) {
+  return withRoomLock(room, () => sendCommandInternal({ room, nickname, command }));
+}
+
 export async function addChatMessage({ room, nickname, text }) {
-  await restoreRoom(room);
-  const sender = String(nickname || '').trim() || 'player';
-  const list = roomChats.get(room) || [];
-  list.push({
-    id: `${Date.now()}-${Math.random()}`,
-    sender,
-    text: String(text || '').trim(),
-    at: Date.now()
+  return withRoomLock(room, async () => {
+    await restoreRoom(room);
+    const sender = String(nickname || '').trim() || 'player';
+    const list = roomChats.get(room) || [];
+    list.push({
+      id: `${Date.now()}-${Math.random()}`,
+      sender,
+      text: String(text || '').trim(),
+      at: Date.now()
+    });
+    while (list.length > 50) list.shift();
+    roomChats.set(room, list);
+    
+    const state = await buildRoomSnapshot(room, true);
+    publishRoom(room, state);
+    return state;
   });
-  while (list.length > 50) list.shift();
-  roomChats.set(room, list);
-  
-  const state = await getRoomSnapshot(room);
-  publishRoom(room, state);
-  return state;
 }
 
 export function updatePresence(room, nickname, online) {
@@ -470,11 +526,11 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
 }
 
 export async function getRoomSnapshot(room) {
-  await restoreRoom(room);
-  await updateRoomClock(room, { finalize: true });
-  const state = await buildRoomSnapshot(room, true);
-  if (state.game || state.meta) persistRoom(room, state).catch(() => {});
-  return state;
+  return withRoomLock(room, async () => {
+    await restoreRoom(room);
+    await updateRoomClockInternal(room, { finalize: true });
+    return await buildRoomSnapshot(room, true);
+  });
 }
 
 export async function rankingSnapshot() {
