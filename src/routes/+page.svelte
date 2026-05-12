@@ -211,6 +211,9 @@
   let jobTabJob = $state('해커');
   let jobFilter = $state('');
   let busy = $state(false);
+  let actionBusy = $state(false);
+  let wordComposing = $state(false);
+  let pendingWordSubmit = $state(false);
   let cpuThinking = $state(false);
   let error = $state('');
   let hasMatched = $state(false);
@@ -937,19 +940,42 @@
     }
   });
 
-  async function send(commandText) {
-    if (!room || !commandText.trim() || !user?.nickname) return;
-    snapshot = await request('/api/action', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ room, command: commandText.trim() })
-    });
+  async function send(commandText, { lock = true } = {}) {
+    if (!room || !commandText.trim() || !user?.nickname || (lock && actionBusy)) return;
+    if (lock) actionBusy = true;
+    try {
+      snapshot = await request('/api/action', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ room, command: commandText.trim() })
+      });
+    } finally {
+      if (lock) actionBusy = false;
+    }
+  }
+
+  function handleWordCompositionStart() {
+    wordComposing = true;
+  }
+
+  function handleWordCompositionEnd(event) {
+    wordComposing = false;
+    word = event?.currentTarget?.value ?? word;
+    if (pendingWordSubmit) {
+      pendingWordSubmit = false;
+      tick().then(() => sendWord());
+    }
   }
 
   async function sendWord(event) {
     event?.preventDefault?.();
-    const text = word.trim();
-    if (!text || busy) return;
+    if (wordComposing) {
+      pendingWordSubmit = true;
+      return;
+    }
+    await tick();
+    const text = (wordInputEl?.value || word).trim();
+    if (!text || actionBusy) return;
     if (!canPlay) {
       premoveWord = text;
       premoveStatus = '상대 입력 직후 가능하면 자동으로 둡니다.';
@@ -961,6 +987,8 @@
     cpuThinking = true;
     try {
       await send(`0${text}`);
+    } catch {
+      word = text;
     } finally {
       cpuThinking = false;
       await tick();
@@ -1009,7 +1037,7 @@
   }
 
   async function tryPlayPremove() {
-    if (!premoveWord || !canPlay || busy || premoveSending) return;
+    if (!premoveWord || !canPlay || actionBusy || premoveSending) return;
     const queued = premoveWord;
     const attemptKey = `${room}:${game?.turnCount || 0}:${currentPlayer}:${queued}:${(game?.history || []).length}`;
     if (attemptKey === premoveAttemptKey) return;
@@ -1121,7 +1149,7 @@
   }
 
   async function sendAbilityWithTarget(name, target = '') {
-    if (!canUseAbility || busy) return;
+    if (!canUseAbility || actionBusy) return;
     const cmd = `2${name}${target ? ` ${target}` : ''}`;
     await send(cmd);
     ability = '';
@@ -1970,10 +1998,10 @@
             {/if}
 
             <div class="ctrl-actions">
-              <button class="ctrl-btn" onclick={() => send('1무효')} disabled={busy}>
+              <button class="ctrl-btn" onclick={() => send('1무효')} disabled={actionBusy}>
                 <Vote size={14} />무효 신청
               </button>
-              <button class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={busy}>
+              <button class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={actionBusy}>
                 항복
               </button>
             </div>
@@ -2044,7 +2072,7 @@
                     class:ab-not-ready={abStatus && !abStatus.isReady}
                     style="--ai:{ai}"
                     onclick={() => useAbility(ab)}
-                    disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
+                    disabled={!canUseAbility || actionBusy || (abStatus && !abStatus.isReady)}
                     title={abStatus?.text || '준비됨'}
                   >
                     <Sparkles size={13} />
@@ -2062,16 +2090,21 @@
               class="word-input"
               bind:this={wordInputEl}
               bind:value={word}
-              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대 차례에 미리 둘 단어 입력'}
-              disabled={busy}
+              placeholder={actionBusy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대 차례에 미리 둘 단어 입력'}
+              disabled={actionBusy}
               autocomplete="off"
+              enterkeyhint={canPlay ? 'send' : 'done'}
+              autocapitalize="off"
+              autocorrect="off"
+              oncompositionstart={handleWordCompositionStart}
+              oncompositionend={handleWordCompositionEnd}
             />
             <button
               class="send-btn"
-              class:send-ready={word.trim() && !busy}
-              class:premove-ready={!canPlay && word.trim() && !busy}
+              class:send-ready={word.trim() && !actionBusy}
+              class:premove-ready={!canPlay && word.trim() && !actionBusy}
               type="submit"
-              disabled={!word.trim() || busy}
+              disabled={!word.trim() || actionBusy}
               title={canPlay ? '입력' : '미리두기 예약'}
             >
               <Send size={17} />
@@ -4873,10 +4906,73 @@
     .lobby { align-items: flex-start; padding: 16px 12px; }
     .lobby-card { padding: 22px 18px; gap: 16px; }
     .lobby-title h1 { font-size: 30px; }
-    .syl-hero { grid-template-columns: 1fr auto auto; gap: 10px; padding: 8px 12px; }
+    .ingame { grid-template-rows: auto minmax(0, 1fr) auto; }
+    .syl-hero { grid-template-columns: 1fr auto auto; gap: 8px; padding: 7px 10px; min-height: 54px; }
     .syl-meta { display: none; }
-    .syl-main { font-size: 34px; }
+    .syl-label { font-size: 9px; letter-spacing: .6px; }
+    .syl-main { font-size: 32px; letter-spacing: 0; }
+    .syl-player { align-items: flex-end; min-width: 0; }
+    .syl-player-label { display: none; }
     .syl-player-name { font-size: 13px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .syl-hero .syl-search-btn { width: 34px; height: 34px; padding: 0; justify-content: center; }
+    .game-columns { grid-template-rows: auto minmax(120px, 1fr) auto; }
+    .col-players {
+      max-height: 76px;
+      padding: 7px 8px;
+      gap: 6px;
+      scrollbar-width: none;
+    }
+    .col-players::-webkit-scrollbar { display: none; }
+    .player-card {
+      width: 132px;
+      padding: 7px;
+      gap: 7px;
+      border-radius: 10px;
+      align-items: center;
+    }
+    .player-avatar { width: 30px; height: 30px; font-size: 13px; }
+    .player-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-job { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-clock { min-height: 20px; margin-top: 3px; padding: 0 6px; font-size: 11px; }
+    .team-dot { display: none; }
+    .col-board { padding: 8px; }
+    .word-history { padding: 10px; border-radius: 10px; gap: 5px; }
+    .bubble-text { max-width: 86%; font-size: 14px; padding: 6px 12px; }
+    .col-control {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      max-height: 96px;
+      padding: 7px 8px;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+    }
+    .col-control::-webkit-scrollbar { display: none; }
+    .my-job-panel {
+      min-width: 118px;
+      padding: 8px 10px;
+      gap: 4px;
+      border-radius: 10px;
+    }
+    .my-job-panel .mj-badge,
+    .my-job-panel .mj-status-list,
+    .my-job-panel .mj-status-grid,
+    .my-job-panel .mj-effects { display: none; }
+    .mj-icon { width: 32px; height: 32px; font-size: 14px; box-shadow: none; }
+    .mj-name { font-size: 13px; max-width: 92px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0; }
+    .ctrl-actions {
+      grid-column: auto;
+      display: flex;
+      min-width: 166px;
+      gap: 6px;
+    }
+    .ctrl-btn { height: 38px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+    .game-guide-panel { display: none; }
+    .vote-panel { min-width: 190px; padding: 9px; gap: 5px; }
+    .vote-type { font-size: 13px; }
+    .vote-req { font-size: 11px; }
     .job-screen { padding: 12px; gap: 12px; }
     .job-screen-header h2 { font-size: 20px; }
     .ban-panel { padding: 12px; }
@@ -4897,12 +4993,7 @@
     .command-grid span { border-bottom: none; }
     .match-title { font-size: 40px; }
     .match-swords { font-size: 64px; }
-    .bottom-composer { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 7px; }
-    .bottom-composer {
-      max-height: 34dvh;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
+    .bottom-composer { padding: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); gap: 6px; }
     .input-zone { padding: 4px; gap: 6px; }
     .word-input { height: 44px; font-size: 16px; }
     .send-btn { width: 44px; height: 44px; }
