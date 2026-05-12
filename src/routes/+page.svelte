@@ -93,41 +93,286 @@
 
   const TUTORIAL_CHAPTERS = [
     {
+      title: '끝말잇기의 규칙 (구엜룰)',
+      lead: '끝말잇기를 제대로 배우기 전에, 이 사이트가 기준으로 삼는 기본 룰부터 정리합니다.',
+      sections: [
+        {
+          title: '목차',
+          points: [
+            '1. 끝말잇기의 규칙 (구엜룰)',
+            '2. 한방단어, 유도단어, 루트단어',
+            '3. 업시름 루트',
+            '4. 채린룰이란?',
+            '5. 채린룰 직업별 특징과 단어 검색 활용'
+          ]
+        },
+        {
+          title: '끝말잇기',
+          points: [
+            '끝말잇기는 한국인 모두가 할 줄 아는 게임입니다.',
+            '친구를 상대로 끝말잇기를 이기려면 2회차까지만 알아도 충분합니다.',
+            '3회차부터는 끝말잇기가 단순한 놀이가 아니라 하나의 자랑거리가 됩니다.'
+          ]
+        },
+        {
+          title: '구엜룰',
+          points: [
+            '끝말잇기에는 다양한 룰이 존재합니다.',
+            '보통 끝말잇기라 하면 구엜룰이 가장 기본적입니다.',
+            '넶룰은 네이버 사전을 기준으로 하는 룰이고, 쿵쿵따는 구엜룰을 기반으로 3글자 단어만 가능한 룰입니다.',
+            '채린룰(채린 잡룰)은 구엜룰을 기반으로 하며, 각 플레이어가 원하는 직업을 선택한 후 게임을 진행하는 룰입니다.',
+            '(구)표준국어대사전에 등재된 2글자 이상인 명사 단어만 사용할 수 있습니다.',
+            '두음법칙은 표준두음법칙을 적용합니다.',
+            '첫 수에는 한방단어나 유도단어를 사용할 수 없습니다.',
+            '표준두음법칙: 라(나), 래(내), 로(노), 루(누), 르(느), 뢰(뇌), 랴(야), 럐(얘), 료(요), 류(유), 리(이), 례(예), 녀(여), 뇨(요), 뉴(유), 니(이)',
+            '표준두음법칙은 받침에 영향받지 않습니다.'
+          ]
+        }
+      ]
+    },
+    {
+      title: '한방단어, 유도단어, 루트단어',
+      lead: '끝말잇기를 이기는 기본은 단어의 뜻이 아니라 끝음절의 위험도를 보는 것입니다.',
+      sections: [
+        {
+          title: '한방단어',
+          points: [
+            '한방단어는 끝음절로 시작하는 단어가 없는 단어입니다.',
+            '기차는 차로 시작하는 단어가 존재하므로 한방단어가 아닙니다.',
+            '기동돓은 돓으로 시작하는 단어가 존재하지 않으므로 한방단어입니다.'
+          ]
+        },
+        {
+          title: '유도단어',
+          points: [
+            '유도단어는 상대가 후에 무슨 수를 두든 한방단어로 유도되는 단어입니다.',
+            '나무꾼은 꾼내라는 단어가 존재하므로 겉으로는 한방이 아닙니다.',
+            '하지만 꾼내는 내슈빌데이비드슨 같은 내로 시작하는 한방단어로 이어질 수 있으므로, 나무꾼은 유도단어가 됩니다.',
+            '유도단어가 또 다른 유도단어로 이어져도 결국 한방단어로 끝나기만 하면 유도단어입니다.',
+            '단, 모든 경우의 수가 한방단어로 유도되어야 합니다.',
+            '기업은 업무를 받으면 무르팍이라는 한방단어로 이어질 수 있습니다.',
+            '그러나 업시름을 받으면 름 또는 늠으로 시작하는 한방단어 또는 유도단어가 없으므로, 기업은 유도단어가 될 수 없습니다.'
+          ]
+        },
+        {
+          title: '공격단어, 루트단어, 루트음절',
+          points: [
+            '한방단어와 유도단어를 통틀어서 공격단어라 합니다.',
+            '루트음절이란 해당 음절로 시작하는 공격단어가 존재하지 않는 음절입니다.',
+            '늠으로 시작하는 한방단어와 유도단어가 모두 존재하지 않으므로 늠은 루트음절입니다.',
+            '루트단어는 루트음절로 시작하며, 루트음절로 끝나는 단어입니다.',
+            '삭도 루트음절이고, 삭름은 루트음절 삭으로 시작해서 루트음절 름(늠)으로 끝나므로 루트단어입니다.',
+            '한마디로 루트단어는 바로 지지 않는 단어입니다.'
+          ]
+        },
+        {
+          title: '돌림단어',
+          points: [
+            '돌림단어는 한 단어의 첫음절로 끝나며, 끝음절로 시작하는 단어가 존재할 때 돌림단어 쌍이라 합니다.',
+            '삭축과 축삭은 서로 이어지는 루트단어이므로 돌림단어 쌍입니다.',
+            '권식, 권유식, 식권 중 권식과 식권은 돌림단어 쌍이지만 권유식은 돌림단어가 아닙니다.',
+            '참고로 균핵균, 식식과 같은 경우는 돌림단어가 아닙니다.'
+          ]
+        }
+      ]
+    },
+    {
+      title: '업시름 루트',
+      lead: '업시름 루트는 업시름을 소모시킨 뒤 다시 업을 주는 장기전 루트입니다.',
+      sections: [
+        {
+          title: '업이라는 음절의 특징',
+          points: [
+            '업시름 루트를 이해하려면 먼저 업이라는 음절부터 봐야 합니다.',
+            '끝말잇기에서 어떤 음절이 강한지는 그 음절로 시작하는 단어 수가 아니라, 실전에서 쓸 수 있는 루트단어가 얼마나 있냐로 결정됩니다.',
+            '업으로 시작하는 루트단어는 거의 없습니다.',
+            '대표적으로 업시름, 업무권, 업축 정도가 있는데, 업무권은 권업, 업축은 축산업 때문에 돌림이 됩니다.',
+            '즉 실전에서 업을 받았을 때 제대로 버티는 단어는 사실상 업시름 하나입니다.',
+            '업은 업시름이 빠지는 순간 죽는 음절입니다.'
+          ]
+        },
+        {
+          title: '목표',
+          points: [
+            '업시름 루트의 목표는 상대에게 업을 다시 주는 겁니다.',
+            '업시름이 이미 사용된 상태에서 상대가 업을 받으면, 상대는 업시름을 다시 쓸 수 없습니다.',
+            '그러면 남는 업 단어들은 돌림이거나 약한 수라서 버티기 어렵습니다.',
+            '한마디로 업시름 루트는 업시름을 소모시킨 뒤 다시 업을 꽂는 루트입니다.'
+          ]
+        },
+        {
+          title: '업시름 선공이 필승이 아닌 이유',
+          points: [
+            '업시름을 먼저 쓰면 상대에게 늠을 줍니다.',
+            '늠에는 늠준, 늠균, 늠식, 늠축 같은 선택지가 있습니다.',
+            '늠식은 식업 때문에 바로 업을 줄 수 있어서 약하고, 늠축도 축보름 때문에 돌림 쪽으로 빠집니다.',
+            '진짜 문제는 늠준과 늠균입니다.',
+            '특히 늠준은 업시름 루트 전체를 굴리는 중심축입니다.',
+            '업시름은 강한 단어지만 먼저 치면 상대에게 늠준이라는 탈출구를 주기 때문에 필승이 아닙니다.'
+          ]
+        },
+        {
+          title: '늠준과 준',
+          points: [
+            '늠준이 강한 이유는 준이라는 음절 때문입니다.',
+            '준에는 준견, 준삭, 준축, 준변, 준뢰, 준맹, 준직, 준척, 준민고택 등이 있습니다.',
+            '중요한 건 단어가 많다는 사실이 아니라, 준에서 나오는 길들이 다시 위험한 음절로 보내거나 이미 쓴 루트로 회수된다는 점입니다.',
+            '준직은 직업으로 업을 줄 수 있습니다.',
+            '준뢰는 뢰촉, 준맹은 맹험, 준척은 척촉처럼 정리됩니다.',
+            '준견, 준삭, 준축은 루트가 길어지지만 결국 업을 다시 주거나 상대 선택지를 줄이는 쪽으로 갑니다.',
+            '그래서 업시름 루트는 업을 죽이는 루트처럼 보이지만, 실제 운전대는 준이 잡고 있습니다.'
+          ]
+        },
+        {
+          title: '늠균과 칭',
+          points: [
+            '늠균은 균에서 분기가 생기기 때문에 복잡합니다.',
+            '균권, 균축, 균륜, 균습, 균현, 균핵균 같은 단어가 나옵니다.',
+            '균륜은 윤업, 균습은 습업, 균현은 현업으로 업을 줄 수 있습니다.',
+            '문제는 균권과 균축입니다.',
+            '균권은 권칭, 균축은 축대칭으로 칭에 들어갑니다.',
+            '칭굉은 굉업, 칭직과 칭병사직은 직업으로 정리됩니다.',
+            '칭송은 송욱, 욱은지붕, 붕획, 획득, 득업으로 이어집니다.',
+            '칭웅은 바로 업으로 가지 않으므로 웅준으로 받아 다시 준 구조로 복귀합니다.',
+            '칭웅은 웅준, 이것만 기억하면 됩니다.'
+          ]
+        },
+        {
+          title: '견, 축, 삭 관리',
+          points: [
+            '준견이 나오면 견에서 견취견, 견융, 견삭을 봅니다.',
+            '견융은 융으로 보내고, 융에서는 융즉 또는 융준으로 견이나 준에 연결합니다.',
+            '준축이나 균축으로 축이 나오면 축대칭이 핵심입니다.',
+            '축대칭은 칭으로 가고, 칭웅에서 웅준으로 다시 준에 들어갈 수 있습니다.',
+            '축대칭이 빠졌으면 축융을 봅니다.',
+            '축첩은 첩첩 때문에 상대가 좋은 루트를 잡을 수 있으니 조심합니다.',
+            '준삭이나 견삭으로 삭이 오면 보통 삭름을 생각합니다.',
+            '다만 늠준이 살아있으면 삭름은 위험하므로 삭즉삭으로 한 번 넘기는 선택이 필요합니다.',
+            '삭름도 위험하고 삭즉삭까지 썼는데 또 삭이 오면 삭벽을 봅니다.',
+            '삭벽은 벽읍, 읍륵, 륵삭으로 다시 삭에 연결할 수 있는 마지막 우회로입니다.'
+          ]
+        },
+        {
+          title: '실전 기억법',
+          points: [
+            '업은 업시름 빠지면 죽는다.',
+            '업시름 선공은 늠준 때문에 진다.',
+            '늠준은 이 루트의 중심이다.',
+            '늠균은 균권/균축 때문에 칭으로 간다.',
+            '칭웅은 무조건 웅준.',
+            '견은 견취견/견융으로 굴린다.',
+            '축은 축대칭, 안 되면 축융.',
+            '삭은 삭름이 기본인데 늠준이 살아있으면 조심한다.',
+            '삭름이 위험하면 삭즉삭, 진짜 마지막은 삭벽입니다.'
+          ]
+        }
+      ]
+    },
+    {
       title: '채린룰이란?',
-      lead: '기본 끝말잇기에 단어 분류와 직업 능력이 붙은 게임입니다. 단어 하나를 내도 “상대가 다음에 무엇을 받을지”까지 보는 방식입니다.',
-      points: [
-        '예: “사과”를 내면 다음 사람은 “과”로 시작하는 단어를 찾아야 합니다. 여기까지는 일반 끝말잇기와 같습니다.',
-        '예: 끝음절이 “릇”처럼 받기 어려운 음절이면 공격이 됩니다. 그래서 단어의 뜻보다 끝음절의 위험도가 중요합니다.',
-        '예: “라”로 받아야 할 때 두음법칙으로 “나”도 이어질 수 있습니다. 래/내, 로/노, 루/누, 리/이도 같은 식으로 봅니다.',
-        '예: 첫 수부터 바로 끝내는 한방단어를 던지면 게임이 너무 짧아지므로, 첫 수에는 한방단어와 유도단어가 제한됩니다.'
+      lead: '채린룰은 구엜룰 끝말잇기에 직업, 능력, 밴, 팀전, 상태 효과가 붙은 확장 룰입니다.',
+      sections: [
+        {
+          title: '기본 구조',
+          points: [
+            '채린룰은 기본적으로 구엜룰을 따릅니다.',
+            '사용 가능한 단어, 두음법칙, 첫 수 한방/유도 금지는 그대로 유지됩니다.',
+            '여기에 각 플레이어가 직업을 하나 선택합니다.',
+            '직업은 단어 흐름을 바꾸거나, 상대의 선택지를 막거나, 특정 음절을 강제로 만들 수 있습니다.',
+            '그래서 채린룰에서는 좋은 단어 하나를 아는 것보다 지금 어떤 직업들이 남아 있는지를 같이 보는 것이 중요합니다.'
+          ]
+        },
+        {
+          title: '게임 흐름',
+          points: [
+            '방을 만들고 인원이 모이면 직업 선택 단계로 들어갑니다.',
+            '밴 단계가 있으면 먼저 까다로운 직업을 막고 시작합니다.',
+            '직업이 확정되면 일반 끝말잇기처럼 현재 음절에 맞는 단어를 입력합니다.',
+            '단어를 낸 뒤에는 마지막 음절, 두음법칙, 직업 효과, 상태 효과가 함께 반영됩니다.',
+            '상대가 낸 단어가 틀렸다고 생각하면 무효 신청을 할 수 있고, 더 진행하기 어렵다면 항복할 수 있습니다.'
+          ]
+        },
+        {
+          title: '채린룰에서 강한 수',
+          points: [
+            '구엜룰에서는 한방, 유도, 루트만 잘 봐도 큰 틀이 잡힙니다.',
+            '채린룰에서는 거기에 직업 능력까지 계산해야 합니다.',
+            '상대가 한방을 막는 능력이 있으면 바로 한방단어를 내는 것이 약할 수 있습니다.',
+            '반대로 상대 능력이 빠진 직후에는 공격단어의 가치가 크게 올라갑니다.',
+            '채린룰의 좋은 수는 단어 자체가 강한 수가 아니라, 지금 직업 상태에서 가장 회피하기 어려운 수입니다.'
+          ]
+        },
+        {
+          title: '상태 효과와 팀전',
+          points: [
+            '게임 화면에는 한방불가, 유도불가, 두음불가, 능력불가 같은 상태가 표시됩니다.',
+            '한방불가가 있으면 한방단어를 알고 있어도 낼 수 없습니다.',
+            '두음불가가 있으면 평소에는 이어지는 두음법칙 단어가 막힐 수 있습니다.',
+            '능력불가가 있으면 직업 능력 대신 순수 단어 싸움으로 버텨야 합니다.',
+            '2대2, 3대3에서는 내가 바로 다음 사람만 보는 것이 아니라 팀 전체의 순서를 봐야 합니다.',
+            '팀전에서는 공격단어를 아껴서 특정 상대에게 맞추는 운영이 중요합니다.'
+          ]
+        }
       ]
     },
     {
-      title: '한방단어 이해하기',
-      lead: '한방은 “상대가 받은 음절로 다음 단어를 거의 못 찾는 상황”입니다. 검색 결과의 분류를 예시처럼 읽으면 됩니다.',
-      terms: [
-        ['한방음절', '예: “릇”처럼 시작 단어가 거의 없는 음절입니다. 상대가 이 음절을 받으면 바로 막힐 가능성이 큽니다.'],
-        ['유도음절', '예: 지금 당장은 받을 수 있지만, 상대가 평범하게 대응하면 다음에 한방음절로 몰리기 쉬운 길목입니다.'],
-        ['루트음절', '예: 바로 이기지는 않지만 유도나 한방으로 이어지는 출발점입니다. 공격을 준비하는 음절로 보면 됩니다.'],
-        ['한방단어', '예: 끝음절이 한방음절인 단어입니다. 내 단어의 마지막 글자가 상대의 위기가 됩니다.'],
-        ['유도단어', '예: 끝음절이 유도음절인 단어입니다. 상대가 둘 수는 있어도 선택지가 점점 좁아집니다.'],
-        ['루트단어', '예: 끝음절이 루트음절인 단어입니다. 초반에 바로 때리기보다 공격 루트를 만드는 단어입니다.'],
-        ['돌림단어', '예: 시작음절과 끝음절이 같거나, 흐름을 다시 안전한 쪽으로 돌리는 단어입니다. 막혔을 때 시간을 벌기 좋습니다.']
-      ],
-      points: [
-        '예: 검색 결과에 K가 붙으면 한방, I가 붙으면 유도, R이 붙으면 루트로 읽으면 됩니다.',
-        '예: “지금 K 단어를 낼 수 있는가”만 보지 말고, R 단어로 시작해서 I 단어를 거쳐 K 단어로 이어지는지도 봅니다.',
-        '예: 상대가 한방을 막는 능력을 들고 있으면 바로 K를 내기보다, 먼저 R이나 I로 상대 능력을 빼게 만들 수 있습니다.'
-      ]
-    },
-    {
-      title: '직업 시스템',
-      lead: '직업은 단어 싸움에 끼어드는 특수 규칙입니다. 같은 단어 상황이라도 직업에 따라 정답이 달라질 수 있습니다.',
-      points: [
-        '예: 해커는 조작/복제/초토화처럼 단어 흐름을 비트는 능력이 있으니, 단순히 좋은 단어만 찾으면 안 됩니다.',
-        '예: 마법사가 “공허”로 위기를 넘길 수 있다면, 한방단어를 바로 쓰기보다 먼저 능력을 쓰게 만드는 수가 좋을 수 있습니다.',
-        '예: 밴 단계에서는 강해 보이는 직업보다 내 직업의 핵심 공격을 막는 직업을 먼저 밴하는 편이 안전합니다.',
-        '예: 상태 패널에 한방불가, 유도금지, 두음금지 같은 표시가 있으면 그 턴에는 평소와 다른 단어를 골라야 합니다.'
+      title: '채린룰 직업별 특징과 단어 검색 활용',
+      lead: '직업은 단어 싸움의 방향을 바꾸고, 검색은 그 방향에 맞는 후보를 빠르게 찾는 도구입니다.',
+      sections: [
+        {
+          title: '직업을 읽는 기준',
+          points: [
+            '직업은 크게 단어 조작형, 방어형, 제한형, 정보형, 자원형으로 나눠서 보면 쉽습니다.',
+            '단어 조작형은 해커, 시프터, 프로그래머처럼 단어 흐름 자체를 바꿉니다.',
+            '방어형은 마법사, 생존자처럼 위기 상황을 한 번 버티는 데 강합니다.',
+            '제한형은 악당, 기자, 사신처럼 상대의 선택지를 줄입니다.',
+            '정보형은 감시자처럼 상대 상태나 단어 선택을 읽는 데 도움이 됩니다.',
+            '자원형은 투자자, 수집가처럼 시간이 지날수록 능력 가치가 커지는 쪽입니다.'
+          ]
+        },
+        {
+          title: '밴 단계에서 보는 것',
+          points: [
+            '밴은 무조건 강한 직업을 지우는 단계가 아닙니다.',
+            '내 직업이 하려는 공격을 가장 잘 막는 직업을 지우는 단계입니다.',
+            '내가 한방 루트로 끝내고 싶다면 한방을 무효화하거나 회피하는 직업이 위험합니다.',
+            '내가 장기전 직업이라면 초반에 강하게 압박하는 직업이 더 위험할 수 있습니다.',
+            '상대가 잘 쓰는 직업을 알고 있다면 성능보다 숙련도를 우선해서 밴하는 것도 좋습니다.'
+          ]
+        },
+        {
+          title: '단어 검색 기본',
+          points: [
+            '검색 탭에서는 기*, *차, 기? 같은 형태로 단어를 찾을 수 있습니다.',
+            '기*는 기로 시작하는 단어를 찾습니다.',
+            '*차는 차로 끝나는 단어를 찾습니다.',
+            '기?는 기로 시작하는 짧은 후보를 빠르게 훑을 때 좋습니다.',
+            'K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 때 사용합니다.',
+            '게임 중에는 오른쪽 검색 서랍을 열어 현재 흐름을 끊지 않고 후보를 볼 수 있습니다.'
+          ]
+        },
+        {
+          title: '검색 결과를 읽는 법',
+          points: [
+            '검색 결과에서 단어 종류를 먼저 봅니다.',
+            'K가 있으면 바로 공격할 수 있는 후보입니다.',
+            'I가 있으면 상대가 결국 한방으로 몰릴 가능성이 있는 후보입니다.',
+            'R은 바로 끝내지는 못하지만 장기전에서 버티거나 공격 루트를 만드는 후보입니다.',
+            '일반 단어는 안전하게 넘기는 데 쓸 수 있지만, 상대에게 좋은 음절을 줄 수 있으니 끝음절을 확인해야 합니다.',
+            '좋은 검색은 단어 하나를 고르는 것이 아니라, 내가 준 음절을 상대가 어떻게 받을지까지 보는 것입니다.'
+          ]
+        },
+        {
+          title: '실전 루틴',
+          points: [
+            '현재 이을 음절과 두음법칙 후보를 확인합니다.',
+            '내 상태와 상대 상태에 금지 효과가 있는지 봅니다.',
+            '검색에서 K/I/R 후보를 확인합니다.',
+            '내 직업 능력을 지금 써야 하는지, 단어만 내고 아껴야 하는지 판단합니다.',
+            '단어를 낸 뒤 다음 상대가 받을 음절과 그 다음 내 대응까지 생각합니다.',
+            '이 루틴을 반복하면 채린룰은 운보다 계산에 가까운 게임이 됩니다.'
+          ]
+        }
       ]
     }
   ];
@@ -683,8 +928,130 @@
   const timerState = $derived(snapshot?.meta?.timer || null);
   const maxBanCount = 6;
 
+  function cloneGameForResult(source) {
+    if (!source?.players?.length) return null;
+    return {
+      players: [...(source.players || [])],
+      playerStates: JSON.parse(JSON.stringify(source.playerStates || {})),
+      teamMode: source.teamMode || 1,
+      teamLives: source.teamLives ? [...source.teamLives] : null,
+      isPractice: !!source.isPractice
+    };
+  }
+
+  function cleanResultName(value) {
+    return String(value || '').replace(/\(.+?\)$/, '').trim();
+  }
+
+  function flattenResultLog(items) {
+    const lines = [];
+    for (const item of items || []) {
+      if (item?.text) lines.push(...String(item.text).split(/\n+/));
+      for (const reply of item?.replies || []) lines.push(...String(reply).split(/\n+/));
+    }
+    return lines.map((line) => line.trim()).filter(Boolean);
+  }
+
+  function buildGameResult(lines, resultGame) {
+    const parsedByName = new Map();
+    const winnerNames = new Set();
+    const addWinner = (value) => {
+      for (const name of String(value || '').split(',')) {
+        const clean = cleanResultName(name);
+        if (clean) winnerNames.add(clean);
+      }
+    };
+    const addRow = (row) => {
+      const name = cleanResultName(row.name);
+      if (!name) return;
+      parsedByName.set(name, { ...parsedByName.get(name), ...row, name });
+    };
+
+    let pending = null;
+    for (const line of lines) {
+      const teamRating = line.match(/^(.+?)\s*:\s*(\d+)에서\s*(\d+)\s*\(([+\-]?\d+)\)\s*\/\s*(.+)$/);
+      if (teamRating) {
+        addRow({
+          name: teamRating[1],
+          job: (teamRating[1].match(/\((.+?)\)$/) || [])[1] || '',
+          oldRating: Number(teamRating[2]),
+          newRating: Number(teamRating[3]),
+          delta: Number(teamRating[4]),
+          tierName: teamRating[5].trim()
+        });
+        continue;
+      }
+
+      const winnerLine = line.match(/승자는\s+(.+?)이다/);
+      if (winnerLine) addWinner(winnerLine[1]);
+
+      const teamWinnerLine = line.match(/^승리\s*팀:\s*(.+)$/);
+      if (teamWinnerLine) addWinner(teamWinnerLine[1]);
+
+      const playerLine = line.match(/^(.+?)\s+(승리!|패배)\s*(?:\((.+?)\))?$/);
+      if (playerLine) {
+        pending = {
+          name: playerLine[1],
+          result: playerLine[2].startsWith('승리') ? 'win' : 'lose',
+          job: playerLine[3] || ''
+        };
+        if (pending.result === 'win') addWinner(pending.name);
+        continue;
+      }
+
+      if (pending) {
+        const ratingLine = line.match(/^레이팅:\s*(\d+)에서\s*(\d+)\s*\(([+\-]?\d+)\)/);
+        if (ratingLine) {
+          pending.oldRating = Number(ratingLine[1]);
+          pending.newRating = Number(ratingLine[2]);
+          pending.delta = Number(ratingLine[3]);
+          continue;
+        }
+        const tierLine = line.match(/^티어:\s*(.+?)(?:\s*\(|$)/);
+        if (tierLine) {
+          pending.tierName = tierLine[1].trim();
+          addRow(pending);
+          pending = null;
+        }
+      }
+    }
+    if (pending) addRow(pending);
+
+    const players = resultGame?.players || [];
+    const rows = players.map((name, index) => {
+      const parsed = parsedByName.get(name) || {};
+      const state = resultGame?.playerStates?.[name] || {};
+      const team = resultGame?.teamMode > 1 ? (index % 2) + 1 : null;
+      const result = parsed.result || (winnerNames.size ? (winnerNames.has(name) ? 'win' : 'lose') : (parsed.delta > 0 ? 'win' : parsed.delta < 0 ? 'lose' : ''));
+      return {
+        name,
+        team,
+        result,
+        job: parsed.job || state.job || '',
+        oldRating: parsed.oldRating,
+        newRating: parsed.newRating,
+        delta: parsed.delta,
+        tierName: parsed.tierName
+      };
+    });
+
+    for (const [name, parsed] of parsedByName.entries()) {
+      if (!players.includes(name)) rows.push(parsed);
+    }
+
+    if (!rows.length && !parsedByName.size) return null;
+    return {
+      rows,
+      isPractice: !!resultGame?.isPractice,
+      hasRating: rows.some((row) => Number.isFinite(row.newRating))
+    };
+  }
+
   $effect(() => {
     const phase = game?.phase ?? '';
+    if ((phase === 'playing' || phase === 'job_selection') && game?.players?.length) {
+      lastPlayingGame = cloneGameForResult(game);
+    }
     if (phase && phase !== 'waiting') hasMatched = true;
     if (!practice && prevPhase === 'waiting' && phase && phase !== 'waiting') {
       showMatchBanner = true;
@@ -693,34 +1060,12 @@
     }
     if ((prevPhase === 'playing' || prevPhase === 'job_selection') && phase !== prevPhase && (phase === '' || phase === 'ended' || phase === 'finished' || !phase)) {
       const recent = log.slice(-30);
-      const changes = [];
-      const ratingRe = /^(.+?)\s*:\s*(\d+)에서\s*(\d+)\s*\(([+\-]\d+)\)\s*\/\s*(.+)$/;
+      const result = buildGameResult(flattenResultLog(recent), lastPlayingGame);
 
-      const checkText = (txt) => {
-        const m = txt?.match(ratingRe);
-        if (m) {
-          changes.push({
-            name: m[1].replace(/\(.+?\)$/, '').trim(),
-            job: (m[1].match(/\((.+?)\)$/) || [])[1] || '',
-            oldRating: Number(m[2]),
-            newRating: Number(m[3]),
-            delta: Number(m[4]),
-            tierName: m[5].trim()
-          });
-        }
-      };
-
-      for (const item of recent) {
-        checkText(item.text);
-        if (item.replies) {
-          for (const r of item.replies) checkText(r);
-        }
-      }
-
-      if (changes.length) {
-        matchResult = { changes };
+      if (result?.rows?.length) {
+        matchResult = result;
         clearTimeout(matchResultTimer);
-        matchResultTimer = setTimeout(() => (matchResult = null), 10000);
+        matchResultTimer = setTimeout(() => (matchResult = null), 12000);
       }
     }
     prevPhase = phase;
@@ -1887,9 +2232,6 @@
                       <Clock size={12} />{formatClock(timerState.remaining?.[player] ?? timerState.initialSeconds)}
                     </div>
                   {/if}
-                  {#if playerJob && jobInfoByJob[playerJob]}
-                    <div class="job-tooltip job-tooltip--player"><pre class="job-tooltip-text">{jobInfoByJob[playerJob]}</pre></div>
-                  {/if}
                   {#if getJobStatuses(game.playerStates?.[player]).length}
                     <div class="job-status-list">
                       {#each getJobStatuses(game.playerStates?.[player]) as st}
@@ -1964,9 +2306,6 @@
                   <span>{jobInitial(myState.job)}</span>
                 </div>
                 <div class="mj-name">{myState.job}</div>
-                {#if jobInfoByJob[myState.job]}
-                  <div class="job-tooltip job-tooltip--myjob"><pre class="job-tooltip-text">{jobInfoByJob[myState.job]}</pre></div>
-                {/if}
                 {#if myStatusList.length}
                   <div class="mj-status-list">
                     {#each myStatusList as st}
@@ -2201,19 +2540,28 @@
       <div class="tier-result-overlay" onclick={() => (matchResult = null)}
            onkeydown={(e) => e.key === 'Enter' && (matchResult = null)} role="button" tabindex="0">
         <div class="tier-result-card">
-          <div class="tr-title">매치 결과</div>
-          {#each matchResult.changes as c}
+          <div class="tr-title">게임 종료</div>
+          <div class="tr-subtitle">{matchResult.hasRating ? '현재 레이팅 점수표' : '현재 참가자 점수표'}</div>
+          {#each matchResult.rows as c}
             {@const ti = getTierInfo(c.newRating)}
-            <div class="tr-row" class:tr-win={c.delta > 0} class:tr-lose={c.delta <= 0}>
+            <div class="tr-row" class:tr-win={c.result === 'win' || c.delta > 0} class:tr-lose={c.result === 'lose' || c.delta < 0}>
               <div class="tr-player">
                 <span class="tr-name">{c.name}</span>
-                {#if c.job}<span class="tr-job">{c.job}</span>{/if}
+                {#if c.job || c.team}
+                  <span class="tr-job">{c.team ? `${c.team}팀` : ''}{c.team && c.job ? ' · ' : ''}{c.job}</span>
+                {/if}
               </div>
-              <div class="tr-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{c.tierName}</div>
-              <div class="tr-rating">{c.newRating}</div>
-              <div class="tr-delta" class:tr-pos={c.delta > 0} class:tr-neg={c.delta <= 0}>
-                {c.delta > 0 ? '+' : ''}{c.delta}
-              </div>
+              {#if Number.isFinite(c.newRating)}
+                <div class="tr-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{c.tierName || ti.name}</div>
+                <div class="tr-rating">{c.newRating}</div>
+                <div class="tr-delta" class:tr-pos={c.delta > 0} class:tr-neg={c.delta < 0}>
+                  {c.delta > 0 ? '+' : ''}{c.delta ?? 0}
+                </div>
+              {:else}
+                <div class="tr-result-badge" class:tr-result-win={c.result === 'win'} class:tr-result-lose={c.result === 'lose'}>
+                  {c.result === 'win' ? '승리' : c.result === 'lose' ? '패배' : '종료'}
+                </div>
+              {/if}
             </div>
           {/each}
           <div class="tr-dismiss">클릭하여 닫기</div>
@@ -2571,7 +2919,20 @@
                 <p>{chapter.lead}</p>
               </div>
             </div>
-            {#if chapter.terms}
+            {#if chapter.sections}
+              <div class="lecture-sections">
+                {#each chapter.sections as section}
+                  <section class="lecture-section">
+                    <h4>{section.title}</h4>
+                    <ul class="lecture-points">
+                      {#each section.points as point}
+                        <li>{point}</li>
+                      {/each}
+                    </ul>
+                  </section>
+                {/each}
+              </div>
+            {:else if chapter.terms}
               <div class="term-grid">
                 {#each chapter.terms as [term, desc]}
                   <div class="term-row">
@@ -2580,12 +2941,18 @@
                   </div>
                 {/each}
               </div>
+              <ul class="lecture-points">
+                {#each chapter.points as point}
+                  <li>{point}</li>
+                {/each}
+              </ul>
+            {:else}
+              <ul class="lecture-points">
+                {#each chapter.points as point}
+                  <li>{point}</li>
+                {/each}
+              </ul>
             {/if}
-            <ul class="lecture-points">
-              {#each chapter.points as point}
-                <li>{point}</li>
-              {/each}
-            </ul>
           </section>
         {/each}
       </div>
@@ -4556,6 +4923,23 @@
   }
   .lecture-heading h3 { font-size: 17px; font-weight: 900; }
   .lecture-heading p { margin-top: 3px; color: var(--text2); font-size: 13px; line-height: 1.55; }
+  .lecture-sections { display: grid; gap: 10px; }
+  .lecture-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg3);
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+  }
+  .lecture-section h4 {
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--text);
+  }
+  .lecture-section .lecture-points {
+    font-size: 12.5px;
+  }
   .term-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -4765,6 +5149,7 @@
   .tr-row:last-of-type { border-bottom: none; }
   .tr-win { background: linear-gradient(90deg, #22c55e08 0%, transparent 100%); border-radius: 8px; padding: 10px 8px; }
   .tr-lose { background: linear-gradient(90deg, #dc262608 0%, transparent 100%); border-radius: 8px; padding: 10px 8px; }
+  .tr-subtitle { margin: -4px 0 8px; font-size: 12px; color: var(--text3); text-align: center; }
   .tr-player { flex: 1; min-width: 0; }
   .tr-name { font-size: 15px; font-weight: 800; display: block; }
   .tr-job { font-size: 11px; color: var(--text3); }
@@ -4778,6 +5163,13 @@
   .tr-delta { font-size: 14px; font-weight: 900; min-width: 40px; text-align: right; }
   .tr-pos { color: var(--green); }
   .tr-neg { color: var(--red); }
+  .tr-result-badge {
+    min-width: 54px; padding: 5px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 900; text-align: center;
+    color: var(--text2); background: var(--bg2); border: 1px solid var(--border);
+  }
+  .tr-result-win { color: var(--green); background: #22c55e14; border-color: #22c55e44; }
+  .tr-result-lose { color: var(--red); background: #ef444414; border-color: #ef444444; }
   .tr-dismiss { text-align: center; font-size: 11px; color: var(--text3); margin-top: 14px; }
 
   /* ═══════════════════════════════════════════
@@ -5007,65 +5399,6 @@
     .rank-tier-badge { white-space: normal; text-align: right; }
     .rank-rating { font-size: 17px; }
     input, select { font-size: 16px !important; }
-  }
-
-  /* ─── Job Tooltip ─── */
-  .job-card { position: relative; }
-  .job-tooltip {
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 200;
-    width: 320px;
-    max-height: 340px;
-    overflow-y: auto;
-    background: #1a1a2e;
-    border: 1px solid #3a3a5c;
-    border-radius: 10px;
-    padding: 12px 14px;
-    box-shadow: 0 8px 32px #0008;
-    pointer-events: none;
-  }
-  .job-tooltip-text {
-    font-family: inherit;
-    font-size: 11.5px;
-    line-height: 1.7;
-    color: #ccd6f6;
-    white-space: pre-wrap;
-    margin: 0;
-  }
-  .job-card:hover .job-tooltip { display: block; }
-
-  /* Player card (left in-game column) — anchor to the right of the card */
-  .player-card { overflow: visible; }
-  .player-card .job-tooltip--player {
-    bottom: auto; top: 0; left: calc(100% + 8px); transform: none;
-    width: 280px; max-height: 300px;
-  }
-  .player-card:hover .job-tooltip--player { display: block; }
-
-  /* My-job panel (right control column) — anchor to the left of the panel */
-  .my-job-panel { overflow: visible; }
-  .my-job-panel .job-tooltip--myjob {
-    bottom: auto; top: 0; right: calc(100% + 8px); left: auto; transform: none;
-    width: 280px; max-height: 300px;
-  }
-  .my-job-panel:hover .job-tooltip--myjob { display: block; }
-
-  /* Job-ranking filter button — keep default top-anchored tooltip */
-  .jrs-btn { position: relative; }
-  .jrs-btn .job-tooltip--jrs { width: 280px; max-height: 300px; text-align: left; }
-  .jrs-btn:hover .job-tooltip--jrs { display: block; }
-
-  /* Narrow screens: flip side-anchored tooltips back to top-centered */
-  @media (max-width: 980px) {
-    .player-card .job-tooltip--player,
-    .my-job-panel .job-tooltip--myjob {
-      bottom: calc(100% + 8px); top: auto; left: 50%; right: auto;
-      transform: translateX(-50%);
-    }
   }
 
   /* ─── Floating word search ─── */
@@ -5805,10 +6138,4 @@
     height: 28px; padding: 0 14px; border-radius: 14px;
     color: #fff; font-size: 12px; font-weight: 700;
   }
-
-  /* ═══════════════════════════════════════════
-     DARK MODE — job tooltip (hardcoded dark bg)
-  ═══════════════════════════════════════════ */
-  :global([data-theme="dark"]) .job-tooltip { background: #0d0f14; border-color: var(--border2); }
-  :global([data-theme="dark"]) .job-tooltip-text { color: #b8c4e0; }
 </style>
