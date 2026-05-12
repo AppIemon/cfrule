@@ -11,7 +11,8 @@ export function installCpuStrategyPatch(context) {
     if (typeof cpuPickWord !== 'function' || cpuPickWord.__practiceHardMode) return;
 
     var __origCpuPickWord = cpuPickWord;
-    var HARD = { candidateCap: 260, deepCap: 34, opponentBeam: 12, replyBeam: 8 };
+    var __origCpuTryAbility = typeof cpuTryAbility === 'function' ? cpuTryAbility : null;
+    var HARD = { candidateCap: 900, deepCap: 72, opponentBeam: 14, replyBeam: 10 };
 
     function arr(value) {
       try { return Array.prototype.slice.call(value || []); } catch (e) { return []; }
@@ -108,17 +109,6 @@ export function installCpuStrategyPatch(context) {
       var oppState = opp && game.playerStates ? game.playerStates[opp] : null;
       var out = [], seen = {};
 
-      try {
-        var base = typeof cpuGetCandidates === 'function' ? cpuGetCandidates(game, name) : [];
-        base = arr(base);
-        base.sort(function (a, b) {
-          var ca = classRank(a), cb = classRank(b);
-          if (ca !== cb) return ca - cb;
-          return replyCount(a, game, oppState) - replyCount(b, game, oppState);
-        });
-        for (var i = 0; i < base.length && out.length < cap; i++) addCandidate(out, seen, game, state, oppState, base[i]);
-      } catch (e) {}
-
       var syls = startSyllables(game, state);
       for (var pass = 0; pass < 4 && out.length < cap; pass++) {
         for (var si = 0; si < syls.length && out.length < cap; si++) {
@@ -135,6 +125,17 @@ export function installCpuStrategyPatch(context) {
           }
         }
       }
+
+      try {
+        var base = typeof cpuGetCandidates === 'function' ? cpuGetCandidates(game, name) : [];
+        base = arr(base);
+        base.sort(function (a, b) {
+          var ca = classRank(a), cb = classRank(b);
+          if (ca !== cb) return ca - cb;
+          return replyCount(a, game, oppState) - replyCount(b, game, oppState);
+        });
+        for (var i = 0; i < base.length && out.length < cap; i++) addCandidate(out, seen, game, state, oppState, base[i]);
+      } catch (e) {}
 
       return { words: out.slice(0, cap || HARD.candidateCap), state: state, opp: opp, oppState: oppState };
     }
@@ -168,9 +169,9 @@ export function installCpuStrategyPatch(context) {
       var score = 0;
       if (rc === 0) score += 2000000000;
       score += (260 - Math.min(rc, 260)) * 16000;
-      try { if (isHanbang(word)) score += 12000000; } catch (e) {}
-      try { if (isYudo(word)) score += 2500000; } catch (e2) {}
-      try { if (isRoot(word)) score += 1200000; } catch (e3) {}
+      try { if (isHanbang(word)) score += 180000000; } catch (e) {}
+      try { if (isYudo(word)) score += 90000000; } catch (e2) {}
+      try { if (isRoot(word)) score += 45000000; } catch (e3) {}
       try { if (typeof cpuRuntimeContextScoreWord === 'function') score += cpuRuntimeContextScoreWord(word, game, state, oppState || {}); } catch (e4) {}
       try { if (typeof cpuJobBonus === 'function') score += cpuJobBonus(word, game, state, oppState || {}); } catch (e5) {}
       try { if (typeof cpuSituationWordUrgency === 'function') score += cpuSituationWordUrgency(word); } catch (e6) {}
@@ -210,8 +211,8 @@ export function installCpuStrategyPatch(context) {
           if (!mineAgain.length) deadly++;
         }
         info.forcedLoss = deadly > 0 || info.minMyReplies === 0;
-        info.score -= deadly * 18000000;
-        info.score -= attackReplies * 1200000;
+        info.score -= deadly * 26000000;
+        info.score -= attackReplies * 1800000;
         info.score += Math.min(info.minMyReplies, 80) * 42000;
         if (!info.forcedLoss) info.score += 5000000;
       } catch (e2) {
@@ -288,6 +289,124 @@ export function installCpuStrategyPatch(context) {
       }
     };
     cpuPickWord.__practiceHardMode = true;
+
+    function ready(state, field) {
+      return !state || !state[field] || state[field] <= 0;
+    }
+
+    function left(state, field, max) {
+      return state && (state[field] || 0) < max;
+    }
+
+    function canUse(state, name) {
+      try {
+        if (!state || state.lost_abilities || state.disabled_turns > 0 || state.absolutely_disabled > 0) return false;
+        var destroyed = state.destroyed_active_abilities || [];
+        return destroyed.indexOf(name) === -1;
+      } catch (e) { return false; }
+    }
+
+    function currentWord(game) {
+      try { return game && game.history && game.history.length ? game.history[game.history.length - 1] : ''; } catch (e) { return ''; }
+    }
+
+    function currentDanger(game, state) {
+      try {
+        var syls = startSyllables(game, state);
+        if (!syls || !syls.length) return 0;
+        var n = 0;
+        for (var i = 0; i < syls.length; i++) n += Math.max(0, Number(cpuCountAvailFast(syls[i], game)) || 0);
+        return n;
+      } catch (e) { return 999; }
+    }
+
+    function findAggressiveWord(game, state, oppState, mode) {
+      var syls = startSyllables(game, state);
+      var best = '';
+      var bestScore = -Infinity;
+      function consider(w) {
+        if (!passWord(game, w, state, oppState)) return;
+        if (mode === 'hanbang' && !isHanbang(w)) return;
+        if (mode === 'special' && !(isHanbang(w) || isYudo(w) || isRoot(w))) return;
+        var score = tacticalScore(w, game, '', state, '', oppState, '').score;
+        if (score > bestScore) { bestScore = score; best = w; }
+      }
+      for (var i = 0; i < syls.length; i++) {
+        var bucket = WORDS_BY_START && WORDS_BY_START[syls[i]] ? WORDS_BY_START[syls[i]] : [];
+        for (var j = 0; bucket && j < bucket.length; j++) consider(bucket[j]);
+      }
+      return best;
+    }
+
+    function aggressiveAbility(game, cpuName) {
+      try {
+        if (!game || !cpuName || !game.playerStates) return null;
+        if (typeof isMapAbilityBlocked === 'function' && isMapAbilityBlocked(game)) return null;
+        var state = game.playerStates[cpuName];
+        if (!state || !canUse(state, '')) return null;
+        var opp = opponentName(game, cpuName);
+        var oppState = opp && game.playerStates ? game.playerStates[opp] : null;
+        var turn = game.turnCount || 1;
+        var last = currentWord(game);
+        var danger = currentDanger(game, state);
+        var underAttack = !!(last && (isHanbang(last) || isYudo(last) || isRoot(last)));
+        var critical = danger <= 2 || underAttack;
+        var attackWord = findAggressiveWord(game, state, oppState, 'special');
+        var killWord = findAggressiveWord(game, state, oppState, 'hanbang');
+
+        if (state.job === '해커') {
+          if (canUse(state, '조작') && left(state, 'jojak_uses', 3) && ready(state, 'jojak_cooldown') && critical) return '조작';
+          if (canUse(state, '초토화') && left(state, 'chotohwa_uses', 2) && ready(state, 'chotohwa_cooldown') && (critical || attackWord || turn >= 5)) return '초토화';
+          if (canUse(state, '복제') && left(state, 'bokje_uses', 1) && (critical || turn >= 5)) return '복제';
+        }
+        if (state.job === '전우치' && canUse(state, '직격뢰') && left(state, 'lightning_uses', 3) && killWord) return '직격뢰 ' + killWord;
+        if (state.job === '감시자' && canUse(state, '탐지') && left(state, 'detect_uses', 2) && ready(state, 'detect_cooldown') && (critical || attackWord)) return '탐지';
+        if (state.job === '기자' && canUse(state, '거짓 보도') && left(state, 'report_uses', 4) && ready(state, 'report_cooldown') && (critical || turn >= 5)) return '거짓 보도';
+        if (state.job === '고죠' && canUse(state, '무량공처') && (state.gongcheo_uses || 0) > 0 && ready(state, 'gongcheo_cooldown') && (critical || turn >= 5)) return '무량공처';
+        if (state.job === '사신' && canUse(state, '사형 선고') && ready(state, 'death_cooldown') && (critical || (state.execution_count || 50) <= 18 || turn >= 4)) return '사형 선고';
+        if (state.job === '악당' && canUse(state, '결계') && left(state, 'barrier_uses', 4) && ready(state, 'barrier_cooldown') && (critical || turn >= 4)) return '결계';
+        if (state.job === '나이트') {
+          if (canUse(state, '교환') && left(state, 'exchange_uses', 2) && !state.exchange_pending && !state.exchange_active && (critical || underAttack)) return '교환';
+          if (canUse(state, '체크메이트') && left(state, 'checkmate_uses', 5) && ready(state, 'checkmate_cooldown') && turn >= 4) return '체크메이트';
+        }
+        if (state.job === '수리사' && canUse(state, '수리') && left(state, 'repair_uses', 3) && ready(state, 'repair_cooldown') && critical) return '수리';
+        if (state.job === '검객') {
+          if (canUse(state, '가르기') && left(state, 'slice_uses', 3) && ready(state, 'slice_cooldown') && last && typeof getSwordsmanSliceEdges === 'function' && getSwordsmanSliceEdges(last)) return '가르기';
+          if (canUse(state, '찌르기') && left(state, 'stab_uses', 2) && ready(state, 'stab_cooldown') && (critical || turn >= 8)) return '찌르기';
+        }
+        if (state.job === '마법사' && canUse(state, '공허') && left(state, 'void_uses', 5) && ready(state, 'void_cooldown') && critical) return '공허';
+        if (state.job === '스핔이') {
+          if (canUse(state, '호박') && left(state, 'speaki_pumpkin_uses', 2) && ready(state, 'speaki_pumpkin_cooldown') && critical) return '호박';
+          if (canUse(state, '물걸레질') && left(state, 'speaki_clean_uses', 3) && ready(state, 'speaki_clean_cooldown') && critical) return '물걸레질';
+        }
+        if (state.job === '해달') {
+          if (canUse(state, '깨부수기') && left(state, 'otter_smash_uses', 1) && last && last.length % 2 === 1 && typeof getSwordsmanSliceEdges === 'function' && getSwordsmanSliceEdges(last)) return '깨부수기';
+          if (canUse(state, '조개') && left(state, 'otter_clam_uses', 3) && ready(state, 'otter_clam_cooldown') && (critical || turn >= 4)) return '조개';
+        }
+        if (state.job === '시프터') {
+          if (canUse(state, '빅 시프트') && left(state, 'big_shift_uses', 1) && critical) return '빅 시프트';
+          if (canUse(state, '시프트') && left(state, 'shift_uses', 4) && critical) return '시프트';
+        }
+        if (state.job === '공룡' && canUse(state, '삼키기') && left(state, 'swallow_uses', 3) && ready(state, 'swallow_cooldown') && critical && game.history && game.history.length >= 2) return '삼키기';
+        if (state.job === '사과' && canUse(state, '사구아') && left(state, 'sagua_uses', 1) && (critical || turn >= 7)) return '사구아';
+        if (state.job === '마하트마간디' && canUse(state, '억제') && (state.gandhi_stacks || 0) >= 1 && ready(state, 'suppress_cooldown')) return '억제';
+      } catch (e) {}
+      return null;
+    }
+
+    if (__origCpuTryAbility) {
+      cpuTryAbility = function cpuTryAbility(game, cpuName) {
+        var picked = null;
+        try { picked = __origCpuTryAbility(game, cpuName); } catch (e) { picked = null; }
+        if (picked) return picked;
+        picked = aggressiveAbility(game, cpuName);
+        try {
+          if (picked && game) game.lastCpuAbilityDecision = { mode: 'practice-hard-v4', cpu: cpuName, ability: picked };
+        } catch (e2) {}
+        return picked;
+      };
+      cpuTryAbility.__practiceHardMode = true;
+    }
   }
 })();`;
 

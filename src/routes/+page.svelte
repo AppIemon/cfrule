@@ -158,11 +158,12 @@
           title: '공격단어, 루트단어, 루트음절',
           points: [
             '한방단어와 유도단어를 통틀어서 공격단어라 합니다.',
-            '루트음절이란 해당 음절로 시작하는 공격단어가 존재하지 않는 음절입니다.',
-            '늠으로 시작하는 한방단어와 유도단어가 모두 존재하지 않으므로 늠은 루트음절입니다.',
-            '루트단어는 루트음절로 시작하며, 루트음절로 끝나는 단어입니다.',
-            '삭도 루트음절이고, 삭름은 루트음절 삭으로 시작해서 루트음절 름(늠)으로 끝나므로 루트단어입니다.',
-            '한마디로 루트단어는 바로 지지 않는 단어입니다.'
+            '한방단어는 끝음절이 한방음절인 단어입니다. 즉 내가 그 단어를 내면 상대는 그 끝음절을 받아야 합니다.',
+            '유도단어는 끝음절이 유도음절인 단어입니다. 바로 끝나는 것은 아니지만 상대 응수가 결국 한방 쪽으로 몰립니다.',
+            '루트음절은 공격단어로 바로 정리되지 않는 장기전 음절입니다.',
+            '루트단어는 루트음절로 시작하고 루트음절로 끝나는 단어입니다.',
+            '예를 들어 삭과 름(늠)이 루트음절이면, 삭름은 루트음절 삭으로 시작해서 루트음절 름(늠)으로 끝나므로 루트단어입니다.',
+            '정리하면 K/I/R 검색 표시는 “이 단어를 냈을 때 상대가 받게 되는 끝음절의 성격”을 보는 것이고, 루트단어 판정은 시작음절까지 같이 봅니다.'
           ]
         },
         {
@@ -322,12 +323,23 @@
         {
           title: '직업을 읽는 기준',
           points: [
-            '직업은 크게 단어 조작형, 방어형, 제한형, 정보형, 자원형으로 나눠서 보면 쉽습니다.',
-            '단어 조작형은 해커, 시프터, 프로그래머처럼 단어 흐름 자체를 바꿉니다.',
-            '방어형은 마법사, 생존자처럼 위기 상황을 한 번 버티는 데 강합니다.',
-            '제한형은 악당, 기자, 사신처럼 상대의 선택지를 줄입니다.',
-            '정보형은 감시자처럼 상대 상태나 단어 선택을 읽는 데 도움이 됩니다.',
-            '자원형은 투자자, 수집가처럼 시간이 지날수록 능력 가치가 커지는 쪽입니다.'
+            '직업은 “음절을 바꾸는 직업”, “상대 단어 조건을 제한하는 직업”, “위기를 탈출하는 직업”, “스택으로 이기는 직업”으로 나눠서 봅니다.',
+            '음절 조작형은 해커(조작/복제/초토화), 시프터(시프트/빅 시프트), 마법사(공허), 수리사(수리), 검객(가르기), 나이트(교환), 프로그래머(Shift/Caps Lock/Backspace/Tab)처럼 현재 음절을 바꾸거나 받는 방식을 비틉니다.',
+            '제한형은 시인(2음절/유도음절/시적 허용), 나이트(체크메이트), 기자(거짓 보도/거짓 뉴스), 악당(결계/왜곡), 피보나치(뤼카 수열), 고죠(무량공처), 스폰지밥(게살버거/감자튀김/강도 채용)처럼 상대가 낼 수 있는 단어 종류를 줄입니다.',
+            '탈출형은 마법사 공허, 생존자 긴급 구조, 해달 조개/깨부수기, 스폰지밥 음식류, 검객 가르기, 우라늄 핵분열처럼 한방·유도·루트 압박을 받았을 때 길을 다시 엽니다.',
+            '스택/특수승리형은 갈릴레오 관측, 사신 사형 선고/영혼, 투자자 도박, 수집가 제작/채굴처럼 시간이 지날수록 판을 바꾸는 직업입니다.',
+            '따라서 “강한 직업”은 고정되어 있지 않고, 지금 상대가 내 압박을 바꿀 수 있는지, 제한을 걸 수 있는지, 시간을 벌면 이기는지로 읽어야 합니다.'
+          ]
+        },
+        {
+          title: '직업 상성 예시',
+          points: [
+            '상성은 단어 상성과 능력 상성이 합쳐진 결과입니다. CPU 상성표도 상대 직업별 카운터 후보를 따로 들고 있습니다.',
+            '해커는 조작과 복제로 사용 단어/흐름을 비트지만, 고죠·비밀요원·기자·환자처럼 능력을 봉쇄하거나 정보/디버프로 흔드는 직업에게 약하게 잡힙니다.',
+            '고죠는 무량공처로 한방/유도/능력 자체를 묶는 강한 제한형이지만, 기관사·피보나치·스폰지밥·작곡가처럼 턴 운영이나 별도 자원으로 압박하는 직업을 조심해야 합니다.',
+            '시인은 2음절, 유도음절, 시적 허용으로 규칙을 직접 건드리기 때문에 투자자·기관사·67·사과 같은 운영형 직업을 괴롭히기 좋습니다.',
+            '나이트는 체크메이트로 두음법칙을 막고 끝루트 조건을 걸 수 있어서 시프터·전우치·환자 상대로 강하지만, 고죠·해달·기관사·피보나치처럼 탈출/장기전 수단이 있는 쪽을 조심합니다.',
+            '검객과 해달은 서로 상성 축이 있습니다. 검객은 찌르기/가르기로 단어를 쪼개고, 해달은 조개/깨부수기로 홀수 길이와 위험 단어를 받아칠 수 있습니다.'
           ]
         },
         {
@@ -335,8 +347,9 @@
           points: [
             '밴은 무조건 강한 직업을 지우는 단계가 아닙니다.',
             '내 직업이 하려는 공격을 가장 잘 막는 직업을 지우는 단계입니다.',
-            '내가 한방 루트로 끝내고 싶다면 한방을 무효화하거나 회피하는 직업이 위험합니다.',
-            '내가 장기전 직업이라면 초반에 강하게 압박하는 직업이 더 위험할 수 있습니다.',
+            '내가 한방/유도 압박으로 끝내고 싶다면 공허, 긴급 구조, 조개, 교환, Shift, Backspace처럼 음절을 바꾸거나 탈출하는 직업이 위험합니다.',
+            '내가 장기전 직업이라면 고죠, 피보나치, 기자, 시인처럼 내 능력을 막거나 단어 조건을 묶는 직업이 더 위험할 수 있습니다.',
+            '내 직업이 특정 능력 하나에 의존한다면 비밀요원 포획, 과학자 DNA파괴, 고죠 무량공처처럼 능력 자체를 끊는 직업을 우선해서 봅니다.',
             '상대가 잘 쓰는 직업을 알고 있다면 성능보다 숙련도를 우선해서 밴하는 것도 좋습니다.'
           ]
         },
@@ -347,7 +360,8 @@
             '기*는 기로 시작하는 단어를 찾습니다.',
             '*차는 차로 끝나는 단어를 찾습니다.',
             '기?는 기로 시작하는 짧은 후보를 빠르게 훑을 때 좋습니다.',
-            'K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 때 사용합니다.',
+            'K는 한방음절, I는 유도음절, R은 루트음절, A는 1ㄱㅅ 검색의 A급 음절 묶음입니다. A는 K와 같은 뜻이 아닙니다.',
+            '검색 결과의 한방/유도 표시는 보통 끝음절 기준입니다. 루트는 실전 판정에서 시작음절과 끝음절을 같이 보는 경우가 있으니, “R로 끝난다”와 “루트단어다”를 구분해야 합니다.',
             '게임 중에는 오른쪽 검색 서랍을 열어 현재 흐름을 끊지 않고 후보를 볼 수 있습니다.'
           ]
         },
@@ -355,21 +369,23 @@
           title: '검색 결과를 읽는 법',
           points: [
             '검색 결과에서 단어 종류를 먼저 봅니다.',
-            'K가 있으면 바로 공격할 수 있는 후보입니다.',
-            'I가 있으면 상대가 결국 한방으로 몰릴 가능성이 있는 후보입니다.',
-            'R은 바로 끝내지는 못하지만 장기전에서 버티거나 공격 루트를 만드는 후보입니다.',
-            '일반 단어는 안전하게 넘기는 데 쓸 수 있지만, 상대에게 좋은 음절을 줄 수 있으니 끝음절을 확인해야 합니다.',
-            '좋은 검색은 단어 하나를 고르는 것이 아니라, 내가 준 음절을 상대가 어떻게 받을지까지 보는 것입니다.'
+            '한방은 끝음절이 한방음절이라 상대가 자연 응수로 막기 어렵다는 뜻입니다.',
+            '유도는 끝음절이 유도음절이라 상대가 여러 수를 둬도 결국 한방으로 몰릴 가능성이 높다는 뜻입니다.',
+            '루트는 바로 끝내는 표시는 아니고, 장기전에서 버티거나 다시 공격을 준비할 수 있는 음절/단어 후보입니다.',
+            '일반 단어는 안전하게 넘기는 데 쓸 수 있지만, 상대 직업이 그 음절에서 강한 능력을 쓰는지 확인해야 합니다.',
+            '상대에게 끝루트만, 루트만, 한방/루트만 같은 제한이 걸려 있으면 “단어 종류”보다 “끝음절 조건”이 우선입니다.',
+            '좋은 검색은 단어 하나를 고르는 것이 아니라, 내가 준 음절을 상대가 어떤 직업 능력으로 바꿀 수 있는지까지 보는 것입니다.'
           ]
         },
         {
           title: '실전 루틴',
           points: [
             '현재 이을 음절과 두음법칙 후보를 확인합니다.',
-            '내 상태와 상대 상태에 금지 효과가 있는지 봅니다.',
-            '검색에서 K/I/R 후보를 확인합니다.',
+            '검색에서 K/I/R 후보를 보되, K/I/R이 끝음절 분류인지 루트단어 판정인지 구분합니다.',
+            '내 상태와 상대 상태에 한방불가, 유도불가, 루트불가, 끝루트만, 능력불가, 두음불가가 있는지 봅니다.',
+            '상대 직업이 음절을 바꾸는 직업인지, 제한을 거는 직업인지, 탈출 능력을 가진 직업인지 확인합니다.',
             '내 직업 능력을 지금 써야 하는지, 단어만 내고 아껴야 하는지 판단합니다.',
-            '단어를 낸 뒤 다음 상대가 받을 음절과 그 다음 내 대응까지 생각합니다.',
+            '단어를 낸 뒤 상대가 자연 응수로 받을지, 능력으로 빠져나갈지, 다음 내 턴에 다시 공격할 수 있을지까지 생각합니다.',
             '이 루틴을 반복하면 채린룰은 운보다 계산에 가까운 게임이 됩니다.'
           ]
         }
@@ -955,11 +971,18 @@
   function buildGameResult(lines, resultGame) {
     const parsedByName = new Map();
     const winnerNames = new Set();
+    const loserNames = new Set();
+    const players = resultGame?.players || [];
+    const knownPlayers = new Set(players);
     const addWinner = (value) => {
       for (const name of String(value || '').split(',')) {
         const clean = cleanResultName(name);
         if (clean) winnerNames.add(clean);
       }
+    };
+    const addLoser = (value) => {
+      const clean = cleanResultName(value);
+      if (clean) loserNames.add(clean);
     };
     const addRow = (row) => {
       const name = cleanResultName(row.name);
@@ -985,17 +1008,25 @@
       const winnerLine = line.match(/승자는\s+(.+?)이다/);
       if (winnerLine) addWinner(winnerLine[1]);
 
+      const winByLine = line.match(/^(.+?)의\s+승리로\s+경기가\s+끝난다/);
+      if (winByLine) addWinner(winByLine[1]);
+
+      const loserLine = line.match(/^(.+?)(?:님)?의\s+패배로\s+게임을?\s*종료|^(.+?)(?:님)?의\s+패배로\s+경기가\s+끝/);
+      if (loserLine) addLoser(loserLine[1] || loserLine[2]);
+
       const teamWinnerLine = line.match(/^승리\s*팀:\s*(.+)$/);
       if (teamWinnerLine) addWinner(teamWinnerLine[1]);
 
       const playerLine = line.match(/^(.+?)\s+(승리!|패배)\s*(?:\((.+?)\))?$/);
       if (playerLine) {
+        if (pending) addRow(pending);
         pending = {
           name: playerLine[1],
           result: playerLine[2].startsWith('승리') ? 'win' : 'lose',
           job: playerLine[3] || ''
         };
         if (pending.result === 'win') addWinner(pending.name);
+        if (pending.result === 'lose') addLoser(pending.name);
         continue;
       }
 
@@ -1017,12 +1048,24 @@
     }
     if (pending) addRow(pending);
 
-    const players = resultGame?.players || [];
+    const knownWinnerCount = [...winnerNames].filter((name) => knownPlayers.has(name)).length;
+    const knownLoserCount = [...loserNames].filter((name) => knownPlayers.has(name)).length;
+    if (players.length > 1 && knownWinnerCount === players.length && knownLoserCount > 0) {
+      winnerNames.clear();
+      for (const name of players) {
+        if (!loserNames.has(name)) winnerNames.add(name);
+      }
+    } else if (players.length > 1 && knownWinnerCount === players.length) {
+      winnerNames.clear();
+    }
+
     const rows = players.map((name, index) => {
       const parsed = parsedByName.get(name) || {};
       const state = resultGame?.playerStates?.[name] || {};
       const team = resultGame?.teamMode > 1 ? (index % 2) + 1 : null;
-      const result = parsed.result || (winnerNames.size ? (winnerNames.has(name) ? 'win' : 'lose') : (parsed.delta > 0 ? 'win' : parsed.delta < 0 ? 'lose' : ''));
+      const result = loserNames.has(name)
+        ? 'lose'
+        : parsed.result || (winnerNames.size ? (winnerNames.has(name) ? 'win' : 'lose') : (parsed.delta > 0 ? 'win' : parsed.delta < 0 ? 'lose' : ''));
       return {
         name,
         team,
