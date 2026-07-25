@@ -358,6 +358,68 @@
     (canPlay || (game?.teamMode > 1 && myTeamIndex >= 0 && currentTeamIndex >= 0 && myTeamIndex % 2 === currentTeamIndex % 2))
   );
   const log = $derived(snapshot?.log || []);
+  // 능력 발동 연출. 봇이 문장 앞에 ⟦FX:종류:능력:직업⟧ 표시를 붙여 보낸다.
+  // 표시는 화면에 그대로 두지 않고 여기서 떼어내 카드로 만든다.
+  const FX_RE = /⟦FX:([ap]):([^:⟧]*):([^⟧]*)⟧\s*/;
+  function parseFx(text) {
+    const raw = String(text || '');
+    const m = raw.match(FX_RE);
+    if (!m) return null;
+    return {
+      passive: m[1] === 'p',
+      ability: m[2],
+      job: m[3],
+      body: raw.replace(FX_RE, '').replace(/^\[시스템\]:\s*/, '').trim()
+    };
+  }
+  function stripFx(text) {
+    return String(text || '').replace(FX_RE, '');
+  }
+  // 능력마다 색과 연출이 고정되도록 이름에서 뽑는다.
+  function fxHash(name, salt = 0) {
+    let h = salt;
+    for (let i = 0; i < String(name).length; i++) h = (h * 31 + String(name).charCodeAt(i)) & 0x7fffffff;
+    return h;
+  }
+  function fxHue(name) { return fxHash(name) % 360; }
+  // 두 번째 색을 멀찍이 띄워 카드마다 그라데이션이 다르게 보이게 한다.
+  function fxHue2(name) { return (fxHue(name) + 70 + (fxHash(name, 7) % 120)) % 360; }
+  const FX_MOTIFS = ['slash', 'burst', 'pulse', 'glitch'];
+  function fxMotif(name) { return FX_MOTIFS[fxHash(name, 13) % FX_MOTIFS.length]; }
+
+  const abilityFx = $derived(
+    log
+      .filter((item) => item.type === 'system' && FX_RE.test(item.text || ''))
+      .slice(-3)
+      .map((item) => ({ id: item.id, ...parseFx(item.text) }))
+      .reverse()
+  );
+
+  // 발동 순간 화면 전체를 덮는 연출. 같은 능력이 또 떠도 다시 재생되도록
+  // seq 를 키로 써서 애니메이션을 처음부터 돌린다.
+  let castFx = $state(null);
+  let castSeq = $state(0);
+  let castSeenId = null;
+  let castPrimed = false;
+  let castTimer = null;
+  $effect(() => {
+    const latest = abilityFx[0];
+    if (!latest) return;
+    if (!castPrimed) {
+      // 새로고침·재접속 때 이미 쌓여 있던 기록으로 컷신이 터지지 않게 한 번 건너뛴다.
+      castPrimed = true;
+      castSeenId = latest.id;
+      return;
+    }
+    if (latest.id === castSeenId) return;
+    castSeenId = latest.id;
+    castFx = latest;
+    castSeq += 1;
+    clearTimeout(castTimer);
+    castTimer = setTimeout(() => { castFx = null; }, 1700);
+  });
+  onDestroy(() => clearTimeout(castTimer));
+
   const notices = $derived(log.filter((item) => item.type === 'system' && !isGuiOnlyNotice(item.text)).slice(-4).reverse());
   const abilityButtons = $derived(ACTIVE_BY_JOB[myState?.job] || []);
   const myAbilityStatuses = $derived(getPlayerAbilitiesStatus(myState?.job, myState));
@@ -1781,7 +1843,7 @@
           <div class="notice-list">
             {#each notices as item (item.id)}
               <div class="notice-item">
-                <Info size={13} /><span>{item.text}</span>
+                <Info size={13} /><span>{stripFx(item.text)}</span>
               </div>
             {/each}
           </div>
@@ -1789,8 +1851,31 @@
       </div>
 
     {:else if game.phase === 'playing'}
+      <!-- ─── ABILITY CUT-IN ─── -->
+      {#if castFx}
+        {#key castSeq}
+          <div
+            class="cast"
+            data-motif={fxMotif(castFx.ability)}
+            class:cast-passive={castFx.passive}
+            style="--c1:{fxHue(castFx.ability)};--c2:{fxHue2(castFx.ability)}"
+          >
+            <span class="cast-wash"></span>
+            <span class="cast-ring"></span>
+            <span class="cast-ring cast-ring2"></span>
+            <span class="cast-bars"></span>
+            <span class="cast-streak"></span>
+            <div class="cast-core">
+              <div class="cast-kind">{castFx.passive ? 'PASSIVE' : 'ACTIVE'}</div>
+              <div class="cast-name" data-text={castFx.ability}>{castFx.ability}</div>
+              {#if castFx.job}<div class="cast-job">{castFx.job}</div>{/if}
+            </div>
+          </div>
+        {/key}
+      {/if}
+
       <!-- ─── IN-GAME ─── -->
-      <div class="ingame">
+      <div class="ingame" class:board-hit={!!castFx}>
 
         <!-- Syllable Hero Bar -->
         <div class="syl-hero" class:my-turn-hero={canPlay}>
@@ -1932,6 +2017,23 @@
 
           <!-- CENTER: Board -->
           <main class="col-board">
+            <!-- Ability activations -->
+            {#if abilityFx.length}
+              <div class="fx-feed">
+                {#each abilityFx as fx (fx.id)}
+                  <div class="fx-card" class:fx-passive={fx.passive} style="--fx-hue:{fxHue(fx.ability)};--fx-hue2:{fxHue2(fx.ability)}">
+                    <span class="fx-flare"></span>
+                    <div class="fx-top">
+                      <span class="fx-name">{fx.ability}</span>
+                      <span class="fx-kind">{fx.passive ? 'PASSIVE' : 'ACTIVE'}</span>
+                    </div>
+                    {#if fx.job}<div class="fx-job">{fx.job}</div>{/if}
+                    {#if fx.body}<div class="fx-body">{fx.body}</div>{/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
             <!-- Word history -->
             <div class="word-history" bind:this={historyEl}>
               {#if !(game.history || []).length}
@@ -3935,6 +4037,281 @@
     color: var(--text3);
     font-style: italic;
   }
+  /* ── 능력 발동 컷인 ────────────────────────────────
+     --c1 / --c2 는 능력 이름에서 뽑은 두 색이라 능력마다 다른 그라데이션이 된다.
+     data-motif 로 능력마다 등장 방식까지 갈린다. */
+  .cast {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  /* 뒤 화면이 비쳐 글자를 갉아먹지 않게 한 겹 눌러 준다.
+     .cast 자체에 opacity 를 주면 글자까지 같이 흐려지므로 별도 층으로 깐다. */
+  .cast::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #000;
+    animation: castScrim 1.6s ease both;
+  }
+  @keyframes castScrim {
+    0%   { opacity: 0; }
+    10%  { opacity: .72; }
+    62%  { opacity: .62; }
+    100% { opacity: 0; }
+  }
+  /* 화면 전체를 한 번 물들이는 섬광 */
+  .cast-wash {
+    position: absolute;
+    inset: -20%;
+    background:
+      radial-gradient(circle at 50% 50%, hsl(var(--c1) 95% 60% / .55), transparent 62%),
+      linear-gradient(120deg, hsl(var(--c2) 95% 55% / .40), transparent 55%);
+    animation: castWash 1.6s cubic-bezier(.2,.9,.2,1) both;
+  }
+  /* 퍼져 나가는 충격파 */
+  .cast-ring {
+    position: absolute;
+    width: 42vmin; height: 42vmin;
+    border-radius: 50%;
+    border: 3px solid hsl(var(--c1) 95% 68% / .9);
+    animation: castRing 1.15s cubic-bezier(.15,.85,.25,1) both;
+  }
+  .cast-ring2 {
+    border-color: hsl(var(--c2) 95% 70% / .75);
+    border-width: 2px;
+    animation-delay: .12s;
+  }
+  /* 대각선으로 훑고 지나가는 띠 */
+  .cast-bars {
+    position: absolute;
+    inset: -40%;
+    background: repeating-linear-gradient(
+      -18deg,
+      hsl(var(--c1) 90% 62% / .30) 0 10px,
+      transparent 10px 34px
+    );
+    transform: translateX(-120%);
+    animation: castBars 1.25s cubic-bezier(.25,.9,.25,1) both;
+  }
+  .cast-streak {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 34%, hsl(var(--c2) 100% 82% / .75) 50%, transparent 66%);
+    transform: translateX(-140%) skewX(-12deg);
+    animation: castStreak .85s cubic-bezier(.3,.85,.25,1) .08s both;
+  }
+  .cast-core { position: relative; text-align: center; padding: 0 16px; }
+  .cast-kind {
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .42em;
+    color: hsl(var(--c2) 95% 80%);
+    text-shadow: 0 0 12px hsl(var(--c2) 100% 60% / .8);
+    animation: castKind 1.5s ease both;
+  }
+  .cast-name {
+    font-size: clamp(2.6rem, 12vw, 6rem);
+    font-weight: 900;
+    letter-spacing: .06em;
+    line-height: 1.05;
+    background: linear-gradient(100deg, hsl(var(--c1) 100% 72%), hsl(var(--c2) 100% 78%) 55%, hsl(var(--c1) 100% 70%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 26px hsl(var(--c1) 100% 55% / .85));
+    animation: castName 1.6s cubic-bezier(.14,1,.3,1) both;
+  }
+  .cast-job {
+    margin-top: 6px;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .3em;
+    color: #fff;
+    text-shadow: 0 0 14px hsl(var(--c1) 100% 55% / .9);
+    animation: castKind 1.5s ease .06s both;
+  }
+  .cast-passive .cast-name { letter-spacing: .12em; }
+
+  /* 능력마다 등장 방식이 다르게 */
+  .cast[data-motif='burst'] .cast-name { animation-name: castNameBurst; }
+  .cast[data-motif='pulse'] .cast-name { animation-name: castNamePulse; }
+  .cast[data-motif='glitch'] .cast-name { animation-name: castNameGlitch; }
+  .cast[data-motif='pulse'] .cast-bars { animation-name: castBarsPulse; }
+  .cast[data-motif='glitch'] .cast-streak { animation-duration: .5s; animation-iteration-count: 2; }
+
+  @keyframes castWash {
+    0%   { opacity: 0; }
+    12%  { opacity: 1; }
+    55%  { opacity: .55; }
+    100% { opacity: 0; }
+  }
+  @keyframes castRing {
+    0%   { opacity: 0; transform: scale(.15); }
+    18%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(3.4); }
+  }
+  @keyframes castBars {
+    0%   { opacity: 0; transform: translateX(-120%); }
+    20%  { opacity: 1; }
+    100% { opacity: 0; transform: translateX(120%); }
+  }
+  @keyframes castBarsPulse {
+    0%   { opacity: 0; transform: scale(.6); }
+    25%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.6); }
+  }
+  @keyframes castStreak {
+    0%   { transform: translateX(-140%) skewX(-12deg); }
+    100% { transform: translateX(140%) skewX(-12deg); }
+  }
+  @keyframes castKind {
+    0%   { opacity: 0; transform: translateY(10px); letter-spacing: .9em; }
+    22%  { opacity: 1; transform: none; letter-spacing: .42em; }
+    76%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  /* 기본: 크게 흐릿하게 들어와 꽂히고, 마지막에 살짝 커지며 사라진다 */
+  @keyframes castName {
+    0%   { opacity: 0; transform: scale(2.6) rotate(-4deg); filter: blur(18px) drop-shadow(0 0 26px hsl(var(--c1) 100% 55% / .85)); }
+    26%  { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 0 26px hsl(var(--c1) 100% 55% / .85)); }
+    72%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.16); }
+  }
+  @keyframes castNameBurst {
+    0%   { opacity: 0; transform: scale(.2); }
+    20%  { opacity: 1; transform: scale(1.22); }
+    34%  { transform: scale(.96); }
+    46%  { transform: scale(1.04); }
+    72%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.3); }
+  }
+  @keyframes castNamePulse {
+    0%   { opacity: 0; transform: scale(1.7); filter: blur(14px); }
+    24%  { opacity: 1; transform: scale(1); filter: blur(0); }
+    40%  { transform: scale(1.07); }
+    56%  { transform: scale(1); }
+    72%  { transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.14); }
+  }
+  @keyframes castNameGlitch {
+    0%   { opacity: 0; transform: translateX(-26px) scale(1.5) skewX(14deg); filter: blur(10px); }
+    14%  { opacity: 1; transform: translateX(12px) scale(1) skewX(-8deg); filter: blur(0); }
+    22%  { transform: translateX(-9px) skewX(6deg); }
+    30%  { transform: translateX(5px) skewX(-3deg); }
+    38%  { transform: none; }
+    74%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.12); }
+  }
+  /* 발동 순간 판이 한 번 흔들린다 */
+  .board-hit { animation: boardHit .5s cubic-bezier(.36,.07,.19,.97) both; }
+  @keyframes boardHit {
+    0%, 100% { transform: none; }
+    12% { transform: translate(-6px, 3px); }
+    28% { transform: translate(5px, -4px); }
+    44% { transform: translate(-4px, -2px); }
+    62% { transform: translate(3px, 2px); }
+    80% { transform: translate(-2px, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cast-wash, .cast-ring, .cast-bars, .cast-streak { display: none; }
+    .cast-name, .cast-kind, .cast-job { animation: castStill 1.4s ease both; }
+    .board-hit { animation: none; }
+    @keyframes castStill { 0%, 100% { opacity: 0; } 15%, 75% { opacity: 1; } }
+  }
+
+  /* ── 능력 기록 카드 ────────────────────────────────
+     --fx-hue 는 능력 이름에서 뽑아 능력마다 색이 고정된다. */
+  .fx-feed { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  /* 기본값은 밝은 테마 기준이다. 어두운 테마는 아래에서 따로 덮는다. */
+  .fx-card {
+    position: relative;
+    overflow: hidden;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid hsl(var(--fx-hue) 60% 48% / .45);
+    background:
+      linear-gradient(115deg, hsl(var(--fx-hue) 75% 55% / .20), hsl(var(--fx-hue2) 75% 55% / .10) 62%, transparent);
+    box-shadow: 0 6px 18px hsl(var(--fx-hue) 50% 40% / .16);
+    animation: fxIn .42s cubic-bezier(.16,1,.3,1) both;
+  }
+  /* 왼쪽 색 띠로 능력마다 첫인상이 다르게 */
+  .fx-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: linear-gradient(hsl(var(--fx-hue) 90% 55%), hsl(var(--fx-hue2) 90% 60%));
+  }
+  /* 카드를 한 번 훑고 지나가는 빛. */
+  .fx-flare {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, hsl(var(--fx-hue) 90% 70% / .26) 50%, transparent 70%);
+    transform: translateX(-120%);
+    animation: fxSweep .9s cubic-bezier(.3,.8,.3,1) .1s both;
+    pointer-events: none;
+  }
+  .fx-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .fx-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    background: linear-gradient(100deg, hsl(var(--fx-hue) 80% 32%), hsl(var(--fx-hue2) 80% 38%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .fx-kind {
+    font-size: .58rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--fx-hue) 55% 45% / .5);
+    color: hsl(var(--fx-hue) 60% 36%);
+  }
+  .fx-passive .fx-kind { border-style: dashed; }
+
+  :global([data-theme="dark"]) .fx-card {
+    border-color: hsl(var(--fx-hue) 70% 55% / .55);
+    background: linear-gradient(135deg, hsl(var(--fx-hue) 70% 50% / .22), hsl(var(--fx-hue) 70% 50% / .05));
+    box-shadow: 0 0 0 1px hsl(var(--fx-hue) 70% 50% / .12), 0 6px 20px hsl(var(--fx-hue) 70% 30% / .35);
+  }
+  :global([data-theme="dark"]) .fx-name {
+    background: linear-gradient(100deg, hsl(var(--fx-hue) 90% 76%), hsl(var(--fx-hue2) 90% 80%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: drop-shadow(0 0 12px hsl(var(--fx-hue) 90% 60% / .5));
+  }
+  :global([data-theme="dark"]) .fx-kind {
+    border-color: hsl(var(--fx-hue) 70% 60% / .5);
+    color: hsl(var(--fx-hue) 70% 72%);
+  }
+  :global([data-theme="dark"]) .fx-flare {
+    background: linear-gradient(105deg, transparent 30%, hsl(var(--fx-hue) 90% 75% / .40) 50%, transparent 70%);
+  }
+  .fx-job { margin-top: 1px; font-size: .68rem; letter-spacing: .05em; color: var(--text2); }
+  .fx-body { margin-top: 5px; font-size: .82rem; line-height: 1.5; color: var(--text); }
+
+  @keyframes fxIn {
+    from { opacity: 0; transform: translateY(10px) scale(.96); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes fxSweep {
+    to { transform: translateX(120%); }
+  }
+  /* 애니메이션을 줄여 달라고 한 사용자에게는 정적으로 보여 준다. */
+  @media (prefers-reduced-motion: reduce) {
+    .fx-card { animation: none; }
+    .fx-flare { display: none; }
+  }
+
   .word-bubble {
     display: flex;
     justify-content: calc(var(--bi) * 100%);

@@ -17485,4 +17485,27 @@ Alt-F4 콤보를 준비합니다.`;
 })();
 
 
+/* ============================================================
+   능력 발동을 화면에 실어 보내기
+   - getJobDialogue 는 빈 문자열만 돌려주는 껍데기였다. 능력 이름이 세 번째
+     인자로 들어오는데(101곳) 그대로 버려져서, 발동해도 설명문 한 줄뿐이었다.
+     게다가 jobLine 은 직업명까지 버린다.
+   - 여기서 능력·직업·종류를 눈에 안 띄는 표시로 실어 보내면, 웹이 그걸 읽어
+     연출로 띄운다. 표시를 못 읽는 곳에서도 문장 자체는 그대로 읽힌다.
+   - sanitizeOutput 이 | → / 로, · → . 로 바꾸고 ◆▶§※￦ 를 지우므로
+     구분자로 쓰면 안 된다. ⟦ ⟧ 와 : 은 건드리지 않는다.
+   ============================================================ */
+(function () {
+  var S = Bot.scope;
+
+  S.getJobDialogue = function (job, section, key, fallback) {
+    var ability = String(key == null ? "" : key).trim();
+    if (!ability) return "";
+    var kind = section === "passive" ? "p" : "a";
+    var owner = String(job == null ? "" : job).replace(/[:⟧]/g, "");
+    return "⟦FX:" + kind + ":" + ability.replace(/[:⟧]/g, "") + ":" + owner + "⟧";
+  };
+})();
+
+
 const response = Bot.functions.main;
