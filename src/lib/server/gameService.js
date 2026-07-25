@@ -28,7 +28,13 @@ export async function lookupSessionFromCookieHeader(cookieHeader) {
 const logs = new Map();
 const roomMeta = new Map();
 const commandHistory = new Map();
+// room -> Promise, so concurrent requests during a cold start await the SAME restore
+// instead of racing against a half-replayed game object.
+const restoreInFlight = new Map();
 const restoredRooms = new Set();
+// room -> timestamp. The bot deletes games[room] when a match is finalized, so the
+// game object itself can never report an "ended" phase; this is the durable marker.
+const finishedRooms = new Map();
 const restartTimers = new Map();
 const clockTimers = new Map();
 const clockFinalizing = new Set();
@@ -74,7 +80,8 @@ async function persistRoom(room, stateOverride = null) {
       log: logs.get(room) || [],
       commands: commandHistory.get(room) || [],
       snapshot: state,
-      lastGame: state?.game || null
+      lastGame: state?.game || null,
+      finishedAt: finishedRooms.get(room) || 0
     });
   } catch {
     // Mongo unavailable; in-memory room still works in local/dev.
@@ -90,27 +97,67 @@ async function loadPersistedRoom(room) {
   }
 }
 
-async function restoreRoom(room) {
-  if (restoredRooms.has(room)) return;
-  restoredRooms.add(room);
+function restoreRoom(room) {
+  if (restoredRooms.has(room)) return Promise.resolve();
+  // Two requests can hit a cold-started instance at once. Marking the room restored
+  // before the async work finished let the second caller proceed against a partially
+  // replayed game, which surfaced as the game snapping back to job selection.
+  const existing = restoreInFlight.get(room);
+  if (existing) return existing;
+  const task = performRestore(room).finally(() => {
+    restoreInFlight.delete(room);
+    restoredRooms.add(room);
+  });
+  restoreInFlight.set(room, task);
+  return task;
+}
+
+// A replayed command list has to reproduce the whole game or none of it. Stopping
+// halfway leaves games[room] sitting in whatever phase it happened to reach — almost
+// always job_selection, right after the room-creating command.
+async function performRestore(room) {
   const persisted = await loadPersistedRoom(room);
   if (!persisted) return;
   if (persisted.meta) roomMeta.set(room, persisted.meta);
   if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
   if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
+  if (persisted.finishedAt) finishedRooms.set(room, persisted.finishedAt);
 
   // Best effort replay for active rooms. This keeps the VM game object alive after a serverless cold start.
-  // Rating-changing commands are not replayed after a finished game because persisted.snapshot is used instead.
+  // A finished match must never be replayed: the bot would re-create the room and walk
+  // it back to job selection, and rating-changing commands would run a second time.
+  if (finishedRooms.has(room)) return;
   const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
-  const replayable = lastPhase && lastPhase !== 'ended' && lastPhase !== 'finished' && !/종료|승리|패배/.test((persisted.log || []).slice(-8).map((x) => x.text).join('\n'));
-  if (!replayable) return;
-  const commands = (persisted.commands || []).slice(-120);
-  for (const item of commands) {
+  if (!lastPhase || lastPhase === 'ended' || lastPhase === 'finished') return;
+
+  const commands = persisted.commands || [];
+  // The command log is capped, so an older room may no longer hold the command that
+  // created the game. Replaying from the middle just throws on every entry.
+  const startIndex = commands.findIndex((item) => isGameStartCommand(item?.command));
+  if (startIndex === -1) return;
+
+  for (const item of commands.slice(startIndex)) {
     try {
       await dispatchBotMessage(room, item.command, item.sender);
     } catch {
-      break;
+      // Drop the partial game rather than exposing a half-replayed state; callers
+      // fall back to the persisted snapshot, which is at least self-consistent.
+      await discardBotRoom(room);
+      return;
     }
+  }
+}
+
+function isGameStartCommand(command) {
+  return /^1(채린|연습)/.test(String(command || '').trim());
+}
+
+async function discardBotRoom(room) {
+  try {
+    const { botDeleteRoom } = await import('./botEngine.js');
+    await botDeleteRoom(room);
+  } catch {
+    // Nothing to clean up if the engine never created the room.
   }
 }
 
@@ -169,20 +216,19 @@ function startCommand(meta) {
   return `1연습${modeText}${job ? ` ${job}` : ''}`;
 }
 
-function looksLikeGameEnd(replies) {
-  const text = (replies || []).join('\n');
-  return /\[\s*(팀\s*)?티어전 결과\s*\]|경기 종료|게임 종료|^.+ 승리! /m.test(text);
-}
-
-function scheduleAutoRestart(room, sender, replies) {
+function scheduleAutoRestart(room, sender, ended) {
   const meta = roomMeta.get(room);
-  if (!meta || !looksLikeGameEnd(replies)) return;
+  if (!meta || !ended) return;
   if (restartTimers.has(room)) clearTimeout(restartTimers.get(room));
   append(room, 'system', '', ['[시스템]: 사람이 충분하다고 보고 다음 게임을 자동으로 준비합니다.']);
   const timer = setTimeout(async () => {
     restartTimers.delete(room);
     try {
       const command = startCommand(meta);
+      // A new match starts here, so the finished marker lifts and the previous game's
+      // commands must not stay in the replay log — they would rebuild the old game.
+      finishedRooms.delete(room);
+      commandHistory.set(room, []);
       const restartReplies = await dispatchBotMessage(room, command, sender || meta.owner || 'player');
       rememberCommand(room, sender || meta.owner || 'player', command);
       append(room, sender || meta.owner || 'system', command, restartReplies);
@@ -402,16 +448,28 @@ export async function sendCommand({ room, nickname, command }) {
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
   const msg = String(command || '').trim();
+  // Starting a fresh match clears the finished marker and the previous game's replay log.
+  if (isGameStartCommand(msg)) {
+    finishedRooms.delete(room);
+    commandHistory.set(room, []);
+  }
   await updateRoomClock(room, { finalize: true });
   const blockedJob = selectionBlocked(room, msg);
+  // finalizeMatch deletes games[room] on the bot side, so "the game object existed
+  // before this command and is gone afterwards" is the authoritative end-of-match
+  // signal. Matching on reply text missed practice-mode endings and fired on any
+  // message that merely mentioned 승리/종료.
+  const hadGame = !!(await botRoomState(room));
   const replies = blockedJob
     ? [`[시스템]: ${blockedJob} 직업은 이 방에서 선택 불가능합니다.`]
     : (msg ? await dispatchBotMessage(room, msg, sender) : []);
+  const ended = hadGame && !(await botRoomState(room));
+  if (ended) finishedRooms.set(room, Date.now());
   if (msg) rememberCommand(room, sender, msg);
   append(room, sender, msg, replies);
   await applyRoomOptions(room);
   await updateRoomClock(room, { finalize: true });
-  scheduleAutoRestart(room, sender, replies);
+  scheduleAutoRestart(room, sender, ended);
   const state = await buildRoomSnapshot(room, true);
   await persistRoom(room, state);
   publishRoom(room, state);

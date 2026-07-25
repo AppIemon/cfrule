@@ -370,6 +370,15 @@ export async function botRoomState(room) {
   return serializeGame(raw);
 }
 
+// Drops a room's in-memory game. Used when a command replay fails partway through,
+// so callers see "no game" (and fall back to the persisted snapshot) rather than a
+// half-rebuilt one stuck in an early phase.
+export async function botDeleteRoom(room) {
+  const bot = await getBotEngine();
+  const games = bot.context.__Bot?.scope?.games || bot.context.games;
+  if (games && games[room]) delete games[room];
+}
+
 export async function configureBotRoom(room, options = {}) {
   const bot = await getBotEngine();
   const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
