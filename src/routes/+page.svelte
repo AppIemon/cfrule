@@ -387,13 +387,23 @@
   const FX_MOTIFS = ['slash', 'burst', 'pulse', 'glitch'];
   function fxMotif(name) { return FX_MOTIFS[fxHash(name, 13) % FX_MOTIFS.length]; }
 
-  const abilityFx = $derived(
+  // 기록이 로그에 남아 있는 한 카드가 계속 붙어 있으면 안 되므로 수명을 준다.
+  const FX_CARD_MS = 14000;
+  const abilityFxAll = $derived(
     log
       .filter((item) => item.type === 'system' && FX_RE.test(item.text || ''))
       .slice(-3)
-      .map((item) => ({ id: item.id, ...parseFx(item.text) }))
+      .map((item) => ({ id: item.id, at: Number(item.at) || 0, ...parseFx(item.text) }))
       .reverse()
   );
+  // 새 메시지가 안 와도 시간이 지나면 사라져야 해서 따로 시계를 돌린다.
+  let fxNow = $state(Date.now());
+  $effect(() => {
+    if (!abilityFxAll.length) return;
+    const timer = setInterval(() => { fxNow = Date.now(); }, 1000);
+    return () => clearInterval(timer);
+  });
+  const abilityFx = $derived(abilityFxAll.filter((item) => item.at && fxNow - item.at < FX_CARD_MS));
 
   // 발동 순간 화면 전체를 덮는 연출. 같은 능력이 또 떠도 다시 재생되도록
   // seq 를 키로 써서 애니메이션을 처음부터 돌린다.
@@ -403,7 +413,8 @@
   let castPrimed = false;
   let castTimer = null;
   $effect(() => {
-    const latest = abilityFx[0];
+    // 컷인은 카드 수명과 무관하게 "새 발동"에만 반응해야 한다.
+    const latest = abilityFxAll[0];
     if (!latest) return;
     if (!castPrimed) {
       // 새로고침·재접속 때 이미 쌓여 있던 기록으로 컷신이 터지지 않게 한 번 건너뛴다.
@@ -644,8 +655,11 @@
       lastProcessedLogId = last.id;
       if (isFirstSeen) return;
       if (last.type === 'system') {
-        const text = last.text?.replace('[시스템]: ', '').replace(/^\[!\]\s*/, '').trim() || '';
-        let effectTriggered = false;
+        // 능력 발동 메시지인지부터 가른다. 발동 알림은 오류가 아니고,
+        // 내부 표시가 그대로 화면에 나가서도 안 된다.
+        const isAbilityCast = FX_RE.test(last.text || '');
+        const text = stripFx(last.text).replace('[시스템]: ', '').replace(/^\[!\]\s*/, '').trim() || '';
+        let effectTriggered = isAbilityCast;
 
         if (text.includes('ㅈㅈ를 쳤다') || text.includes('항복') || text.includes('기권')) {
           triggerEffect('항복', 'surrender');
@@ -671,17 +685,15 @@
         }
 
         // 3. 에러 메시지 감지 및 토스트 표시
-        const isError = [
-          '이미 사용된 단어', '사전적 단어', '시작하지 않습니다', '한방 단어',
-          '유도 단어', '루트 단어', '두음법칙', '글자', '불가능합니다', '사용할 수 없습니다',
-          '쿨타임입니다', '모두 사용했습니다', '부족합니다', '지정해주세요'
+        // '글자'·'사용할 수 없습니다' 같은 조각은 능력 설명에도 흔해서 그대로 쓰면
+        // 멀쩡한 안내가 오류로 뜬다. 실제로 입력이 거절됐을 때 쓰는 문장만 본다.
+        const isError = !isAbilityCast && [
+          '이미 사용된 단어', '사전에 없는', '사전적 단어', '시작하지 않습니다',
+          '시작해야 합니다', '차례가 아닙니다', '쿨타임입니다', '모두 사용했습니다',
+          '부족합니다', '지정해주세요', '사용할 수 없는 단어', '위반'
         ].some(err => text.includes(err));
 
-        if (isError && !effectTriggered) {
-          if (errorTimer) clearTimeout(errorTimer);
-          error = text;
-          errorTimer = setTimeout(() => { error = ''; }, 3500);
-        }
+        if (isError && !effectTriggered) showError(text);
       }
     }
   });
@@ -795,6 +807,28 @@
     }
   });
 
+  // 서버가 실패를 JSON 이나 HTML 오류 문서로 돌려줄 때가 있다. 그대로 띄우면
+  // 화면을 뒤덮는 긴 빨간 창이 되므로 읽을 수 있는 한 줄만 남긴다.
+  function cleanErrorText(raw) {
+    let text = String(raw ?? '').trim();
+    if (!text) return '알 수 없는 오류가 발생했습니다.';
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && parsed.message) text = String(parsed.message);
+    } catch { /* JSON 이 아니면 그대로 둔다 */ }
+    if (/^</.test(text) || /<\/?[a-z][\s\S]*>/i.test(text)) return '서버 오류가 발생했습니다.';
+    text = text.replace(/\s+/g, ' ').trim();
+    return text.length > 110 ? `${text.slice(0, 110)}…` : text;
+  }
+
+  function showError(raw) {
+    const text = cleanErrorText(raw);
+    if (!text) return;
+    if (errorTimer) clearTimeout(errorTimer);
+    error = text;
+    errorTimer = setTimeout(() => { error = ''; }, 4000);
+  }
+
   async function request(path, options = {}) {
     busy = true;
     error = '';
@@ -803,7 +837,7 @@
       if (!res.ok) throw new Error(await res.text());
       return await res.json();
     } catch (err) {
-      error = err?.message || 'error';
+      showError(err?.message);
       throw err;
     } finally {
       busy = false;
@@ -1003,21 +1037,41 @@
     });
   }
 
+  // 왜 지금 둘 수 없는지 한 줄로 설명한다. 이유를 안 알려주면 입력이
+  // 고장 난 것처럼 보인다.
+  const blockedReason = $derived(
+    game?.phase !== 'playing'
+      ? '아직 게임이 진행 중이 아닙니다.'
+      : busy
+        ? '이전 요청을 처리하는 중입니다.'
+        : currentPlayer && currentPlayer !== nickname
+          ? `${currentPlayer}님 차례입니다.`
+          : ''
+  );
+
   async function sendWord(event) {
     event?.preventDefault?.();
     const text = word.trim();
-    if (!text || busy) return;
+    if (!text) return;
+    if (busy) {
+      showError('이전 요청을 처리하는 중입니다. 잠시 후 다시 시도하세요.');
+      return;
+    }
     if (!canPlay) {
       premoveWord = text;
-      premoveStatus = '상대 입력 직후 가능하면 자동으로 둡니다.';
+      premoveStatus = blockedReason
+        ? `${blockedReason} 차례가 오면 자동으로 둡니다.`
+        : '차례가 오면 자동으로 둡니다.';
       premoveAttemptKey = '';
       word = '';
       return;
     }
-    word = '';
     cpuThinking = true;
     try {
       await send(`0${text}`);
+      word = '';        /* 성공했을 때만 비운다. 실패하면 다시 치지 않아도 되게 남긴다. */
+    } catch {
+      /* 사유는 request 가 토스트로 띄운다. 입력한 단어는 그대로 둔다. */
     } finally {
       cpuThinking = false;
       await tick();
@@ -2175,6 +2229,11 @@
         </div>
 
         <div class="bottom-composer" class:composer-active={canPlay}>
+          {#if !canPlay && blockedReason}
+            <div class="turn-hint">
+              <Info size={12} /><span>{blockedReason} 지금 입력하면 미리두기로 예약됩니다.</span>
+            </div>
+          {/if}
           {#if abilityButtons.length}
             <div class="ability-bar">
               <div class="ability-grid">
@@ -4037,6 +4096,21 @@
     color: var(--text3);
     font-style: italic;
   }
+  /* 지금 왜 못 두는지 알려 주는 줄 */
+  .turn-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text2);
+    font-size: .74rem;
+  }
+  .turn-hint :global(svg) { flex-shrink: 0; color: var(--accent2); }
+
   /* ── 능력 발동 컷인 ────────────────────────────────
      --c1 / --c2 는 능력 이름에서 뽑은 두 색이라 능력마다 다른 그라데이션이 된다.
      data-motif 로 능력마다 등장 방식까지 갈린다. */
