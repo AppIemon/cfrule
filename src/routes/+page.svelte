@@ -174,6 +174,8 @@
   let room = $state('');
   let mode = $state(1);
   let practice = $state(false);
+  // 조합: draft abilities from an open pool instead of picking a job.
+  let combat = $state(false);
   let cpuJob = $state('');
   let timerEnabled = $state(true);
   let timerMinutes = $state(10);
@@ -671,6 +673,11 @@
   const isBanPicker = $derived(isBanPhase && game?.firstPicker === nickname);
   const isBanWaiting = $derived(isBanPhase && game?.firstPicker && game?.firstPicker !== nickname);
   const bannedJobs = $derived(game?.bannedJobs || []);
+  // 조합(ability draft) mode replaces job selection with a snake draft over an open pool.
+  const combatDraft = $derived(game?.combatDraft || null);
+  const isDrafting = $derived(game?.phase === 'combat_draft' && !!combatDraft);
+  const isMyPick = $derived(isDrafting && combatDraft.currentPlayer === nickname);
+  const myKit = $derived(game?.kits?.[nickname] || []);
   const roomDisabledJobs = $derived(snapshot?.meta?.disabledJobs || []);
   const unavailableJobs = $derived(Array.from(new Set([...(bannedJobs || []), ...(roomDisabledJobs || [])])));
   const selectableJobs = $derived(availableJobs.filter((job) => !unavailableJobs.includes(job)));
@@ -785,7 +792,8 @@
         practice,
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
-        disabledJobs
+        disabledJobs,
+        combat
       })
     });
     room = data.room;
@@ -1143,6 +1151,7 @@
   function roomPhaseLabel(phase) {
     if (phase === 'playing') return '진행 중';
     if (phase === 'job_selection') return '직업 선택';
+    if (phase === 'combat_draft') return '능력 드래프트';
     return '입장 가능';
   }
 
@@ -1506,7 +1515,15 @@
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
                 <Bot size={14} />연습 모드
               </label>
-              {#if practice}
+              <label class="practice-toggle">
+                <input type="checkbox" bind:checked={combat} />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                <Swords size={14} />조합 모드
+              </label>
+              {#if combat}
+                <p class="combat-hint">직업 대신 공개된 능력 풀에서 번갈아 뽑고, 10턴마다 추가 드래프트가 열립니다.</p>
+              {/if}
+              {#if practice && !combat}
                 <select class="lobby-input" bind:value={cpuJob}>
                   <option value="">CPU 직업 (랜덤)</option>
                   {#each availableJobs as j}
@@ -1614,6 +1631,52 @@
         <h2 class="matching-label">게임 상태를 불러오고 있어요<span class="dots"></span></h2>
         <div class="room-code-pill">
           방 코드 <strong>{room}</strong>
+        </div>
+      </div>
+
+    {:else if isDrafting}
+      <!-- ─── ABILITY DRAFT (조합) ─── -->
+      <div class="job-screen">
+        <div class="job-screen-header">
+          <div>
+            <h2>{isMyPick ? '능력을 고르세요' : `${combatDraft.currentPlayer || '상대'}님이 고르는 중`}</h2>
+            <p>
+              {combatDraft.cycle > 0 ? `재드래프트 ${combatDraft.cycle}회차` : '드래프트'}
+              · 남은 공개 풀 {combatDraft.pool.length}장
+            </p>
+          </div>
+          {#if myKit.length}
+            <div class="selected-pill"><span class="sel-gem">◆</span>내 능력 {myKit.length}개</div>
+          {/if}
+        </div>
+
+        {#if myKit.length}
+          <div class="ban-panel compact">
+            <span class="panel-kicker">MY KIT</span>
+            <div class="selected-ban-row">
+              {#each myKit as card}
+                <span class="ban-chip locked">{card.ability}{card.kind === 'passive' ? ' (패)' : ''}</span>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <div class="job-grid">
+          {#each combatDraft.pool as card, i}
+            <button
+              class="job-card"
+              style="--i:{i}"
+              onclick={() => send(`1픽 ${card.no}`)}
+              disabled={busy || !isMyPick}
+            >
+              <span class="jc-portrait">
+                <img src={jobImageSrc(card.homeJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                <span class="jc-initial">{jobInitial(card.homeJob)}</span>
+              </span>
+              <span class="jc-name">{card.ability}</span>
+              <span class="jc-check">{card.homeJob} · {card.kind === 'passive' ? '패시브' : '액티브'}</span>
+            </button>
+          {/each}
         </div>
       </div>
 
@@ -3317,6 +3380,7 @@
   }
   .accent-btn:hover:not(:disabled) { background: var(--accent2); }
   .practice-setup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; animation: fadeUp .2s ease both; }
+  .combat-hint { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--muted); text-align: center; }
   .prac-select { height: 40px; min-width: 160px; }
 
   /* ═══════════════════════════════════════════

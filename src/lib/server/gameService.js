@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { botAllRoomStates, botBootStatus, botRankings, botRoomState, configureBotRoom, dispatchBotMessage } from './botEngine.js';
+import { botAllRoomStates, botBootStatus, botRankings, botRoomState, botSetRoomCombat, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { publishRoom } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
 
@@ -122,6 +122,9 @@ async function performRestore(room) {
   if (Array.isArray(persisted.log)) logs.set(room, persisted.log);
   if (Array.isArray(persisted.commands)) commandHistory.set(room, persisted.commands);
   if (persisted.finishedAt) finishedRooms.set(room, persisted.finishedAt);
+  // The bot-side registry is per-VM, so a cold start has to re-declare it before any
+  // replayed command re-creates the game.
+  await botSetRoomCombat(room, !!persisted.meta?.combat);
 
   // Best effort replay for active rooms. This keeps the VM game object alive after a serverless cold start.
   // A finished match must never be replayed: the bot would re-create the room and walk
@@ -403,7 +406,7 @@ function selectionBlocked(room, command) {
   return disabled.find((job) => job === requested || job.replace(/\s+/g, '') === requested.replace(/\s+/g, '')) || '';
 }
 
-export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '', timer = {}, disabledJobs = [] }) {
+export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '', timer = {}, disabledJobs = [], combat = false }) {
   const room = code();
   const cleanMode = sanitizeMode(mode);
   const cleanDisabledJobs = sanitizeJobs(disabledJobs);
@@ -416,10 +419,14 @@ export async function createRoom({ nickname, mode = 1, practice = false, cpuJob 
     owner: String(nickname || '').trim() || 'player',
     practiceGuest: null,
     disabledJobs: cleanDisabledJobs,
+    combat: !!combat,
     timer: normalizeTimer(timer)
   });
   logs.set(room, []);
   commandHistory.set(room, []);
+  // Must land before the first command: that dispatch both creates the game and
+  // decides between job selection and the ability draft.
+  await botSetRoomCombat(room, !!combat);
   const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
   await applyRoomOptions(room);
   return await getRoomSnapshot(room);

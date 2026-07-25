@@ -807,7 +807,7 @@ with (Bot.scope) {
     let __botResult = function () {
       if (!state) return true;
       if (state.lost_abilities || state.absolutely_disabled > 0) return true;
-      return state.disabled_turns > 0 && state.job !== "해달";
+      return state.disabled_turns > 0 && !Bot.scope.owns(state, "해달");
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -1473,7 +1473,7 @@ with (Bot.scope) {
   };
   isSpongebobWanted = function isSpongebobWanted(state) {
     let __botResult = function () {
-      return !!(state && state.job === "스폰지밥" && (state.robber_turns > 0 || state.robber_skip_current));
+      return !!(state && Bot.scope.owns(state, "스폰지밥") && (state.robber_turns > 0 || state.robber_skip_current));
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -2140,76 +2140,76 @@ with (Bot.scope) {
           let etc = [];
           let abilities = [];
           let title = "{ [" + state.job + "] " + name + " }";
-          if (state.job === "해커") {
+          if (Bot.scope.owns(state, "해커")) {
             abilities.push("< 조작 > - 쿨타임 4턴 | " + (3 - state.jojak_uses) + "회 남음" + (state.jojak_cooldown > 0 ? " | " + state.jojak_cooldown + "턴 남음" : "") + "\n" + "2턴간 이미 사용한 단어를 또 사용할 수 있습니다.");
             abilities.push("< 복제 > - " + (1 - state.bokje_uses) + "회 남음\n" + "현재 디버프를 모두 제거하고 상대방에게 그대로 적용합니다.\n7턴부터 사용 가능합니다.");
             abilities.push("< 초토화 > - 쿨타임 7턴 | " + (2 - state.chotohwa_uses) + "회 남음" + (state.chotohwa_cooldown > 0 ? " | " + state.chotohwa_cooldown + "턴 남음" : "") + "\n" + "1턴간 상대방이 유도단어나 4글자 이상의 단어를 사용하면 가진 패시브와 능력을 모두 잃습니다.\n7턴부터 사용 가능합니다.");
             if (state.jojak_active > 0) buff.push("조작 활성화 중 (" + state.jojak_active + "턴)");
             if (state.chotohwa_active > 0) buff.push("초토화 장전됨 (상대가 유도단어 또는 4글자 이상 사용 시 능력 영구 박탈)");
-          } else if (state.job === "투자자") {
+          } else if (Bot.scope.owns(state, "투자자")) {
             abilities.push("< 투자의 귀재 > - 패시브(자동 시전 능력)\n" + "게임이 시작되면 주가가 20으로 설정됩니다.\n" + "해당 주가는 상대방이 사용한 단어에 따라 변동됩니다.\n" + "글자 수가 짝수일 땐 주가에서 글자 수만큼을 차감합니다.\n" + "글자 수가 홀수일 땐 주가에서 글자 수만큼을 추가합니다.\n" + "[변동된 주가 ≤ 현재 턴 수] 수식에 해당하면 게임에서 승리합니다.\n" + "↳ 현재 주가: " + state.investor_stock + " / 현재 턴 수: " + game.turnCount);
             abilities.push("< 주가 조작 > - 쿨타임 3턴 | " + (3 - state.juga_jojak_uses) + "회 남음" + (state.juga_jojak_cooldown > 0 ? " | " + state.juga_jojak_cooldown + "턴 남음" : "") + "\n" + "다음 차례에 { 투자의 귀재 } 패시브 발동 시 주가를 무조건 차감합니다.");
             if (state.juga_jojak_active) buff.push("주가 조작 장전됨 (다음 차례 무조건 주가 차감)");
-          } else if (state.job === "환자") {
+          } else if (Bot.scope.owns(state, "환자")) {
             abilities.push("< 강박증 > - 패시브(자동 시전 능력) | 쿨타임 3턴" + (state.opcd_cooldown > 0 ? " | " + state.opcd_cooldown + "턴 남음" : "") + "\n" + "상대방이 글자 수가 홀수인 단어를 사용하면 1턴간 글자 수가 짝수인 단어만 사용할 수 있게 합니다.\n" + "또한, 상대방이 1턴간 패시브와 능력, 유도단어를 사용할 수 없게 합니다.");
             abilities.push("< 환각증 > - " + (1 - state.hallucination_uses) + "회 남음\n" + "상대방이 1턴간 마지막 단어의 첫음절로 끝나는 단어만 사용할 수 있게 합니다.(앞말잇기)\n" + "단, 환자는 능력 사용 직후에 자신도 앞말잇기를 해야 하며 3글자 이하의 단어만 사용할 수 있습니다.\n" + "또한, 환자는 능력 사용 후 2턴간 한방단어와 유도단어를 사용할 수 없습니다.\n" + "이 능력은 루트단어를 받았을 때만 사용 가능합니다.\n7턴부터 사용 가능합니다.");
             if (state.patient_no_kill_turns > 0) debuff.push("환각증 여파 : " + state.patient_no_kill_turns + "턴간 한방/유도 불가");
-          } else if (state.job === "수집가") {
+          } else if (Bot.scope.owns(state, "수집가")) {
             abilities.push("< 수집 > - 패시브(자동 시전 능력)\n" + "상대방이 사용한 단어의 첫 번째 음절을 수집하여 저장합니다.\n" + "{ 제작 } 능력으로 만들어진 단어는 한방단어, 유도단어, 루트단어, 일반단어 중 그 무엇도 아닌 '추가단어'로 취급되며, 누구든 사용할 수 있습니다.\n" + "수집가 직업이 추가단어를 사용하게 되면 상대방은 1턴간 패시브와 능력을 사용할 수 없습니다.\n" + "↳ 수집된 음절: [" + (state.collected_syllables.length > 0 ? state.collected_syllables.join(", ") : "없음") + "]");
             abilities.push("< 제작 > - 쿨타임 3턴" + (state.make_cooldown > 0 ? " | " + state.make_cooldown + "턴 남음" : "") + "\n" + "수집한 음절을 소모하여 2글자 이상의 추가단어를 생성합니다.\n" + "생성된 추가단어는 한 번 사용할 수 있습니다.\n명령어는 [2제작 (단어)] 형태로 사용합니다.");
             abilities.push("< 채굴 > - 쿨타임 1턴 | " + (3 - state.mine_uses) + "회 남음" + (state.mine_cooldown > 0 ? " | " + state.mine_cooldown + "턴 남음" : "") + "\n" + "1턴간 { 수집 } 패시브 발동 시 상대방이 사용한 단어의 모든 음절을 수집합니다.");
             if (state.mine_active > 0) buff.push("채굴 활성화 중 (이번 차례 모든 음절 수집)");
-          } else if (state.job === "감시자") {
+          } else if (Bot.scope.owns(state, "감시자")) {
             abilities.push("< 감시 > - 패시브(자동 시전 능력) | 패시브 불가 무시\n" + "게임 시작 후 감시 수가 30으로 설정됩니다.\n" + "상대방이 유도단어 사용 시 감시 수 -4, 한방단어 사용 시 -8, 루트단어 사용 시 -2.\n" + "감시자에게 디버프가 존재하면 매턴 디버프 하나당 감시 수를 1 차감합니다.\n" + "감시 수가 0 이하가 되면 무기한으로 이을 음절에 상관없이 그 어떤 단어나 사용할 수 있습니다.\n" + "↳ 현재 감시 수: " + state.watch_count);
             abilities.push("< 탐지 > - 쿨타임 6턴 | " + (2 - state.detect_uses) + "회 남음" + (state.detect_cooldown > 0 ? " | " + state.detect_cooldown + "턴 남음" : "") + "\n" + "상대방이 1턴간 능력을 사용하면 하나당 감시 수를 10 깎습니다.\n" + "또한, 다음 차례에 { 감시 } 패시브 발동 시 감시 수를 2배로 차감합니다.");
             if (state.detect_active_turns > 0) buff.push("탐지 활성화 중 (다음 감시 패시브 2배 차감)");
-          } else if (state.job === "뜀틀선수") {
+          } else if (Bot.scope.owns(state, "뜀틀선수")) {
             abilities.push("< 뜀틀 > - 패시브(자동 시전 능력) | 쿨타임 4턴 | " + (state.vault_max - state.vault_uses) + "회 남음" + (state.vault_cooldown > 0 ? " | " + state.vault_cooldown + "턴 남음" : "") + "\n" + "언제든지 '뜀틀' 단어를 사용할 수 있습니다.\n" + "사용 시 상대방은 1턴간 유도단어를 사용할 수 없으며 패시브와 능력을 '절대' 사용할 수 없습니다.");
             abilities.push("< 허들 넘기 > - " + (1 - state.hurdle_uses) + "회 남음\n" + "22턴 이상이 되면 사용 가능합니다.\n{ 뜀틀 } 패시브의 기회를 1회 추가하고 쿨타임을 초기화합니다.");
-          } else if (state.job === "전우치") {
+          } else if (Bot.scope.owns(state, "전우치")) {
             abilities.push("< 잔상 > - 패시브(자동 시전 능력) | " + (2 - state.afterimage_uses) + "회 남음\n" + "더 이상 이어나갈 수 있는 단어가 없을 때, 아무 루트단어로 이어갈 수 있습니다.\n" + "이미 사용한 단어에 의해 이어나갈 수 없는 경우엔 발동하지만, 디버프로 인해 이을 단어가 없거나\n시스템상으로 단어 구조가 변경되어 이을 단어가 없는 경우는 발동하지 않습니다.\n8턴부터 사용 가능합니다.");
             abilities.push("< 직격뢰 > - " + (3 - state.lightning_uses) + "회 남음\n" + "특정 유도단어나 루트단어가 사라지게 하여 영구적으로 아무도 사용할 수 없도록 합니다.\n'2직격뢰 (단어)' 형식으로 사용합니다.");
-          } else if (state.job === "기관사") {
+          } else if (Bot.scope.owns(state, "기관사")) {
             abilities.push("< 운행 > - 패시브(자동 시전 능력)\n" + "짝수 턴이 되면 전철역에 정차하여 1턴간 상대방이 패시브와 능력 및 유도단어를 사용할 수 없게 합니다.\n" + "전철역 수는 총 10개며, 상대방은 글자 수가 종점까지 남은 역 수보다 큰 단어를 사용할 수 없습니다.(최소 2글자)\n" + "종점에 도착하면 승리합니다.\n" + "단, 기관사 대 기관사 대전에서는 패시브 불가 효과를 주지 않으며, 종점 도착 시 무승부 처리됩니다.\n" + "↳ 남은 전철역 수: " + state.train_stations);
-          } else if (state.job === "늑대인간") {
+          } else if (Bot.scope.owns(state, "늑대인간")) {
             abilities.push("< 포효 > - 패시브(자동 시전 능력) | 쿨타임 2턴" + (state.roar_cooldown > 0 ? " | " + state.roar_cooldown + "턴 남음" : "") + "\n" + "사용한 단어에 [ㅇ] 또는 [ㅎ]이 포함된 개수에 따라 상대방에게 디버프를 부여합니다.\n" + "개수가 1개 이상이면 2턴간 짝수 글자의 단어만 사용 가능하게 합니다.\n" + "개수가 3개 이상이면 추가적으로 1턴간 루트단어를 사용할 수 없게 합니다.");
-          } else if (state.job === "시프터") {
+          } else if (Bot.scope.owns(state, "시프터")) {
             abilities.push("< 시프트 > - " + (4 - state.shift_uses) + "회 남음\n" + "현재 이을 음절의 중성을 다음 중성으로 넘깁니다.\n" + "넘긴 직후 두음법칙은 적용되지 않으며, 중성의 순서는 [ᅡᅢᅣᅤᅥᅦᅧᅨᅩᅪᅫᅬᅭᅮᅯᅰᅱᅲᅳᅴᅵ]입니다.\n" + "단, 현재 이을 음절로 시작하는 단어가 없으면 이 능력을 사용할 수 없습니다.");
             abilities.push("< 빅 시프트 > - " + (1 - state.big_shift_uses) + "회 남음\n" + "현재 이을 음절의 중성을 2개 뒤의 중성으로 넘깁니다.\n" + "넘긴 직후 두음법칙은 적용되지 않으며, 중성의 순서는 [ᅡᅢᅣᅤᅥᅦᅧᅨᅩᅪᅫᅬᅭᅮᅯᅰᅱᅲᅳᅴᅵ]입니다.\n" + "단, 현재 이을 음절로 시작하는 단어가 없으면 이 능력을 사용할 수 없습니다.");
-          } else if (state.job === "비밀요원") {
+          } else if (Bot.scope.owns(state, "비밀요원")) {
             abilities.push("< 타깃 확보 > - 패시브(자동 시전 능력)\n" + "단어를 입력하면 입력한 단어로부터 이어질 수 있는 단어를 최대 3개까지 타깃 단어로 설정합니다.\n" + "4글자 이하의 유도단어와 루트단어 중 긴 단어가 우선 선정되며, 길이가 같은 단어의 경우 ㄱㄴㄷ순으로 선정됩니다.\n" + "상대방이 타깃 단어를 사용하면 상대방은 1턴간 패시브와 능력을 사용할 수 없고,\n2턴간 타깃으로 설정되어 { 포획 } 능력의 대상이 되며, 5글자 이상의 단어를 사용할 수 없습니다.\n" + "이 패시브가 다시 발동할 때까지 타깃 단어는 변동되지 않습니다.\n" + "↳ 현재 타깃 수: " + state.targets.length + (state.targets.length > 0 ? " [" + state.targets.join(", ") + "]" : ""));
             abilities.push("< 포획 > - 쿨타임 3턴 | " + (2 - state.capture_uses) + "회 남음" + (state.capture_cooldown > 0 ? " | " + state.capture_cooldown + "턴 남음" : "") + "\n" + "상대방이 타깃으로 설정되었을 때만 사용 가능합니다.\n" + "지정한 음절로 시작하는 사용 가능한 유도단어와 루트단어 4개를 사라지게 하여 영구적으로 아무도 사용하지 못하게 합니다.\n" + "또한, 상대방이 2턴간 패시브와 능력을 사용할 수 없게 합니다.\n" + "이 능력은 능력 사용 불가 효과를 무시합니다. [2포획 (음절)]");
-          } else if (state.job === "67") {
+          } else if (Bot.scope.owns(state, "67")) {
             abilities.push("< 67 > - 패시브(자동 시전 능력) | " + (state.sixtyseven_cooldown > 0 ? state.sixtyseven_cooldown + "턴 남음" : "0턴 남음") + "\n" + "6글자 단어를 사용하면 상대방은 7턴간 유도단어를 사용할 수 없습니다.\n" + "이미 유도 불가 효과가 있다면 7배가 되며, 없다면 1턴간 한방단어를 사용할 수 없게 합니다.\n" + "상대방의 유도 불가 효과의 턴 수가 67턴 이상이 된다면 게임에서 즉시 승리합니다.\n" + "패시브 불가 효과를 무시합니다.");
-          } else if (state.job === "사과") {
+          } else if (Bot.scope.owns(state, "사과")) {
             abilities.push("< 삭와 > - 패시브(자동 시전 능력) | 쿨타임 2턴" + (state.apple_passive_cooldown > 0 ? " | " + state.apple_passive_cooldown + "턴 남음" : "") + "\n" + "입력한 단어의 초성이나 종성에 포함된 [ㅅㄱㄴㅁㅇ]의 개수가 3개 이상이면 3턴간 상대방에게 사과 디버프를 부여합니다.\n" + "이미 사과 디버프가 있으면 2턴 연장합니다.\n" + "사과 디버프는 3글자 이상의 한방단어와 4글자 이상의 유도단어를 사용하지 못하도록 합니다.\n" + "정확히 6턴에 이 디버프가 처음 발동하면 게임에서 즉시 승리합니다.\n" + "↳ 최초 발동 여부: " + (state.apple_triggered_once ? "발동됨" : "미발동") + " / 쿨: " + state.apple_passive_cooldown + "턴");
             abilities.push("< 사구아 > - " + (1 - state.sagua_uses) + "회 남음\n" + "상대방이 3턴간 패시브와 능력을 사용하지 못하게 합니다.");
-          } else if (state.job === "시인") {
+          } else if (Bot.scope.owns(state, "시인")) {
             abilities.push("< 2음절 > - 쿨타임 2턴 | " + (3 - state.poetic_2_uses) + "회 남음" + (state.poetic_2_cooldown > 0 ? " | " + state.poetic_2_cooldown + "턴 남음" : "") + "\n" + "상대방이 1턴간 두 글자 단어만 사용할 수 있게 합니다.");
             abilities.push("< 시적 허용 > - 쿨타임 1턴 | " + (2 - state.poetic_allow_uses) + "회 남음" + (state.poetic_allow_cooldown > 0 ? " | " + state.poetic_allow_cooldown + "턴 남음" : "") + "\n" + "상대방이 1턴간 두음법칙을 사용할 수 없게 합니다.");
-          } else if (state.job === "공룡") {
+          } else if (Bot.scope.owns(state, "공룡")) {
             abilities.push("< 삼키기 > - 쿨타임 4턴 | " + (3 - state.swallow_uses) + "회 남음" + (state.swallow_cooldown > 0 ? " | " + state.swallow_cooldown + "턴 남음" : "") + "\n" + "마지막으로 사용된 단어를 삼키고, 그 이전 단어를 기준으로 단어를 잇습니다.\n" + "삼킨 직후엔 글자 수가 3글자 이하인 단어만 사용할 수 있고, 유도단어와 한방단어를 사용할 수 없으며, 두음법칙 또한 사용할 수 없습니다.");
             abilities.push("< 브레스 > - " + (1 - state.breath_uses) + "회 남음\n" + "상대방이 1턴간 유도단어를 사용할 수 없도록 합니다.\n8턴부터 사용 가능합니다.");
             abilities.push("< 꼬리 날리기 > - " + (1 - state.tail_uses) + "회 남음\n" + "다음 차례에 능력 사용 불가 디버프를 무시합니다.\n8턴부터 사용할 수 있습니다.");
             if (state.tail_active) buff.push("꼬리 날리기 발동됨 (이번 차례 능력 불가 무시)");
-          } else if (state.job === "마법사") {
+          } else if (Bot.scope.owns(state, "마법사")) {
             abilities.push("< 부작용 > - 패시브(자동 시전 능력)\n" + "마법사는 영원히 유도단어를 사용할 수 없습니다." + (state.magic_side_effect_ignore_turns > 0 ? " (폭발로 1턴 무시 중)" : ""));
             abilities.push("< 공허 > - 쿨타임 3턴 | " + (5 - state.void_uses) + "회 남음" + (state.void_cooldown > 0 ? " | " + state.void_cooldown + "턴 남음" : "") + "\n" + "현재 이을 음절의 종성을 제거합니다.\n제거 후 두음법칙을 사용할 수 있습니다.");
             abilities.push("< 폭발 > - " + (1 - state.explosion_uses) + "회 남음\n" + "1턴간 부작용을 무시합니다.\n14턴부터 사용 가능합니다.");
-          } else if (state.job === "사신") {
+          } else if (Bot.scope.owns(state, "사신")) {
             abilities.push("< 처형 > - 패시브(자동 시전 능력) | 4444회용\n" + "게임 시작 후 처형 수가 44로 설정됩니다.\n" + "사신이 입력하는 단어의 글자 수만큼 처형 수가 차감되며,\n8글자 이상의 단어를 입력하면 처형식을 개최하여 상대방은 1턴간 패시브와 능력, 그리고 한방단어와 유도단어를 사용할 수 없습니다.\n" + "↳ 남은 처형 수: " + state.execution_count);
             abilities.push("< 사형 선고 > - 쿨타임 4턴" + (state.death_cooldown > 0 ? " | " + state.death_cooldown + "턴 남음" : "") + "\n" + "능력 사용 직후 처형 수가 18 이하면 상대방은 1턴간 글자 수가 4글자 이하인 단어를 사용할 수 없습니다.\n처형 수가 4 이하면 게임에서 즉시 승리합니다.");
             abilities.push("< 영혼 > - " + (1 - state.soul_uses) + "회 남음\n" + "영혼이 되어 상대방이 2번째로 마지막으로 사용한 단어를 잇게 됩니다.");
-          } else if (state.job === "피보나치") {
+          } else if (Bot.scope.owns(state, "피보나치")) {
             abilities.push("< 피보나치 수열 > - 패시브(자동 시전 능력)\n" + "현재 턴이 3턴부터 피보나치 수열 [1, 2, 3, 5, 8, 13, 21, ...]에 포함되면 상대는 1턴간 끝음절이 루트음절인 단어만 사용할 수 있습니다.\n" + "↳ 이번 턴(" + game.turnCount + "턴) 발동 여부: " + (isFibonacciTurn(game.turnCount) ? "발동" : "대기"));
             abilities.push("< 뤼카 수열 > - 쿨타임 3턴" + (state.lucas_cooldown > 0 ? " | " + state.lucas_cooldown + "턴 남음" : "") + "\n" + "현재 숫자는 25에서 시작하며, 뤼카 수열 턴에만 현재 턴 수만큼 차감할 수 있습니다.\n" + "숫자가 0 이하가 되면 즉시 승리합니다.\n" + "상대는 1턴간 패시브와 능력을 사용할 수 없습니다.\n" + "↳ 현재 숫자: " + state.lucas_value + " | 이번 턴 사용 가능: " + (isLucasTurn(game.turnCount) ? "가능" : "불가"));
-          } else if (state.job === "?") {
+          } else if (Bot.scope.owns(state, "?")) {
             let lastOddTarget = game && game.history && game.history.length > 0 ? game.history[game.history.length - 1] : "";
             let canQuestion = !!(lastOddTarget && lastOddTarget.length >= 3 && lastOddTarget.length % 2 === 1);
             abilities.push("< 물음표 > - " + (2 - state.question_uses) + "회 남음\n" + "상대가 3글자 이상의 홀수 글자 단어를 사용했을 때만 사용할 수 있습니다.\n" + "상대가 쓴 단어의 가운데 글자로 이어갈 수 있습니다.\n" + "↳ 현재 사용 가능: " + (canQuestion ? "가능" : "불가"));
             abilities.push("< 쉼표 > - " + (1 - state.comma_uses) + "회 남음\n" + "현재 이을 음절의 중성이 2칸 다음 모음으로 바뀝니다.");
             abilities.push("< 마침표 >\n" + "24턴 이상일 때 즉시 자신의 승리로 게임을 끝냅니다.\n" + "↳ 현재 사용 가능: " + (game.turnCount >= 24 ? "가능" : "불가"));
-          } else if (state.job === "피아니스트") {
+          } else if (Bot.scope.owns(state, "피아니스트")) {
             let n = state.pianist_note_uses || {
               "도": 0,
               "레": 0,
@@ -2223,23 +2223,23 @@ with (Bot.scope) {
             abilities.push("< 계이름 >\n" + "도:" + n["도"] + " / 레:" + n["레"] + " / 미:" + n["미"] + " / 파:" + n["파"] + " / 솔:" + (n["솔"] < 0 ? "∞" : n["솔"]) + " / 라:" + (n["라"] < 0 ? "∞" : n["라"]) + " / 시:" + n["시"]);
             abilities.push("< 샵 / 플랫 / 제자리표 >\n" + "샵 " + (2 - state.pianist_sharp_uses) + "회" + (state.pianist_sharp_cooldown > 0 ? " | " + state.pianist_sharp_cooldown + "턴 남음" : "") + " / 플랫 " + (2 - state.pianist_flat_uses) + "회" + (state.pianist_flat_cooldown > 0 ? " | " + state.pianist_flat_cooldown + "턴 남음" : "") + " / 제자리표 " + (2 - state.pianist_natural_uses) + "회" + (state.pianist_natural_cooldown > 0 ? " | " + state.pianist_natural_cooldown + "턴 남음" : ""));
             abilities.push("< 도돌이표 / 붙임줄 / 늘임표 / 이음줄 >\n" + "도돌이표 " + (2 - state.pianist_repeat_uses) + "회 / 붙임줄 " + (2 - state.pianist_tie_uses) + "회" + (state.pianist_tie_cooldown > 0 ? " | " + state.pianist_tie_cooldown + "턴 남음" : "") + " / 늘임표 " + (3 - state.pianist_hold_uses) + "회 / 이음줄 " + (2 - state.pianist_slur_uses) + "회" + (state.pianist_slur_cooldown > 0 ? " | " + state.pianist_slur_cooldown + "턴 남음" : ""));
-          } else if (state.job === "프로그래머") {
+          } else if (Bot.scope.owns(state, "프로그래머")) {
             abilities.push("< Restart / Shift / Caps Lock >\n" + "Restart는 기보를 초기화하고 1턴으로 되돌립니다.\n" + "Shift " + (1 - state.programmer_shift_uses) + "회 / Caps Lock " + (12 - state.programmer_caps_uses) + "회" + (state.programmer_caps_cooldown > 0 ? " | " + state.programmer_caps_cooldown + "턴 남음" : ""));
             abilities.push("< Backspace / Delete / BIOS >\n" + "Backspace " + (1 - state.programmer_backspace_uses) + "회 / Delete " + (1 - state.programmer_delete_uses) + "회 / BIOS 남은 턴: " + (state.programmer_bios_turns || 0));
             abilities.push("< Alt / F4 >\n" + "Alt 쿨 " + (state.programmer_alt_cooldown || 0) + " / F4 쿨 " + (state.programmer_f4_cooldown || 0) + "\n" + "↳ Alt 준비: " + (state.programmer_alt_ready ? "완료" : "미완료") + " / F4 준비: " + (state.programmer_f4_ready ? "완료" : "미완료"));
-          } else if (state.job === "수학자") {
+          } else if (Bot.scope.owns(state, "수학자")) {
             abilities.push("< 논문 발표 > - 패시브(자동 시전 능력)\n" + "현재 값이 상대방이 방금 사용한 단어의 글자 수와 같으면 즉시 승리합니다.");
             abilities.push("< 공부 > - 패시브(자동 시전 능력)\n" + "이번 턴 능력 사용 가능 횟수: " + (state.math_study_uses_left || 0) + "\n" + ((state.math_study_ignore_disable || 0) > 0 ? "능력 불가 효과 무시 중" : "능력 불가 효과 적용 중"));
             abilities.push("< A / B / C >\n" + "A: 현재 값에 2배를 하고 1을 더합니다.\n" + "B: 현재 숫자를 뒤집습니다.\n" + "C: 현재 숫자를 2로 나눕니다. 짝수일 때만 가능합니다.");
-          } else if (state.job === "과학자") {
+          } else if (Bot.scope.owns(state, "과학자")) {
             abilities.push("< 실험 > - 패시브(자동 시전 능력) | 쿨타임 1턴 | 패시브 불가 무시" + (state.experiment_cooldown > 0 ? " | " + state.experiment_cooldown + "턴 남음" : "") + "\n" + "초성이나 종성에 [ㅇㅅㅎ]이 총 4개 이상 포함된 단어를 사용하면 실험에 성공합니다.\n" + "성공 시 상대방은 1턴간 한방단어와 유도단어, 능력, 패시브를 사용할 수 없습니다.\n" + "↳ 누적 성공 횟수: " + state.experiment_success_total);
             abilities.push("< DNA파괴 > - 쿨타임 8턴 | " + (2 - state.dna_uses) + "회 남음" + (state.dna_cooldown > 0 ? " | " + state.dna_cooldown + "턴 남음" : "") + "\n" + "상대의 액티브 능력 하나를 지정하고, 다음 턴부터 실험 2연속 성공 시 그 능력을 파괴합니다." + (state.dna_tracking && state.dna_target ? "\n↳ 현재 표적: " + state.dna_target + " | 연속 성공: " + state.dna_success_streak + " / 2" : ""));
             abilities.push("< 도전 > - " + (1 - state.challenge_uses) + "회 남음\n" + "실험 15회 이상 성공 후 사용 가능하며, 이후에는 사전에 없는 단어도 영구적으로 사용할 수 있습니다." + (state.challenge_active ? "\n↳ 세계적인 과학자 상태 활성화" : ""));
-          } else if (state.job === "갈릴레오") {
+          } else if (Bot.scope.owns(state, "갈릴레오")) {
             let moons = getGalileoMoonList(state);
             abilities.push("< 관측 > - 패시브(자동 시전 능력)\n" + "사용한 단어의 초성과 종성을 분석해 목성의 위성을 발견합니다.\n" + "이오, 유로파, 가니메데, 칼리스토를 모두 발견하면 즉시 승리합니다.\n" + "위성을 발견하면 상대는 3턴 동안 끝음절이 루트음절인 단어만 사용할 수 있습니다.\n" + "↳ 발견한 위성: [" + (moons.length > 0 ? moons.join(", ") : "없음") + "]");
             abilities.push("< 관성의 법칙 > - 패시브(자동 시전 능력)\n" + "상대는 끝음절 초성이 ㄲ, ㄸ, ㅃ, ㅆ, ㅉ인 단어를 사용할 수 없습니다.");
-          } else if (state.job === "작곡가") {
+          } else if (Bot.scope.owns(state, "작곡가")) {
             let noteLabels = [];
             {
               let i;
@@ -2258,7 +2258,7 @@ with (Bot.scope) {
             abilities.push("< 쪼개기 > - " + (3 - state.split_uses) + "회 남음\n" + "다음 작곡 패시브 발동 때 2분음표는 4분음표로, 4분음표는 8분음표로 쪼개집니다." + (state.split_pending ? "\n↳ 현재 쪼개기 대기 중" : ""));
             abilities.push("< 쉼표 > - 쿨타임 3턴" + (state.rest_cooldown > 0 ? " | " + state.rest_cooldown + "턴 남음" : "") + "\n" + "현재 마디를 쉼표로 즉시 완성하지만 작곡 패시브 효과는 발동하지 않습니다.\n" + "상대는 1턴 동안 한방단어와 능력을 사용할 수 없습니다.\n" + "능력 사용 불가 효과를 무시합니다.");
             if (state.split_pending) buff.push("쪼개기 대기 중 (다음 음표 한 단계 세분화)");
-          } else if (state.job === "스폰지밥") {
+          } else if (Bot.scope.owns(state, "스폰지밥")) {
             let burgerPrice = getSpongebobFoodPrice(state, "게살버거");
             let friesPrice = getSpongebobFoodPrice(state, "감자튀김");
             abilities.push("< 저금통 > - 패시브(자동 시전 능력)\n" + "게임 시작 시 4000원을 가지고 시작합니다.\n" + "상대방이 단어를 말할 때마다 글자 수 x 1000원만큼 저금합니다.\n" + "↳ 현재 보유 금액: " + state.money + "원");
@@ -2268,57 +2268,57 @@ with (Bot.scope) {
             abilities.push("< 강도 채용 > - 쿨타임 5턴 | " + (3 - state.robber_uses) + "회 남음" + (state.robber_cooldown > 0 ? " | " + state.robber_cooldown + "턴 남음" : "") + "\n" + "가격은 30000원입니다.\n" + "다음부터 2턴 동안 5000원씩 추가 수익이 들어옵니다.\n" + "현상수배 중에는 게살버거/감자튀김 가격이 3000원 상승하고 5글자 이상 단어를 사용할 수 없습니다.");
             if (state.bonus_active) buff.push("보너스 대기 중 (다음 수익 2배)");
             if (isSpongebobWanted(state)) debuff.push("현상수배 : 5글자 이상 단어 불가 / 음식 가격 +3000");
-          } else if (state.job === "나이트") {
+          } else if (Bot.scope.owns(state, "나이트")) {
             abilities.push("< L자 도약 > - 패시브(자동 시전 능력)\n" + "사용 단어 길이가 [2, 4, 2] 순서를 이루면 상대를 2턴간 그로기 상태로 만듭니다. (짝수 글자 단어만 허용)\n" + "↳ 현재 기록: [" + (state.knight_pattern && state.knight_pattern.length > 0 ? state.knight_pattern.join("-") : "없음") + "]");
             abilities.push("< 체크메이트 > - 쿨타임 3턴 | " + (5 - state.checkmate_uses) + "회 남음" + (state.checkmate_cooldown > 0 ? " | " + state.checkmate_cooldown + "턴 남음" : "") + "\n" + "상대는 1턴 동안 두음법칙을 사용할 수 없고 끝음절이 루트음절인 단어만 사용할 수 있습니다.\n" + "5턴부터 사용 가능합니다.");
             abilities.push("< 교환 > - " + (2 - state.exchange_uses) + "회 남음\n" + "상대 턴이 지나면 다음 차례에 아무 루트단어를 중복과 무관하게 사용할 수 있습니다.");
             abilities.push("< 울음 > - " + (1 - state.cry_uses) + "회 남음\n" + "말이 울음소리를 냅니다.\n" + "기능은 없습니다.");
             if (state.exchange_pending) buff.push("교환 대기 중 (상대 턴 후 다음 차례 발동)");
             if (state.exchange_active) buff.push("교환 활성화 (이번 차례 아무 루트단어 / 중복 무시)");
-          } else if (state.job === "생존자") {
+          } else if (Bot.scope.owns(state, "생존자")) {
             abilities.push("< 신호 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n" + "2글자 단어를 입력하면 [ · ] 모스부호 신호를 보냅니다.\n" + "3글자 이상의 단어를 입력하면 [ - ] 모스부호 신호를 보냅니다.\n" + "전체 모스부호 신호가 [ · · · - - - · · · - · - · - - ]가 되면 'SOS!' 신호가 완성되어 게임에서 즉시 승리합니다.\n" + "신호를 잘못 입력해도 기존 신호는 유지되지만, 상대방이 1턴간 3글자 이상의 유도단어를 사용할 수 없도록 합니다.\n" + "↳ 현재 모스부호: [" + (state.signal_sequence || "없음") + "]");
             abilities.push("< 긴급 구조 > - 쿨타임 6턴 | " + (3 - state.rescue_uses) + "회 남음" + (state.rescue_cooldown > 0 ? " | " + state.rescue_cooldown + "턴 남음" : "") + "\n" + "게임에서 사용된 단어 중 맨처음 2개의 단어를 제외한 전체 단어를 한 묶음으로 하여 뒤집고, 뒤집은 단어를 기준으로 게임을 진행합니다.\n" + "[기차 차표 표범 범죄 죄인]이면 [인죄 죄범 범표]와 같이 뒤집힙니다.\n" + "긴급 구조 발동 시 모든 디버프를 제거하지만, 1턴간 한방단어나 유도단어를 사용할 수 없습니다.\n한방단어나 유도단어를 받았을 때만 사용 가능합니다.");
-          } else if (state.job === "악당") {
+          } else if (Bot.scope.owns(state, "악당")) {
             abilities.push("< 결계 > - 쿨타임 4턴 | " + (4 - state.barrier_uses) + "회 남음" + (state.barrier_cooldown > 0 ? " | " + state.barrier_cooldown + "턴 남음" : "") + "\n" + "능력 사용 시 마지막에 사용된 단어의 글자 수만큼의 턴간 지속되는 결계를 생성합니다.\n" + "결계가 생성되면 결계 초성이 [ㄱㄴ]으로 설정되며, 상대방은 결계가 지속되는 동안 끝음절에 결계 초성이 포함된 단어를 사용할 수 없습니다.\n" + "또한, 결계가 지속되는 동안 상대방이 입력하는 단어의 글자 수만큼 결계 초성이 늘어납니다.\n" + "추가되는 순서는 [ㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ]입니다.\n" + "결계 초성이 [ㅎ]까지 도달하면 결계가 끝날 때까지 더 이상 변동되지 않습니다." + (state.barrier_turns > 0 ? "\n↳ 결계 전개 중 (" + state.barrier_turns + "턴 남음) : [" + state.barrier_chosungs.join(", ") + "]" : ""));
             abilities.push("< 왜곡 > - 쿨타임 1턴 | " + (2 - state.distort_uses) + "회 남음" + (state.distort_cooldown > 0 ? " | " + state.distort_cooldown + "턴 남음" : "") + "\n" + "결계 시전 중에만 사용할 수 있습니다.\n" + "사용 즉시 이때까지 진행된 결계 초성을 모두 왜곡합니다.\n" + "[ㄱㄴㄷㄹ]인 경우, [ㅎㅍㅌㅋ]로 왜곡됩니다.\n" + "왜곡된 결계 초성이 4개 이상인 경우 상대방은 1턴간 패시브와 능력을 사용할 수 없습니다.");
             if (state.barrier_turns > 0) buff.push("결계 전개 중 (" + state.barrier_turns + "턴 남음) : [" + state.barrier_chosungs.join(", ") + "]");
-          } else if (state.job === "기자") {
+          } else if (Bot.scope.owns(state, "기자")) {
             abilities.push("< 거짓 보도 > - 쿨타임 2턴 | " + (4 - state.report_uses) + "회 남음" + (state.report_cooldown > 0 ? " | " + state.report_cooldown + "턴 남음" : "") + "\n" + "1턴간 보도를 실시하며, 상대방이 보도 중에 한방단어나 유도단어를 사용하면 마지막 음절을 '삐'로 변경 후\n상대방이 1턴간 능력과 유도단어를 사용하지 못하도록 합니다.\n" + "상대방은 보도 중엔 패시브와 능력을 사용할 수 없으며, 두음법칙도 제한됩니다." + (state.report_turns > 0 ? "\n↳ 보도 중 (" + state.report_turns + "턴 남음)" : ""));
             if (state.report_turns > 0) buff.push("보도 중 (상대 패시브/능력/두음법칙 불가, " + state.report_turns + "턴 남음)");
-          } else if (state.job === "검객") {
+          } else if (Bot.scope.owns(state, "검객")) {
             abilities.push("< 찌르기 > - 쿨타임 5턴 | " + (2 - state.stab_uses) + "회 남음" + (state.stab_cooldown > 0 ? " | " + state.stab_cooldown + "턴 남음" : "") + "\n" + "상대방이 1턴간 패시브와 능력을 사용할 수 없게 합니다.\n" + "또한, 1턴간 두음법칙을 사용할 수 없도록 합니다.\n5턴부터 사용 가능합니다.");
             abilities.push("< 가르기 > - 쿨타임 3턴 | " + (3 - state.slice_uses) + "회 남음" + (state.slice_cooldown > 0 ? " | " + state.slice_cooldown + "턴 남음" : "") + "\n" + "능력 사용 직전에 받은 단어를 반으로 가르고 단어를 이어갑니다.\n" + "홀수 단어를 가르면 초성과 종성, 종성이 없으면 초성과 중성 기준으로 갈라집니다.(속 -> 소/ㄱ, 누 -> ㄴ/ㅜ)\n" + "가른 직후 두음법칙은 적용되지 않으며, 현재 턴이 12턴 이상이 아니라면 가른 직후 한방단어와 유도단어를 사용할 수 없습니다.");
-          } else if (state.job === "마하트마간디") {
+          } else if (Bot.scope.owns(state, "마하트마간디")) {
             abilities.push("< 비폭력 > - 패시브(자동 시전 능력) | 쿨타임 1턴 | 패시브 불가 무시\n" + "상대방이 한방단어나 유도단어를 사용할 때마다 비폭력 스탯이 1회 추가됩니다.\n" + "상대방이 능력을 사용하고 차례가 지나면 비폭력 스탯이 1회 추가됩니다.\n" + "비폭력 스탯이 3회가 되면 개발자를 협박하여 게임을 즉시 승리로 종료합니다.\n" + "↳ 현재 비폭력 스탯: " + state.gandhi_stacks);
             abilities.push("< 억제 > - 쿨타임 3턴" + (state.suppress_cooldown > 0 ? " | " + state.suppress_cooldown + "턴 남음" : "") + "\n" + "비폭력 스탯을 1회 사용하여 상대방이 1턴간 유도단어를 사용할 수 없게 합니다.");
-          } else if (state.job === "은하계전사") {
+          } else if (Bot.scope.owns(state, "은하계전사")) {
             abilities.push("< 별인 듯 달 아닌 별 > - 패시브(자동 시전 능력) | 쿨타임 1턴" + (state.star_cooldown > 0 ? " | " + state.star_cooldown + "턴 남음" : "") + "\n" + "[별] 또는 [달]이 포함된 단어를 사용하면 상대방은 1턴간 끝음절이 루트음절인 단어만 사용 가능하고, 발동할 때마다 지속 시간이 1턴씩 늘어납니다.\n" + "또한 상대방은 2턴간 패시브와 능력을 사용할 수 없고, 첫 1턴은 패시브와 능력을 '절대' 사용할 수 없습니다.\n" + "[별] 또는 [달]이 포함된 단어를 사용한 횟수가 3의 배수일 경우 끝음절이 [벨]로 변경됩니다.\n" + "9번째 발동 시 끝음절이 [볠]로 변하고 상대방은 무기한으로 끝음절 초성이 [ㅅㅍㄴㅂ] 중 하나인 단어만 사용 가능합니다.\n" + "패시브 불가 효과를 무시합니다.\n" + "↳ 별달 스택: " + state.star_stacks);
-          } else if (state.job === "혜성전사") {
+          } else if (Bot.scope.owns(state, "혜성전사")) {
             abilities.push("< 핼리 혜성 > - 패시브(자동 시전 능력)" + (state.comet_passive_cooldown > 0 ? " | " + state.comet_passive_cooldown + "턴 남음" : "") + "\n" + "[성]이 포함된 단어를 사용하면 결계가 생성되거나 지속 시간이 1턴 늘어나며 상대는 1턴간 유도단어를 사용할 수 없습니다.\n" + "결계가 생성되면 3턴 동안 지속되고 결계 초성은 [ㄱ, ㄴ]에서 시작합니다.\n" + "결계가 유지되는 동안 상대는 끝음절 초성이 결계 초성에 포함된 단어를 사용할 수 없습니다. 유도단어 금지는 [성]을 쓴 직후 1턴만 적용됩니다.\n" + "[혜]가 포함된 단어를 사용하면 결계가 즉시 종료되고 상대는 2턴간 유도단어를 사용할 수 없습니다.\n" + "16턴 전까지 [성] 5회 이상, [혜] 1회 이상이면 상대는 영구적으로 끝음절 초성 [ㅎ, ㅅ]만 사용할 수 있습니다.");
             if (state.comet_barrier_turns > 0) buff.push("혜성 결계 전개 중 (" + state.comet_barrier_turns + "턴 남음) : [" + state.comet_barrier_chosungs.join(", ") + "]");
-          } else if (state.job === "수리사") {
+          } else if (Bot.scope.owns(state, "수리사")) {
             abilities.push("< 방탄 > - 패시브(자동 시전 능력) | 쿨타임 1턴" + (state.bulletproof_cooldown > 0 ? " | " + state.bulletproof_cooldown + "턴 남음" : "") + " | 7회용\n" + "단어 입력 시 상대방은 1턴간 끝음절로 시작하는 단어가 10개 이하인 단어를 사용할 수 없습니다.");
             abilities.push("< 수리 > - 쿨타임 3턴 | " + (3 - state.repair_uses) + "회 남음" + (state.repair_cooldown > 0 ? " | " + state.repair_cooldown + "턴 남음" : "") + "\n" + "현재 이을 음절의 중성을 애매하게 수리합니다.\n" + "수리 후 두음법칙을 사용할 수 있지만, 유도단어는 사용할 수 없습니다.\n" + "3턴부터 사용 가능합니다.\n" + "[ㅏㅑㅓㅕㅣ] <-> [ㅜㅠㅗㅛㅡ]");
-          } else if (state.job === "고죠") {
+          } else if (Bot.scope.owns(state, "고죠")) {
             abilities.push("< 무하한 > - 패시브(자동 시전 능력)\n" + "게임 시작 후 상대방은 무기한으로 되돌림단어를 사용할 수 없습니다.");
             abilities.push("< 무량공처 > - 쿨타임 2턴 | " + (4 - state.gongcheo_uses) + "회 남음" + (state.gongcheo_cooldown > 0 ? " | " + state.gongcheo_cooldown + "턴 남음" : "") + "\n" + "상대방은 1턴간 공격단어 불가 및 패시브/능력 '절대' 사용 불가 상태가 됩니다.");
-          } else if (state.job === "우라늄") {
+          } else if (Bot.scope.owns(state, "우라늄")) {
             abilities.push("< 방사선 > - 패시브(자동 시전 능력) | 쿨타임 1턴" + (state.radiation_cooldown > 0 ? " | " + state.radiation_cooldown + "턴 남음" : "") + "\n" + "3글자 단어를 사용하면 알파선.\n" + "2글자 단어를 3번 연속 사용하면 3번째에 베타선으로 상대 패시브와 능력을 2턴간 '절대' 봉쇄합니다.\n" + "2글자, 3글자, 4글자, 5글자, 6글자를 순서대로 연속 사용하면 감마선이 발동합니다.");
             abilities.push("< 핵분열 > - " + (1 - state.fission_uses) + "회 남음\n" + "상대의 마지막 단어에서 첫음절이 아닌 아무 음절로도 이어갈 수 있습니다.\n" + "다음 턴에도 똑같이 적용되며, 능력 사용 직후 2턴간 한방단어와 유도단어를 사용할 수 없습니다.");
             if (state.fission_active) buff.push("핵분열 활성화 : [" + state.fission_syllables.join(", ") + "] 음절로도 이어갈 수 있음");
-          } else if (state.job === "스핔이") {
+          } else if (Bot.scope.owns(state, "스핔이")) {
             abilities.push("< 백수가 쪼아요 > - 패시브(자동 시전 능력)\n" + "물걸레질과 호박의 남은 사용 횟수가 모두 0회라면 즉시 승리합니다.");
             abilities.push("< 물걸레질 > - 쿨타임 3턴 | " + (3 - state.speaki_clean_uses) + "회 남음" + (state.speaki_clean_cooldown > 0 ? " | " + state.speaki_clean_cooldown + "턴 남음" : "") + "\n" + "이번 차례에 이미 사용된 단어를 사용할 수 있고 게임의 턴이 1 줄어듭니다.");
             abilities.push("< 호박 > - 쿨타임 5턴 | " + (2 - state.speaki_pumpkin_uses) + "회 남음" + (state.speaki_pumpkin_cooldown > 0 ? " | " + state.speaki_pumpkin_cooldown + "턴 남음" : "") + "\n" + "1턴간 호박을 먹느라 수를 둘 수 없습니다. 상대가 방금 사용한 단어를 다시 이어야 합니다. 한방단어를 받았을 때는 사용할 수 없습니다.");
             if (state.speaki_clean_active) buff.push("물걸레질 활성화 (이번 차례 사용된 단어 1회 허용)");
-          } else if (state.job === "해달") {
+          } else if (Bot.scope.owns(state, "해달")) {
             abilities.push("< 돌대가리 > - 패시브(자동 시전 능력)\n" + "능력 불가 효과를 무시합니다.");
             abilities.push("< 조개 > - 쿨타임 4턴 | " + (3 - state.otter_clam_uses) + "회 남음" + (state.otter_clam_cooldown > 0 ? " | " + state.otter_clam_cooldown + "턴 남음" : "") + "\n" + "해달이 2턴 동안 조개를 깝니다.\n" + "조개를 까는 동안 상대는 받침이 [ㅈ, ㄱ, ㄲ, ㄷ]인 음절이 포함된 단어를 사용할 수 없습니다.\n" + "맛있게 먹고 모든 디버프가 사라집니다.");
             abilities.push("< 깨부수기 > - " + (1 - state.otter_smash_uses) + "회 남음\n" + "받은 단어의 글자 수가 홀수일 때만 사용할 수 있고, 검객 가르기처럼 단어를 반으로 깨부숩니다.");
           }
           if (state.absolutely_disabled > 0) debuff.push("절대 봉쇄 : " + state.absolutely_disabled + "턴 (능력/패시브 절대 사용 불가)");
           if (state.disabled_turns > 0) {
-            debuff.push(state.job === "해달" ? "능력/패시브 상실 : " + state.disabled_turns + "턴 (돌대가리로 능력 사용 가능)" : "능력/패시브 상실 : " + state.disabled_turns + "턴");
+            debuff.push(Bot.scope.owns(state, "해달") ? "능력/패시브 상실 : " + state.disabled_turns + "턴 (돌대가리로 능력 사용 가능)" : "능력/패시브 상실 : " + state.disabled_turns + "턴");
           }
           if (state.lost_abilities) debuff.push("능력 영구 상실");
           if (state.no_yudo_turns > 0) debuff.push("유도단어 불가 : " + state.no_yudo_turns + "턴");
@@ -2342,60 +2342,60 @@ with (Bot.scope) {
           if (state.star_final_lock) debuff.push("볠의 흔적 : 영구적으로 끝음절 초성 [ㅅ, ㅍ, ㄴ, ㅂ]만 허용");
           if (state.comet_final_lock) debuff.push("혜성 잔광 : 영구적으로 끝음절 초성 [ㅎ, ㅅ]만 허용");
           if (state.destroyed_active_abilities && state.destroyed_active_abilities.length > 0) debuff.push("파괴된 능력 : [" + state.destroyed_active_abilities.join(", ") + "]");
-          if (otherState && otherState.job === "해커" && otherState.chotohwa_active > 0) {
+          if (otherState && Bot.scope.owns(otherState, "해커") && otherState.chotohwa_active > 0) {
             debuff.push("초토화 위협 : 유도단어 또는 4글자 이상 사용 시 능력 영구 상실");
           }
-          if (state.job === "투자자") {
+          if (Bot.scope.owns(state, "투자자")) {
             etc.push("현재 주가 : " + state.investor_stock + " (목표: " + (game ? game.turnCount : "?") + " 이하)");
           }
-          if (state.job === "수집가") {
+          if (Bot.scope.owns(state, "수집가")) {
             etc.push("보유 음절 : [" + (state.collected_syllables.length > 0 ? state.collected_syllables.join(", ") : "없음") + "]");
             if (game && game.customWords && game.customWords.size > 0) {
               etc.push("제작 단어 : [" + Array.from(game.customWords).join(", ") + "]");
             }
           }
-          if (state.job === "감시자") {
+          if (Bot.scope.owns(state, "감시자")) {
             etc.push("현재 감시 수 : " + state.watch_count + " / 30");
           }
-          if (state.job === "뜀틀선수") {
+          if (Bot.scope.owns(state, "뜀틀선수")) {
             etc.push("뜀틀 사용 : " + state.vault_uses + " / " + state.vault_max + "회");
           }
-          if (state.job === "기관사") {
+          if (Bot.scope.owns(state, "기관사")) {
             etc.push("남은 역 수 : " + state.train_stations + " / 10");
           }
-          if (state.job === "67") {
+          if (Bot.scope.owns(state, "67")) {
             etc.push("상대 유도 불가 누적 : " + (otherState ? otherState.no_yudo_turns : 0) + " / 67");
           }
-          if (state.job === "사과") {
+          if (Bot.scope.owns(state, "사과")) {
             etc.push("사과 최초 발동 : " + (state.apple_triggered_once ? "완료" : "미발동") + " (6턴 최초 발동 시 승리)");
           }
-          if (state.job === "마하트마간디") {
+          if (Bot.scope.owns(state, "마하트마간디")) {
             etc.push("비폭력 스택 : " + state.gandhi_stacks + " / 3");
           }
-          if (state.job === "은하계전사") {
+          if (Bot.scope.owns(state, "은하계전사")) {
             etc.push("별/달 스택 : " + state.star_stacks + "회" + (state.star_ult_used ? " | [볠] 최종 발동 완료" : ""));
           }
-          if (state.job === "혜성전사") {
+          if (Bot.scope.owns(state, "혜성전사")) {
             etc.push("[성] 사용 횟수 : " + state.comet_seong_count + " / 5회");
             etc.push("[혜] 사용 횟수 : " + state.comet_hye_count + " / 1회" + (state.comet_final_applied ? " | 영구 제한 발동 완료" : ""));
           }
-          if (state.job === "사신") {
+          if (Bot.scope.owns(state, "사신")) {
             etc.push("처형 수 : " + state.execution_count + " (4 이하 시 사형 선고로 즉시 승리)");
           }
-          if (state.job === "수학자") {
+          if (Bot.scope.owns(state, "수학자")) {
             etc.push("현재 값 : " + (state.math_result == null ? 1 : state.math_result));
           }
-          if (state.job === "과학자") {
+          if (Bot.scope.owns(state, "과학자")) {
             etc.push("실험 성공 누적 : " + state.experiment_success_total + "회");
             if (state.dna_tracking && state.dna_target) etc.push("DNA 표적 : " + state.dna_target + " | 연속 성공 " + state.dna_success_streak + " / 2");
             if (state.challenge_active) etc.push("세계적인 과학자 : 사전에 없는 단어도 사용 가능");
           }
-          if (state.job === "갈릴레오") {
+          if (Bot.scope.owns(state, "갈릴레오")) {
             let galileoMoons = getGalileoMoonList(state);
             etc.push("발견한 위성 : [" + (galileoMoons.length > 0 ? galileoMoons.join(", ") : "없음") + "]");
             etc.push("지동설 진행 : " + galileoMoons.length + " / 4");
           }
-          if (state.job === "작곡가") {
+          if (Bot.scope.owns(state, "작곡가")) {
             let composerNotes = [];
             {
               let i;
@@ -2414,35 +2414,35 @@ with (Bot.scope) {
             etc.push("현재 박자 : " + composerUnitsToBeatText(state.compose_units) + " / " + composerUnitsToBeatText(state.compose_target_units));
             etc.push("쪼개기 사용 : " + state.split_uses + " / 3회");
           }
-          if (state.job === "스폰지밥") {
+          if (Bot.scope.owns(state, "스폰지밥")) {
             etc.push("보유 금액 : " + state.money + "원");
             etc.push("게살버거 가격 : " + getSpongebobFoodPrice(state, "게살버거") + "원");
             etc.push("감자튀김 가격 : " + getSpongebobFoodPrice(state, "감자튀김") + "원");
             if (isSpongebobWanted(state)) etc.push("강도 수익 남음 : " + state.robber_turns + "회");
           }
-          if (state.job === "나이트") {
+          if (Bot.scope.owns(state, "나이트")) {
             etc.push("L자 기록 : [" + (state.knight_pattern && state.knight_pattern.length > 0 ? state.knight_pattern.join("-") : "없음") + "]");
             etc.push("울음 사용 : " + state.cry_uses + " / 1회");
           }
-          if (state.job === "생존자") {
+          if (Bot.scope.owns(state, "생존자")) {
             let sigDisp = state.signal_sequence && state.signal_sequence.length > 0 ? state.signal_sequence : "없음";
             etc.push("SOS 신호 진행 : [" + sigDisp + "] (목표: · · · - - - · · · - · - · - -)");
           }
-          if (state.job === "비밀요원") {
+          if (Bot.scope.owns(state, "비밀요원")) {
             etc.push("현재 타깃 : [" + (state.targets && state.targets.length > 0 ? state.targets.join(", ") : "없음") + "]");
           }
-          if (state.job === "우라늄") {
+          if (Bot.scope.owns(state, "우라늄")) {
             let gammaChain = state.uranium_gamma_chain && state.uranium_gamma_chain.length > 0 ? state.uranium_gamma_chain.join(", ") : "없음";
             etc.push("2글자 연속 횟수 : " + state.uranium_two_streak + " / 3");
             etc.push("감마 수열 진행 : [" + gammaChain + "]");
           }
-          if (state.job === "수리사") {
+          if (Bot.scope.owns(state, "수리사")) {
             etc.push("방탄 사용 가능 : " + state.bulletproof_uses + " / 7회");
           }
-          if (state.job === "고죠") {
+          if (Bot.scope.owns(state, "고죠")) {
             etc.push("무량공처 사용 가능 : " + state.gongcheo_uses + " / 4회");
           }
-          if (state.job === "스핔이") {
+          if (Bot.scope.owns(state, "스핔이")) {
             etc.push("물걸레질 사용 : " + state.speaki_clean_uses + " / 3회");
             etc.push("호박 사용 : " + state.speaki_pumpkin_uses + " / 2회");
           }
@@ -4878,10 +4878,10 @@ with (Bot.scope) {
       let is_rt = isRoot(word);
       let is_ex = is_hb || is_yd;
       if (game.history.length === 0 && is_ex) return false;
-      if (oppState && oppState.job === "고죠" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0) {
+      if (oppState && Bot.scope.owns(oppState, "고죠") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0) {
         if (word[0] === word[word.length - 1]) return false;
       }
-      if (oppState && oppState.job === "갈릴레오" && !oppState.lost_abilities) {
+      if (oppState && Bot.scope.owns(oppState, "갈릴레오") && !oppState.lost_abilities) {
         let d = decomposeSyllable(word[word.length - 1]);
         if (d && (d.chosung === "ㄲ" || d.chosung === "ㄸ" || d.chosung === "ㅃ" || d.chosung === "ㅆ" || d.chosung === "ㅉ")) return false;
       }
@@ -4922,24 +4922,24 @@ with (Bot.scope) {
         if (!isRT && !isHB) return false;
       }
       if (state.limited_length > 0 && word.length > state.limited_length) return false;
-      if (state.job === "스폰지밥" && isSpongebobWanted(state) && word.length >= 5) return false;
+      if (Bot.scope.owns(state, "스폰지밥") && isSpongebobWanted(state) && word.length >= 5) return false;
       if (state.min_length > 0 && word.length < state.min_length) return false;
       if (state.target_active_turns > 0 && word.length >= 5) return false;
       if (state.no_long_yudo_turns > 0 && is_yd && word.length >= 3) return false;
       if (state.apple_debuff_turns > 0 && (is_hb && word.length >= 3 || is_yd && word.length >= 4)) return false;
       if (state.dino_swallowed && (word.length > 3 || is_ex)) return false;
       if (state.slice_active && is_ex) return false;
-      if (oppState && oppState.job === "악당" && oppState.barrier_turns > 0) {
+      if (oppState && Bot.scope.owns(oppState, "악당") && oppState.barrier_turns > 0) {
         let d = decomposeSyllable(word[word.length - 1]);
         if (d && oppState.barrier_chosungs.indexOf(d.chosung) !== -1) return false;
       }
-      if (oppState && oppState.job === "혜성전사" && oppState.comet_barrier_turns > 0) {
+      if (oppState && Bot.scope.owns(oppState, "혜성전사") && oppState.comet_barrier_turns > 0) {
         let d = decomposeSyllable(word[word.length - 1]);
         if (d && oppState.comet_barrier_chosungs.indexOf(d.chosung) !== -1) return false;
         // 결계 지속 중 유도단어 자체는 막지 않는다. [성] 발동 직후 1턴 유도 금지는 no_yudo_turns로 따로 처리된다.
       }
-      if (state.job === "마법사" && state.magic_side_effect_ignore_turns <= 0 && is_yd) return false;
-      if (oppState && oppState.job === "기관사" && state.job !== "기관사") {
+      if (Bot.scope.owns(state, "마법사") && state.magic_side_effect_ignore_turns <= 0 && is_yd) return false;
+      if (oppState && Bot.scope.owns(oppState, "기관사") && !Bot.scope.owns(state, "기관사")) {
         if (game.turnCount % 2 === 0 && word.length > oppState.train_stations) return false;
       }
       if (state.hallucination_active && game.history.length > 0) {
@@ -4954,12 +4954,12 @@ with (Bot.scope) {
   cpuStartSyls = function cpuStartSyls(game, state) {
     let __botResult = function () {
       if (game.history.length === 0) return null;
-      if (state.job === "나이트" && state.exchange_active) return "KNIGHT_EXCHANGE";
+      if (Bot.scope.owns(state, "나이트") && state.exchange_active) return "KNIGHT_EXCHANGE";
       if (state.hallucination_active) return "HALLUCINATION";
       let syls = [];
       let s1 = game.lastLetter.s1;
       let s2 = game.lastLetter.s2;
-      if (state.job === "전우치" && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) {
+      if (Bot.scope.owns(state, "전우치") && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) {
         let availNormal = cpuCountAvailFast(s2, game) + (s1 !== s2 ? cpuCountAvailFast(s1, game) : 0);
         if (availNormal === 0 && ROUTESYL_SET && !(state.no_root_turns > 0 || state.last_route_only_turns > 0 || state.limited_length > 0 || state.min_length > 0)) {
           return Array.from(ROUTESYL_SET);
@@ -5167,24 +5167,24 @@ with (Bot.scope) {
         if (wl >= 5) bonus += 1500;
       }
       if (oppState) {
-        if (oppState.job === "작곡가") {
+        if (Bot.scope.owns(oppState, "작곡가")) {
           if (wl === 2 || wl === 4 || wl === 8) bonus -= 6000;
         }
-        if (oppState.job === "투자자") {
+        if (Bot.scope.owns(oppState, "투자자")) {
           if (wl % 2 !== 0) bonus += 2500;else bonus -= 2500;
         }
-        if (oppState.job === "환자") {
+        if (Bot.scope.owns(oppState, "환자")) {
           if (wl % 2 !== 0) bonus -= 6000;
         }
-        if (oppState.job === "사신" && state.job !== "사신") {
+        if (Bot.scope.owns(oppState, "사신") && !Bot.scope.owns(state, "사신")) {
           if (wl >= 8) bonus -= 5000;
           if (wl >= 6) bonus -= 2000;
         }
-        if (oppState.job === "마하트마간디") {
+        if (Bot.scope.owns(oppState, "마하트마간디")) {
           if (is_hb || is_yd) bonus -= 4000;
         }
-        if (oppState.job === "67" && wl === 6) bonus -= 3000;
-        if (oppState.job === "늑대인간") {
+        if (Bot.scope.owns(oppState, "67") && wl === 6) bonus -= 3000;
+        if (Bot.scope.owns(oppState, "늑대인간")) {
           let cnt = 0;
           {
             let i;
@@ -5205,7 +5205,7 @@ with (Bot.scope) {
           }
           if (cnt >= 3) bonus -= 2500;
         }
-        if (oppState.job === "과학자") {
+        if (Bot.scope.owns(oppState, "과학자")) {
           let cnt = 0;
           {
             let i;
@@ -5226,11 +5226,11 @@ with (Bot.scope) {
           }
           if (cnt >= 4) bonus -= 3000;
         }
-        if (oppState.job === "혜성전사") {
+        if (Bot.scope.owns(oppState, "혜성전사")) {
           if (word.indexOf("혜") !== -1) bonus -= 1500;
           if (word.indexOf("성") !== -1) bonus -= 1000;
         }
-        if (oppState.job === "갈릴레오" && state.job !== "갈릴레오") {
+        if (Bot.scope.owns(oppState, "갈릴레오") && !Bot.scope.owns(state, "갈릴레오")) {
           let tmp = {
             galileo_moons: oppState.galileo_moons ? {
               io: oppState.galileo_moons.io,
@@ -5247,7 +5247,7 @@ with (Bot.scope) {
           let moons = getGalileoNewMoons(tmp, word);
           bonus -= moons.length * 20000;
         }
-        if (oppState.job === "수집가") {
+        if (Bot.scope.owns(oppState, "수집가")) {
           if (oppState.collected_syllables) {
             let newSyls = 0;
             {
@@ -5266,10 +5266,10 @@ with (Bot.scope) {
             bonus -= newSyls * 400;
           }
         }
-        if (oppState.job === "은하계전사" && state.job !== "은하계전사") {
+        if (Bot.scope.owns(oppState, "은하계전사") && !Bot.scope.owns(state, "은하계전사")) {
           if (word.indexOf("별") !== -1 || word.indexOf("달") !== -1) bonus -= 3000;
         }
-        if (oppState.job === "우라늄" && state.job !== "우라늄") {
+        if (Bot.scope.owns(oppState, "우라늄") && !Bot.scope.owns(state, "우라늄")) {
           let gammaTarget = [2, 3, 4, 5, 4, 3, 2];
           let expected = gammaTarget[Math.min((oppState.uranium_gamma_chain || []).length, gammaTarget.length - 1)];
           if (expected && wl === expected) bonus -= 3000;
@@ -5284,9 +5284,9 @@ with (Bot.scope) {
     let __botResult = function () {
       if (!state) return false;
       if (state.lost_abilities || state.disabled_turns > 0 || state.absolutely_disabled > 0) return false;
-      if (state.job === "전우치" && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) return true;
-      if (state.job === "공룡" && (state.swallow_cooldown || 0) === 0 && (state.swallow_uses || 0) < 3 && game.history && game.history.length >= 2) return true;
-      if (state.job === "생존자" && (state.rescue_cooldown || 0) === 0 && (state.rescue_uses || 0) < 3 && game.history && game.history.length >= 3) return true;
+      if (Bot.scope.owns(state, "전우치") && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) return true;
+      if (Bot.scope.owns(state, "공룡") && (state.swallow_cooldown || 0) === 0 && (state.swallow_uses || 0) < 3 && game.history && game.history.length >= 2) return true;
+      if (Bot.scope.owns(state, "생존자") && (state.rescue_cooldown || 0) === 0 && (state.rescue_uses || 0) < 3 && game.history && game.history.length >= 3) return true;
       return false;
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
@@ -5524,7 +5524,7 @@ with (Bot.scope) {
       if (profile.isR) score += 900;
       if (profile.isI) score += 900;
       if (profile.directCount === 0 && profile.dueumCount > 0) score -= 12000;
-      if (oppState && oppState.job === "67" && profile.words.length > 0) {
+      if (oppState && Bot.scope.owns(oppState, "67") && profile.words.length > 0) {
         let six = 0;
         {
           let i;
@@ -6059,25 +6059,25 @@ with (Bot.scope) {
       if (!ability) return true;
       if (!state || isAbilityUseDisabled(state)) return false;
       if (game && isMapAbilityBlocked(game)) return false;
-      if (ability === "무량공처") return state.job === "고죠" && state.gongcheo_uses > 0 && !(state.gongcheo_cooldown > 0);
-      if (ability === "게살버거") return state.job === "스폰지밥" && !(state.burger_cooldown > 0) && state.money >= getSpongebobFoodPrice(state, "게살버거");
-      if (ability === "브레스") return state.job === "공룡" && (state.breath_uses || 0) < 1 && game && game.turnCount >= 8;
-      if (ability === "억제") return state.job === "마하트마간디" && state.gandhi_stacks >= 1 && !(state.suppress_cooldown > 0);
-      if (ability === "2음절") return state.job === "시인" && (state.poetic_2_uses || 0) < 3 && !(state.poetic_2_cooldown > 0);
-      if (ability === "체크메이트") return state.job === "나이트" && (state.checkmate_uses || 0) < 5 && !(state.checkmate_cooldown > 0) && game && game.turnCount >= 5;
-      if (ability === "조개") return state.job === "해달" && (state.otter_clam_uses || 0) < 3 && !(state.otter_clam_cooldown > 0);
-      if (ability === "찌르기") return state.job === "검객" && (state.stab_uses || 0) < 2 && !(state.stab_cooldown > 0) && game && game.turnCount >= 5;
-      if (ability === "거짓 보도") return state.job === "기자" && (state.report_uses || 0) < 4 && !(state.report_cooldown > 0);
-      if (ability === "뤼카 수열") return state.job === "피보나치" && !(state.lucas_cooldown > 0) && game && isLucasTurn(game.turnCount);
-      if (ability === "물음표") return state.job === "?" && (state.question_uses || 0) < 2 && game && game.history && game.history.length > 0 && game.history[game.history.length - 1].length >= 3 && game.history[game.history.length - 1].length % 2 === 1;
+      if (ability === "무량공처") return Bot.scope.owns(state, "고죠") && state.gongcheo_uses > 0 && !(state.gongcheo_cooldown > 0);
+      if (ability === "게살버거") return Bot.scope.owns(state, "스폰지밥") && !(state.burger_cooldown > 0) && state.money >= getSpongebobFoodPrice(state, "게살버거");
+      if (ability === "브레스") return Bot.scope.owns(state, "공룡") && (state.breath_uses || 0) < 1 && game && game.turnCount >= 8;
+      if (ability === "억제") return Bot.scope.owns(state, "마하트마간디") && state.gandhi_stacks >= 1 && !(state.suppress_cooldown > 0);
+      if (ability === "2음절") return Bot.scope.owns(state, "시인") && (state.poetic_2_uses || 0) < 3 && !(state.poetic_2_cooldown > 0);
+      if (ability === "체크메이트") return Bot.scope.owns(state, "나이트") && (state.checkmate_uses || 0) < 5 && !(state.checkmate_cooldown > 0) && game && game.turnCount >= 5;
+      if (ability === "조개") return Bot.scope.owns(state, "해달") && (state.otter_clam_uses || 0) < 3 && !(state.otter_clam_cooldown > 0);
+      if (ability === "찌르기") return Bot.scope.owns(state, "검객") && (state.stab_uses || 0) < 2 && !(state.stab_cooldown > 0) && game && game.turnCount >= 5;
+      if (ability === "거짓 보도") return Bot.scope.owns(state, "기자") && (state.report_uses || 0) < 4 && !(state.report_cooldown > 0);
+      if (ability === "뤼카 수열") return Bot.scope.owns(state, "피보나치") && !(state.lucas_cooldown > 0) && game && isLucasTurn(game.turnCount);
+      if (ability === "물음표") return Bot.scope.owns(state, "?") && (state.question_uses || 0) < 2 && game && game.history && game.history.length > 0 && game.history[game.history.length - 1].length >= 3 && game.history[game.history.length - 1].length % 2 === 1;
       if (ability === "쉼표") {
-        if (!(state.job === "?") || (state.comma_uses || 0) >= 1 || !game) return false;
+        if (!(Bot.scope.owns(state, "?")) || (state.comma_uses || 0) >= 1 || !game) return false;
         let baseChar = game.lastLetter && game.lastLetter.s2 ? game.lastLetter.s2 : game.lastLetter ? game.lastLetter.s1 : "";
         return !!shiftSyllableVowel(baseChar, 1);
       }
-      if (ability === "마침표") return state.job === "?" && game && game.turnCount >= 24;
-      if (ability === "샵") return state.job === "피아니스트" && (state.pianist_sharp_uses || 0) < 2 && !(state.pianist_sharp_cooldown > 0);
-      if (ability === "플랫") return state.job === "피아니스트" && (state.pianist_flat_uses || 0) < 2 && !(state.pianist_flat_cooldown > 0);
+      if (ability === "마침표") return Bot.scope.owns(state, "?") && game && game.turnCount >= 24;
+      if (ability === "샵") return Bot.scope.owns(state, "피아니스트") && (state.pianist_sharp_uses || 0) < 2 && !(state.pianist_sharp_cooldown > 0);
+      if (ability === "플랫") return Bot.scope.owns(state, "피아니스트") && (state.pianist_flat_uses || 0) < 2 && !(state.pianist_flat_cooldown > 0);
       if (ability === "Restart") return false;
       return false;
     }.call(this);
@@ -6374,7 +6374,7 @@ with (Bot.scope) {
       if (typeof base.hanbang_end_count === "number") score += base.hanbang_end_count * 120;
       if (typeof base.root_start_count === "number") score += base.root_start_count * 60;
       if (typeof base.yudo_start_count === "number") score += base.yudo_start_count * 35;
-      if (typeof base.six_len_count === "number" && oppState.job === "67") score -= base.six_len_count * 700;
+      if (typeof base.six_len_count === "number" && Bot.scope.owns(oppState, "67")) score -= base.six_len_count * 700;
       if (pair) {
         if (typeof pair.base_bias === "number") score += pair.base_bias;
         if (pair.risk_bias && typeof pair.risk_bias.six_len_count === "number" && typeof base.six_len_count === "number") {
@@ -6395,7 +6395,7 @@ with (Bot.scope) {
         }
       }
       let threat67 = 0;
-      if (oppState.job === "67" && typeof base.six_len_count === "number") {
+      if (Bot.scope.owns(oppState, "67") && typeof base.six_len_count === "number") {
         threat67 = Math.min(1, base.six_len_count / 5);
       }
       let immediateRisk = 0;
@@ -6566,8 +6566,8 @@ with (Bot.scope) {
         score += 120000 / (oppNextCount + 1);
         if (oppNextCount <= 5) score += 40000;
         if (oppNextCount <= 2) score += 80000;
-        if (oppState && (oppState.job === "67" || oppState.job === "작곡가")) score += 6000;
-        if (oppState && oppState.job === "마하트마간디") score -= 15000;
+        if (oppState && (Bot.scope.owns(oppState, "67") || Bot.scope.owns(oppState, "작곡가"))) score += 6000;
+        if (oppState && Bot.scope.owns(oppState, "마하트마간디")) score -= 15000;
       }
       if (oppNextCount > 0) {
         score += 60000 / (oppNextCount + 1);
@@ -6584,9 +6584,9 @@ with (Bot.scope) {
       score += cpuMemoryScoreWord(word, oppState ? oppState.job : "");
       score += cpuKnowledgeScoreWord(word, game, state, oppState);
       score += cpuJobBonus(word, game, state, oppState);
-      if (oppState && oppState.job === "스폰지밥") {
+      if (oppState && Bot.scope.owns(oppState, "스폰지밥")) {
         if (wl >= 5) score -= 15000;
-      } else if (oppState && oppState.job === "수학자") {
+      } else if (oppState && Bot.scope.owns(oppState, "수학자")) {
         score -= wl * 40;
       } else {
         score += Math.min(wl, 10) * 140;
@@ -6647,9 +6647,9 @@ with (Bot.scope) {
   cpuCanReuseUsedWord = function cpuCanReuseUsedWord(state, word) {
     let __botResult = function () {
       if (!state) return false;
-      if (state.job === "해커" && state.jojak_active > 0) return true;
-      if (state.job === "스핔이" && state.speaki_clean_active) return true;
-      return state.job === "나이트" && state.exchange_active && word && isRoot(word);
+      if (Bot.scope.owns(state, "해커") && state.jojak_active > 0) return true;
+      if (Bot.scope.owns(state, "스핔이") && state.speaki_clean_active) return true;
+      return Bot.scope.owns(state, "나이트") && state.exchange_active && word && isRoot(word);
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
@@ -6737,10 +6737,10 @@ with (Bot.scope) {
         let iCanCounter = cpuHasHanbangCounter(cpuState, game);
         if (!iCanCounter) score -= 400000;else score -= 50000;
       }
-      if (cpuState.job === "투자자" && cpuState.investor_stock <= game.turnCount) score += 1000000;
-      if (oppState.job === "투자자" && oppState.investor_stock <= game.turnCount) score -= 1000000;
+      if (Bot.scope.owns(cpuState, "투자자") && cpuState.investor_stock <= game.turnCount) score += 1000000;
+      if (Bot.scope.owns(oppState, "투자자") && oppState.investor_stock <= game.turnCount) score -= 1000000;
       if (oppState.execution_count !== undefined && oppState.execution_count <= 0) score -= 2000000;
-      if (cpuState.execution_count !== undefined && cpuState.execution_count <= 0 && cpuState.job === "사신") score += 2000000;
+      if (cpuState.execution_count !== undefined && cpuState.execution_count <= 0 && Bot.scope.owns(cpuState, "사신")) score += 2000000;
       let lastWord = game.history.length > 0 ? game.history[game.history.length - 1] : "";
       let lastSyl = lastWord ? lastWord[lastWord.length - 1] : "";
       if (CPU_MEMORY.losingSyllables[lastSyl]) {
@@ -6758,16 +6758,16 @@ with (Bot.scope) {
       if (oppState.no_hanbang_turns > 0) score += 1500;
       if (cpuState.absolutely_disabled > 0) score -= 4000;
       if (oppState.absolutely_disabled > 0) score += 4000;
-      if (cpuState.job === "67" && oppState.no_yudo_turns >= 50) score += 200000;
-      if (cpuState.job === "마하트마간디") score += (cpuState.gandhi_stacks || 0) * 2000;
-      if (cpuState.job === "갈릴레오" && cpuState.galileo_moons) {
+      if (Bot.scope.owns(cpuState, "67") && oppState.no_yudo_turns >= 50) score += 200000;
+      if (Bot.scope.owns(cpuState, "마하트마간디")) score += (cpuState.gandhi_stacks || 0) * 2000;
+      if (Bot.scope.owns(cpuState, "갈릴레오") && cpuState.galileo_moons) {
         let m = cpuState.galileo_moons;
         let discovered = (m.io ? 1 : 0) + (m.europa ? 1 : 0) + (m.ganymede ? 1 : 0) + (m.callisto ? 1 : 0);
         score += discovered * 80000;
       }
-      if (cpuState.job === "수집가" && cpuState.collected_syllables) score += cpuState.collected_syllables.length * 500;
-      if (cpuState.job === "스폰지밥") score += Math.min(cpuState.money || 0, 200000) * 0.02;
-      if (cpuState.job === "사신") score += Math.max(0, 50 - (cpuState.execution_count || 50)) * 1500;
+      if (Bot.scope.owns(cpuState, "수집가") && cpuState.collected_syllables) score += cpuState.collected_syllables.length * 500;
+      if (Bot.scope.owns(cpuState, "스폰지밥")) score += Math.min(cpuState.money || 0, 200000) * 0.02;
+      if (Bot.scope.owns(cpuState, "사신")) score += Math.max(0, 50 - (cpuState.execution_count || 50)) * 1500;
       return score;
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
@@ -7044,7 +7044,7 @@ with (Bot.scope) {
   };
   trySpeakiPassiveWin = function trySpeakiPassiveWin(room, playerName, state, replier) {
     let __botResult = function () {
-      if (!state || state.job !== "스핔이") return false;
+      if (!state || !Bot.scope.owns(state, "스핔이")) return false;
       if (state.lost_abilities || state.disabled_turns > 0 || state.absolutely_disabled > 0) return false;
       if (state.speaki_clean_uses >= 3 && state.speaki_pumpkin_uses >= 2) {
         replier.reply(joinLines([jobLine(state.job, getJobDialogue(state.job, "passive", "백수가 쪼아요", "할 일을 전부 비웠다.")), systemLine(playerName + "의 모든 액티브 능력 사용 횟수가 0회가 되어 경기가 끝난다.")]));
@@ -7201,15 +7201,15 @@ with (Bot.scope) {
       }
       let knowledgeAbility = cpuFindKnowledgeAbility(game, cpuName);
       if (knowledgeAbility) return knowledgeAbility;
-      if (state.job === "해커") {
+      if (Bot.scope.owns(state, "해커")) {
         if (canUse("조작") && left("jojak_uses", 3) && ready("jojak_cooldown") && candidateCount === 0 && turn >= 5) return "조작";
         if (canUse("복제") && left("bokje_uses", 1) && turn >= 7 && currentDebuffCount() > 0) return "복제";
         if (canUse("초토화") && left("chotohwa_uses", 2) && ready("chotohwa_cooldown") && turn >= 7 && (isDanger || ["고죠", "사신", "작곡가", "나이트", "수학자", "스폰지밥"].includes(oppState ? oppState.job : ""))) return "초토화";
       }
-      if (state.job === "투자자" && canUse("주가 조작") && state.juga_jojak_cooldown === 0) {
+      if (Bot.scope.owns(state, "투자자") && canUse("주가 조작") && state.juga_jojak_cooldown === 0) {
         if (left("juga_jojak_uses", 3) && (state.investor_stock > turn + 5 || isDanger && state.investor_stock > turn)) return "주가 조작";
       }
-      if (state.job === "수집가") {
+      if (Bot.scope.owns(state, "수집가")) {
         let pool = state.collected_syllables || [];
         if (canUse("채굴") && left("mine_uses", 3) && ready("mine_cooldown") && pool.length < 5) return "채굴";
         if (canUse("제작") && ready("make_cooldown") && pool.length >= 2) {
@@ -7245,26 +7245,26 @@ with (Bot.scope) {
           }
         }
       }
-      if (state.job === "환자" && canUse("환각증") && state.hallucination_uses === 0 && turn >= 7) {
+      if (Bot.scope.owns(state, "환자") && canUse("환각증") && state.hallucination_uses === 0 && turn >= 7) {
         if (hasLast && isRoot(lastW)) return "환각증";
       }
-      if (state.job === "감시자" && canUse("탐지") && left("detect_uses", 2) && ready("detect_cooldown")) {
+      if (Bot.scope.owns(state, "감시자") && canUse("탐지") && left("detect_uses", 2) && ready("detect_cooldown")) {
         if (isDanger || hasLast && (isRoot(lastW) || isHanbang(lastW) || isYudo(lastW))) return "탐지";
       }
-      if (state.job === "뜀틀선수" && canUse("허들 넘기") && turn >= 22 && left("hurdle_uses", 1)) {
+      if (Bot.scope.owns(state, "뜀틀선수") && canUse("허들 넘기") && turn >= 22 && left("hurdle_uses", 1)) {
         return "허들 넘기";
       }
-      if (state.job === "전우치" && canUse("직격뢰") && left("lightning_uses", 3) && candidateCount > 5) {
+      if (Bot.scope.owns(state, "전우치") && canUse("직격뢰") && left("lightning_uses", 3) && candidateCount > 5) {
         let target = findLightningTarget();
         if (target) return "직격뢰 " + target;
       }
-      if (state.job === "시프터" && canUse("빅 시프트") && left("big_shift_uses", 1) && isDanger && canBigShiftCurrent()) {
+      if (Bot.scope.owns(state, "시프터") && canUse("빅 시프트") && left("big_shift_uses", 1) && isDanger && canBigShiftCurrent()) {
         return "빅 시프트";
       }
-      if (state.job === "시프터" && canUse("시프트") && left("shift_uses", 4) && isDanger && canShiftCurrent()) {
+      if (Bot.scope.owns(state, "시프터") && canUse("시프트") && left("shift_uses", 4) && isDanger && canShiftCurrent()) {
         return "시프트";
       }
-      if (state.job === "비밀요원") {
+      if (Bot.scope.owns(state, "비밀요원")) {
         if (canUse("포획") && left("capture_uses", 2) && ready("capture_cooldown") && state.targets && state.targets.length > 0) {
           let bestTarget = state.targets[0];
           let minCount = Infinity;
@@ -7281,34 +7281,34 @@ with (Bot.scope) {
           return "포획 " + bestTarget[0];
         }
       }
-      if (state.job === "사과" && canUse("사구아") && left("sagua_uses", 1) && (isDanger || turn >= 8)) {
+      if (Bot.scope.owns(state, "사과") && canUse("사구아") && left("sagua_uses", 1) && (isDanger || turn >= 8)) {
         return "사구아";
       }
-      if (state.job === "시인") {
+      if (Bot.scope.owns(state, "시인")) {
         if (canUse("2음절") && left("poetic_2_uses", 3) && ready("poetic_2_cooldown") && (isDanger || turn >= 6)) return "2음절";
         if (canUse("시적 허용") && left("poetic_allow_uses", 2) && ready("poetic_allow_cooldown") && turn >= 6 && !isDanger) return "시적 허용";
       }
-      if (state.job === "공룡") {
+      if (Bot.scope.owns(state, "공룡")) {
         if (canUse("삼키기") && left("swallow_uses", 3) && ready("swallow_cooldown") && game.history.length >= 2) {
           if (isCritical || oppCanKillCpu || hasLast && (isHanbang(lastW) || isYudo(lastW) || isRoot(lastW) || lastW.length >= 6)) return "삼키기";
         }
         if (canUse("브레스") && left("breath_uses", 1) && turn >= 8 && !isDanger) return "브레스";
         if (canUse("꼬리 날리기") && left("tail_uses", 1) && turn >= 8 && (state.disabled_turns > 0 || isDanger)) return "꼬리 날리기";
       }
-      if (state.job === "마법사") {
+      if (Bot.scope.owns(state, "마법사")) {
         if (canUse("공허") && left("void_uses", 5) && ready("void_cooldown")) {
           let decom = decomposeSyllable(game.lastLetter.s2);
           if (decom && decom.gi > 0 && (isDanger || oppCanKillCpu || availCount <= 5)) return "공허";
         }
         if (canUse("폭발") && left("explosion_uses", 1) && turn >= 14 && currentDebuffCount() >= 2) return "폭발";
       }
-      if (state.job === "사신" && canUse("사형 선고") && left("death_uses", 4444) && ready("death_cooldown")) {
+      if (Bot.scope.owns(state, "사신") && canUse("사형 선고") && left("death_uses", 4444) && ready("death_cooldown")) {
         let ec = state.execution_count || 50;
         if (ec <= 8) return "사형 선고";
         if (ec <= 18 && turn >= 2) return "사형 선고";
         if (isCritical) return "사형 선고";
       }
-      if (state.job === "수학자") {
+      if (Bot.scope.owns(state, "수학자")) {
         if ((state.math_study_uses_left || 0) > 0) {
           let cur = state.math_result == null ? 1 : state.math_result;
           if (cur % 2 === 0 && cur > 8 && canUse("C")) return "C";
@@ -7316,9 +7316,9 @@ with (Bot.scope) {
           if (canUse("A")) return "A";
         }
       }
-      if (state.job === "과학자" && canUse("DNA파괴") && state.dna_cooldown === 0 && !state.dna_tracking && oppState) {
+      if (Bot.scope.owns(state, "과학자") && canUse("DNA파괴") && state.dna_cooldown === 0 && !state.dna_tracking && oppState) {
         let abilitiesToKill = [];
-        if (oppState.job === "고죠") abilitiesToKill = ["무량공처"];else if (oppState.job === "해커") abilitiesToKill = ["조작", "초토화"];else if (oppState.job === "사신") abilitiesToKill = ["사형 선고"];else if (oppState.job === "작곡가") abilitiesToKill = ["쪼개기", "쉼표"];else if (oppState.job === "스폰지밥") abilitiesToKill = ["강도 채용"];
+        if (Bot.scope.owns(oppState, "고죠")) abilitiesToKill = ["무량공처"];else if (Bot.scope.owns(oppState, "해커")) abilitiesToKill = ["조작", "초토화"];else if (Bot.scope.owns(oppState, "사신")) abilitiesToKill = ["사형 선고"];else if (Bot.scope.owns(oppState, "작곡가")) abilitiesToKill = ["쪼개기", "쉼표"];else if (Bot.scope.owns(oppState, "스폰지밥")) abilitiesToKill = ["강도 채용"];
         {
           let __botLoop126 = Bot.functions.each(Bot.functions.toArray(abilitiesToKill), function (ab) {
             if (!oppState.destroyed_active_abilities || !oppState.destroyed_active_abilities.includes(ab)) return Bot.functions.control("return", "DNA파괴 " + ab);
@@ -7326,8 +7326,8 @@ with (Bot.scope) {
           if (__botLoop126) return __botLoop126;
         }
       }
-      if (state.job === "과학자" && canUse("도전") && left("challenge_uses", 1) && state.experiment_success_total >= 15) return "도전";
-      if (state.job === "스폰지밥") {
+      if (Bot.scope.owns(state, "과학자") && canUse("도전") && left("challenge_uses", 1) && state.experiment_success_total >= 15) return "도전";
+      if (Bot.scope.owns(state, "스폰지밥")) {
         let burgerPrice = getSpongebobFoodPrice(state, "게살버거");
         let friesPrice = getSpongebobFoodPrice(state, "감자튀김");
         if (canUse("강도 채용") && left("robber_uses", 3) && ready("robber_cooldown") && state.money >= 30000) return "강도 채용";
@@ -7335,59 +7335,59 @@ with (Bot.scope) {
         if (canUse("감자튀김") && ready("fries_cooldown") && state.money >= friesPrice && turn >= 6 && !(oppState && oppState.only_even_turns > 0)) return "감자튀김";
         if (canUse("보너스") && left("bonus_uses", 4) && ready("bonus_cooldown") && turn >= 5 && !state.bonus_active) return "보너스";
       }
-      if (state.job === "작곡가") {
+      if (Bot.scope.owns(state, "작곡가")) {
         if (canUse("쪼개기") && left("split_uses", 3) && turn >= 3 && state.compose_units < state.compose_target_units) return "쪼개기";
         if (canUse("쉼표") && ready("rest_cooldown") && state.compose_units > 0 && state.compose_target_units - state.compose_units <= 2) return "쉼표";
       }
-      if (state.job === "나이트") {
+      if (Bot.scope.owns(state, "나이트")) {
         if (canUse("교환") && left("exchange_uses", 2) && !state.exchange_pending && !state.exchange_active && (isDanger || hasLast && (isHanbang(lastW) || isRoot(lastW)))) return "교환";
         if (canUse("체크메이트") && left("checkmate_uses", 5) && ready("checkmate_cooldown") && turn >= 5) return "체크메이트";
       }
-      if (state.job === "생존자" && canUse("긴급 구조") && left("rescue_uses", 3) && ready("rescue_cooldown") && game.history.length >= 3) {
+      if (Bot.scope.owns(state, "생존자") && canUse("긴급 구조") && left("rescue_uses", 3) && ready("rescue_cooldown") && game.history.length >= 3) {
         if (hasLast && (isRoot(lastW) || isYudo(lastW))) return "긴급 구조";
       }
-      if (state.job === "악당") {
+      if (Bot.scope.owns(state, "악당")) {
         if (canUse("결계") && left("barrier_uses", 4) && ready("barrier_cooldown") && state.barrier_turns === 0 && (isDanger || turn >= 5)) return "결계";
         if (canUse("왜곡") && left("distort_uses", 2) && ready("distort_cooldown") && state.barrier_turns > 0) return "왜곡";
       }
-      if (state.job === "기자" && canUse("거짓 보도") && left("report_uses", 4) && ready("report_cooldown") && (isDanger || turn >= 6)) {
+      if (Bot.scope.owns(state, "기자") && canUse("거짓 보도") && left("report_uses", 4) && ready("report_cooldown") && (isDanger || turn >= 6)) {
         return "거짓 보도";
       }
-      if (state.job === "검객") {
+      if (Bot.scope.owns(state, "검객")) {
         if (canUse("찌르기") && turn >= 5 && left("stab_uses", 2) && ready("stab_cooldown") && (isDanger || turn >= 10)) return "찌르기";
         if (canUse("가르기") && left("slice_uses", 3) && ready("slice_cooldown") && hasLast && getSwordsmanSliceEdges(lastW)) return "가르기";
       }
-      if (state.job === "마하트마간디" && canUse("억제") && state.gandhi_stacks >= 1 && ready("suppress_cooldown")) {
+      if (Bot.scope.owns(state, "마하트마간디") && canUse("억제") && state.gandhi_stacks >= 1 && ready("suppress_cooldown")) {
         return "억제";
       }
-      if (state.job === "고죠" && canUse("무량공처") && state.gongcheo_uses > 0 && ready("gongcheo_cooldown") && turn >= 3) {
+      if (Bot.scope.owns(state, "고죠") && canUse("무량공처") && state.gongcheo_uses > 0 && ready("gongcheo_cooldown") && turn >= 3) {
         if (isDanger || lastW.length >= 4 || turn >= 15) return "무량공처";
       }
-      if (state.job === "수리사" && canUse("수리") && left("repair_uses", 3) && ready("repair_cooldown") && turn >= 3 && canRepairCurrent()) {
+      if (Bot.scope.owns(state, "수리사") && canUse("수리") && left("repair_uses", 3) && ready("repair_cooldown") && turn >= 3 && canRepairCurrent()) {
         if (isDanger || hasLast && (isHanbang(lastW) || isRoot(lastW))) return "수리";
       }
-      if (state.job === "우라늄" && canUse("핵분열") && left("fission_uses", 1) && hasLast) {
+      if (Bot.scope.owns(state, "우라늄") && canUse("핵분열") && left("fission_uses", 1) && hasLast) {
         if ((isDanger || isHanbang(lastW)) && getNonFirstSyllables(lastW).length > 0) return "핵분열";
       }
-      if (state.job === "스핔이") {
+      if (Bot.scope.owns(state, "스핔이")) {
         if (canUse("호박") && left("speaki_pumpkin_uses", 2) && ready("speaki_pumpkin_cooldown") && hasLast && !isHanbang(lastW) && isDanger) return "호박";
         if (canUse("물걸레질") && left("speaki_clean_uses", 3) && ready("speaki_clean_cooldown") && isDanger) return "물걸레질";
       }
-      if (state.job === "해달") {
+      if (Bot.scope.owns(state, "해달")) {
         if (canUse("깨부수기") && left("otter_smash_uses", 1) && hasLast && lastW.length % 2 === 1 && getSwordsmanSliceEdges(lastW) && (isDanger || isHanbang(lastW) || isYudo(lastW) || isRoot(lastW))) return "깨부수기";
         if (canUse("조개") && left("otter_clam_uses", 3) && ready("otter_clam_cooldown") && oppState && !(oppState.otter_clam_turns > 0) && (isDanger || turn >= 5)) return "조개";
       }
-      if (state.job === "피보나치" && canUse("뤼카 수열") && ready("lucas_cooldown") && isLucasTurn(turn)) {
+      if (Bot.scope.owns(state, "피보나치") && canUse("뤼카 수열") && ready("lucas_cooldown") && isLucasTurn(turn)) {
         if (state.lucas_value - turn <= 0 || isDanger || turn >= 7) return "뤼카 수열";
       }
-      if (state.job === "?") {
+      if (Bot.scope.owns(state, "?")) {
         if (canUse("마침표") && turn >= 24) return "마침표";
         if (canUse("물음표") && left("question_uses", 2) && hasLast && lastW.length >= 3 && lastW.length % 2 === 1) {
           if (isDanger || isHanbang(lastW) || isYudo(lastW) || isRoot(lastW) || turn >= 5) return "물음표";
         }
         if (canUse("쉼표") && left("comma_uses", 1) && canShiftCurrent() && (isDanger || turn >= 6)) return "쉼표";
       }
-      if (state.job === "피아니스트") {
+      if (Bot.scope.owns(state, "피아니스트")) {
         if (canUse("샵") && (isDanger || turn >= 6)) return "샵";
         if (canUse("플랫") && hasLast && (isRoot(lastW) || turn >= 8)) return "플랫";
       }
@@ -7925,7 +7925,6 @@ with (Bot.scope) {
         }
         replySystem(replier, sender + "이 참가했다. 현재 " + game.players.length + "/" + requiredPlayers + "명이다.");
         if (game.players.length === requiredPlayers) {
-          game.phase = "job_selection";
           game.started = true;
           game.isPractice = false;
           game.firstPicker = null;
@@ -7934,6 +7933,14 @@ with (Bot.scope) {
           game.playerStates = {};
           game.mapApplied = false;
           game.selectedMap = null;
+          /* 조합 모드는 직업 선택 대신 능력 드래프트로 들어간다. */
+          if (Bot.combat) Bot.combat.applyRoomDefault(room, game);
+          if (Bot.combat && Bot.combat.play.modeOn(game)) {
+            replier.reply(systemLine("참가 인원이 모였다. (조합 모드)"));
+            Bot.combat.session.startCombatDraft(game, room, replier);
+            return;
+          }
+          game.phase = "job_selection";
           replier.reply(joinFoldedLines([systemLine("참가 인원이 모였다."), systemLine("이제 직업을 선택해 달라."), systemLine("입력 예시: " + PREFIX + "ㅈㅅ 해커")], [systemLine("직업 정보 보기: " + PREFIX + "ㅈㅂ 해커"), systemLine("직업 랜덤 고르기: " + PREFIX + "ㅈㅅㄹㄷ"), systemLine("직업 목록: " + PREFIX + "ㅈㅇ"), systemLine("현재 등록 직업 수는 " + ALL_JOBS.length + "개다.")]));
         }
         return;
@@ -8008,6 +8015,13 @@ with (Bot.scope) {
         let practiceGuide = humanPlayers.length <= 1 ? sender + "만 직업을 선택하면 나머지 CPU는 자동으로 배정된다." : "사람 참가자 " + humanPlayers.join(", ") + "은 차례대로 직업을 선택하고, 남은 자리는 CPU로 채운다.";
         game.mapApplied = false;
         game.selectedMap = null;
+        /* 조합 모드는 직업 선택 대신 능력 드래프트로 들어간다. */
+        if (Bot.combat) Bot.combat.applyRoomDefault(room, game);
+        if (Bot.combat && Bot.combat.play.modeOn(game)) {
+          replier.reply(systemLine(mode + "대" + mode + " 연습 대전이 시작된다. (조합 모드)"));
+          Bot.combat.session.startCombatDraft(game, room, replier);
+          return;
+        }
         replier.reply(joinFoldedLines([systemLine(mode + "대" + mode + " 연습 대전이 시작된다."), systemLine(practiceGuide), systemLine("입력 예시: " + PREFIX + "ㅈㅅ 해커")], [systemLine("직업 선택 후 밴 단계가 진행되고, 밴이 끝나면 남은 CPU 직업이 자동 배정된다."), systemLine("직업 정보 보기: " + PREFIX + "ㅈㅂ 해커"), systemLine("직업 랜덤 고르기: " + PREFIX + "ㅈㅅㄹㄷ"), systemLine("CPU 직업 지정: " + PREFIX + "ㅇㅅ" + mode + " 해커")]));
         return;
       }
@@ -8155,11 +8169,11 @@ with (Bot.scope) {
           replier.reply("파괴된 능력이라 사용할 수 없습니다.");
           return;
         }
-        if (state.absolutely_disabled > 0 && state.job !== "고죠" && !(state.job === "수학자" && (state.math_study_ignore_disable || 0) > 0)) {
+        if (state.absolutely_disabled > 0 && !Bot.scope.owns(state, "고죠") && !(Bot.scope.owns(state, "수학자") && (state.math_study_ignore_disable || 0) > 0)) {
           replier.reply("절대 봉쇄 상태라 능력을 사용할 수 없습니다.");
           return;
         }
-        if (state.job === "해커") {
+        if (Bot.scope.owns(state, "해커")) {
           if (ability === "조작" && !isAbilityDisabled) {
             if (state.jojak_uses >= 3) {
               replier.reply("조작 능력을 모두 사용했습니다.");
@@ -8226,7 +8240,7 @@ with (Bot.scope) {
             state.chotohwa_active = 1;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "초토화", "초토화를 준비한다.") + " 다음 상대 행동을 노린다.");
           }
-        } else if (state.job === "투자자" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "투자자") && !isAbilityDisabled) {
           if (ability === "주가 조작") {
             if (state.juga_jojak_uses >= 3) {
               replier.reply("주가 조작를 모두 사용했습니다.");
@@ -8241,7 +8255,7 @@ with (Bot.scope) {
             state.juga_jojak_active = true;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "주가 조작", "주가를 흔든다.") + " 다음 변동은 무조건 하락으로 계산된다.");
           }
-        } else if (state.job === "수집가" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "수집가") && !isAbilityDisabled) {
           if (ability === "제작") {
             if (!targetParam || targetParam.length < 2) {
               replier.reply("2글자 이상의 추가단어를 지정해야 합니다.");
@@ -8286,7 +8300,7 @@ with (Bot.scope) {
             state.mine_active = 1;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "채굴", "더 깊게 파고든다.") + " 이번 턴에는 상대 단어의 모든 음절을 수집한다.");
           }
-        } else if (state.job === "환자") {
+        } else if (Bot.scope.owns(state, "환자")) {
           if (ability === "환각증" && !isAbilityDisabled) {
             if (game.turnCount < 7) {
               replier.reply("환각증 능력은 7턴 이후부터 사용할 수 있습니다.");
@@ -8307,7 +8321,7 @@ with (Bot.scope) {
             oppState.hallucination_active = true;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "환각증", "환각을 건다.") + " 상대는 1턴 동안 앞말잇기를 해야 하며, 환자도 이번 턴에는 앞말잇기를 해야 한다.");
           }
-        } else if (state.job === "감시자" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "감시자") && !isAbilityDisabled) {
           if (ability === "탐지") {
             if (state.detect_uses >= 2) {
               replier.reply("탐지를 모두 사용했습니다.");
@@ -8322,7 +8336,7 @@ with (Bot.scope) {
             state.detect_active_turns = 1;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "탐지", "탐지를 건다.") + " 다음 감시 차감은 2배가 된다.");
           }
-        } else if (state.job === "뜀틀선수" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "뜀틀선수") && !isAbilityDisabled) {
           if (ability === "허들 넘기") {
             if (game.turnCount < 22) {
               replier.reply("허들 넘기는 22턴 이상부터 사용 가능합니다.");
@@ -8337,7 +8351,7 @@ with (Bot.scope) {
             state.vault_cooldown = 0;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "허들 넘기", "한 번 더 뛴다.") + " 뜀틀 기회가 1회 늘고 쿨타임이 초기화된다.");
           }
-        } else if (state.job === "전우치" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "전우치") && !isAbilityDisabled) {
           if (ability === "직격뢰") {
             if (state.lightning_uses >= 3) {
               replier.reply("직격뢰 능력을 모두 사용했습니다.");
@@ -8352,7 +8366,7 @@ with (Bot.scope) {
             game.bannedWords.add(targetParam);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "직격뢰", "직격뢰를 떨어뜨린다.") + " " + targetParam + "는 더 이상 사용할 수 없다.");
           }
-        } else if (state.job === "시프터" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "시프터") && !isAbilityDisabled) {
           if (ability === "시프트") {
             if (state.shift_uses >= 4) {
               replier.reply("시프트를 모두 사용했습니다.");
@@ -8386,7 +8400,7 @@ with (Bot.scope) {
             state.big_shift_uses++;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "빅 시프트", "모음을 크게 민다.") + " 이을 음절이 " + newChar + "로 바뀐다.");
           }
-        } else if (state.job === "비밀요원" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "비밀요원") && !isAbilityDisabled) {
           if (ability === "포획") {
             if (state.capture_uses >= 2) {
               replier.reply("포획을 모두 사용했습니다.");
@@ -8423,7 +8437,7 @@ with (Bot.scope) {
             state.capture_cooldown = 3;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "포획", "포획을 마친다.") + " " + targetParam + " 시작 단어 " + count + "개가 차단되었고 상대는 2턴 동안 패시브와 능력을 쓸 수 없다.");
           }
-        } else if (state.job === "사과" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "사과") && !isAbilityDisabled) {
           if (ability === "사구아") {
             if (state.sagua_uses >= 1) {
               replier.reply("사구아 능력을 모두 사용했습니다.");
@@ -8433,7 +8447,7 @@ with (Bot.scope) {
             oppState.disabled_turns = Math.max(oppState.disabled_turns, 3);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "사구아", "강한 봉인을 남긴다.") + " 상대는 3턴 동안 패시브와 능력을 쓸 수 없다.");
           }
-        } else if (state.job === "시인" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "시인") && !isAbilityDisabled) {
           if (ability === "2음절") {
             if (state.poetic_2_uses >= 3) {
               replier.reply("2음절 능력을 모두 사용했습니다.");
@@ -8461,7 +8475,7 @@ with (Bot.scope) {
             oppState.no_du_eum_turns = Math.max(oppState.no_du_eum_turns, 1);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "시적 허용", "두음의 흐름을 끊는다.") + " 상대는 1턴 동안 두음법칙을 쓸 수 없다.");
           }
-        } else if (state.job === "공룡" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "공룡") && !isAbilityDisabled) {
           if (ability === "삼키기") {
             if (state.swallow_uses >= 3) {
               replier.reply("삼키기를 모두 사용했습니다.");
@@ -8510,7 +8524,7 @@ with (Bot.scope) {
             state.tail_active = true;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "꼬리 날리기", "꼬리를 휘둘러 제약을 털어낸다.") + " 다음 턴에는 능력 불가를 무시한다.");
           }
-        } else if (state.job === "마법사" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "마법사") && !isAbilityDisabled) {
           if (ability === "공허") {
             if (state.void_uses >= 5) {
               replier.reply("공허를 모두 사용했습니다.");
@@ -8544,7 +8558,7 @@ with (Bot.scope) {
             state.explosion_uses++;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "폭발", "부작용을 밀어낸다.") + " 1턴 동안 부작용을 무시한다.");
           }
-        } else if (state.job === "사신" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "사신") && !isAbilityDisabled) {
           if (ability === "사형 선고") {
             if (state.death_uses >= 4444) return;
             if (state.death_cooldown > 0) {
@@ -8578,7 +8592,7 @@ with (Bot.scope) {
             game.currentTurnIndex = oppIndex;
             game.lastPlayTime = Date.now();
             let soulMsgs = [jobLine(state.job, getJobDialogue(state.job, "active", "영혼", "영혼이 되어 흐름을 넘긴다.") + " 상대는 [" + soulWord + "]의 끝음절을 이어야 한다.")];
-            if (oppState && oppState.job === "마하트마간디" && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
+            if (oppState && Bot.scope.owns(oppState, "마하트마간디") && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
               oppState.gandhi_stacks++;
               soulMsgs.push(jobLine(oppState.job, getJobDialogue(oppState.job, "passive", "비폭력 능력", "능력 사용까지 모두 스택으로 바꿔 둔다.") + " 현재 스택은 " + oppState.gandhi_stacks + "이다."));
               if (oppState.gandhi_stacks >= 3) {
@@ -8590,7 +8604,7 @@ with (Bot.scope) {
             replier.reply(joinLines(soulMsgs));
             return;
           }
-        } else if (state.job === "수학자") {
+        } else if (Bot.scope.owns(state, "수학자")) {
           if (["A", "B", "C"].indexOf(ability) === -1) return;
           if (isAbilityDisabled && !((state.math_study_ignore_disable || 0) > 0)) return;
           if ((state.math_study_uses_left || 0) <= 0) {
@@ -8612,7 +8626,7 @@ with (Bot.scope) {
           state.used_active_this_turn = true;
           state.math_study_uses_left = Math.max(0, (state.math_study_uses_left || 0) - 1);
           replyJob(replier, state.job, ability + " 적용. 현재 값은 " + state.math_result + "입니다.");
-        } else if (state.job === "과학자" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "과학자") && !isAbilityDisabled) {
           if (ability === "DNA파괴") {
             if (state.dna_uses >= 2) {
               replier.reply("DNA파괴를 모두 사용했습니다.");
@@ -8655,7 +8669,7 @@ with (Bot.scope) {
             state.challenge_active = true;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "도전", "금지된 영역까지 연구 범위를 넓힌다.") + " 이제 사전에 없는 단어도 사용할 수 있다.");
           }
-        } else if (state.job === "스폰지밥" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "스폰지밥") && !isAbilityDisabled) {
           if (ability === "게살버거") {
             let burgerPrice = getSpongebobFoodPrice(state, "게살버거");
             if (state.burger_cooldown > 0) {
@@ -8718,7 +8732,7 @@ with (Bot.scope) {
             state.robber_skip_current = true;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "강도 채용", "위험을 감수하고 은행 습격 수익을 굴린다.") + " 다음부터 2턴 동안 5000원씩 들어오지만, 그동안 현상수배 상태가 된다.");
           }
-        } else if (state.job === "스핔이" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "스핔이") && !isAbilityDisabled) {
           if (ability === "물걸레질") {
             if (!isPlayersTeamTurn(game, sender)) {
               replier.reply("자기 팀 차례에만 사용할 수 있습니다.");
@@ -8770,7 +8784,7 @@ with (Bot.scope) {
             game.currentTurnIndex = oppIndex;
             game.lastPlayTime = Date.now();
             let pumpkinMsgs = [jobLine(state.job, getJobDialogue(state.job, "active", "호박", "호박을 먹느라 쉬어 간다.") + " " + sender + "은 이번 수를 넘긴다. " + game.players[oppIndex] + "은 자신이 낸 단어 [" + receivedWord + "]를 이어야 한다.")];
-            if (oppState && oppState.job === "마하트마간디" && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
+            if (oppState && Bot.scope.owns(oppState, "마하트마간디") && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
               oppState.gandhi_stacks++;
               pumpkinMsgs.push(jobLine(oppState.job, getJobDialogue(oppState.job, "passive", "비폭력 능력", "능력 사용까지 모두 스택으로 바꿔 둔다.") + " 현재 스택은 " + oppState.gandhi_stacks + "이다."));
               if (oppState.gandhi_stacks >= 3) {
@@ -8793,7 +8807,7 @@ with (Bot.scope) {
           } else {
             return;
           }
-        } else if (state.job === "나이트" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "나이트") && !isAbilityDisabled) {
           if (ability === "체크메이트") {
             if (game.turnCount < 5) {
               replier.reply("체크메이트는 5턴부터 사용 가능합니다.");
@@ -8829,7 +8843,7 @@ with (Bot.scope) {
             state.cry_uses++;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "울음", "히힝 하고 울어 본다.") + " 기능은 없다.");
           }
-        } else if (state.job === "작곡가") {
+        } else if (Bot.scope.owns(state, "작곡가")) {
           if (ability === "쪼개기") {
             if (isAbilityDisabled) return;
             if (state.split_uses >= 3) {
@@ -8856,7 +8870,7 @@ with (Bot.scope) {
             oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "쉼표", "남은 박자를 쉼표로 채워 마디를 닫는다.") + " 현재 마디가 즉시 완성되지만 작곡 효과는 발동하지 않는다. 상대는 1턴 동안 한방단어와 능력을 사용할 수 없다.");
           }
-        } else if (state.job === "생존자" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "생존자") && !isAbilityDisabled) {
           if (ability === "긴급 구조") {
             if (state.rescue_uses >= 3) return;
             if (state.rescue_cooldown > 0) return;
@@ -8897,7 +8911,7 @@ with (Bot.scope) {
             state.otter_clam_turns = 0;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "긴급 구조", "구조 신호를 보낸다.") + " 기보가 뒤집히고 마지막 단어는 " + lastValid + "가 된다.");
           }
-        } else if (state.job === "악당" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "악당") && !isAbilityDisabled) {
           if (ability === "결계") {
             if (state.barrier_uses >= 4) return;
             if (state.barrier_cooldown > 0) return;
@@ -8935,7 +8949,7 @@ with (Bot.scope) {
             if (state.barrier_chosungs.length >= 4) oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "왜곡", "결계의 파동을 뒤틀어 성질을 변화시킵니다.") + " [" + oldChosungs.join(", ") + "] 가 소용돌이쳐 [" + state.barrier_chosungs.join(", ") + "] 으로 변모합니다.");
           }
-        } else if (state.job === "기자" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "기자") && !isAbilityDisabled) {
           if (ability === "거짓 보도") {
             if (state.report_uses >= 4) return;
             if (state.report_cooldown > 0) return;
@@ -8947,7 +8961,7 @@ with (Bot.scope) {
             oppState.no_du_eum_turns = Math.max(oppState.no_du_eum_turns, 1);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "거짓 보도", "거짓 보도를 내보낸다.") + " 1턴 동안 보도가 유지된다.");
           }
-        } else if (state.job === "검객" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "검객") && !isAbilityDisabled) {
           if (ability === "찌르기") {
             if (game.turnCount < 5) return;
             if (state.stab_uses >= 2) return;
@@ -8974,7 +8988,7 @@ with (Bot.scope) {
             if (game.turnCount < 12) state.slice_active = true;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "가르기", "받은 단어를 가른다.") + " " + lastw + "가 " + sliced.display + "로 갈라진다. 이을 조각은 " + sliced.left + " 또는 " + sliced.right + "다.");
           }
-        } else if (state.job === "마하트마간디" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "마하트마간디") && !isAbilityDisabled) {
           if (ability === "억제") {
             if (state.gandhi_stacks < 1) return;
             if (state.suppress_cooldown > 0) return;
@@ -8983,7 +8997,7 @@ with (Bot.scope) {
             oppState.no_yudo_turns = Math.max(oppState.no_yudo_turns, 1);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "억제", "비폭력 스택을 써서 눌러 둔다.") + " 상대는 1턴 동안 유도단어를 쓸 수 없다.");
           }
-        } else if (state.job === "고죠") {
+        } else if (Bot.scope.owns(state, "고죠")) {
           if (ability === "무량공처") {
             if (state.gongcheo_uses <= 0) {
               replier.reply("무량공처 능력을 모두 사용했습니다.");
@@ -9000,7 +9014,7 @@ with (Bot.scope) {
             oppState.absolutely_disabled = 1;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "무량공처", "내 영역 속에서 모든 것을 멈춘다.") + " 상대는 1턴 동안 공격단어를 쓸 수 없고 패시브와 능력이 절대 봉쇄된다.");
           }
-        } else if (state.job === "수리사" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "수리사") && !isAbilityDisabled) {
           if (ability === "수리") {
             if (game.turnCount < 3) {
               replier.reply("수리는 3턴부터 사용 가능합니다.");
@@ -9034,7 +9048,7 @@ with (Bot.scope) {
               replier.reply("수리할 수 없는 모음입니다.");
             }
           }
-        } else if (state.job === "해달" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "해달") && !isAbilityDisabled) {
           if (ability === "조개") {
             if (state.otter_clam_uses >= 3) {
               replier.reply("조개를 모두 깠습니다.");
@@ -9078,7 +9092,7 @@ with (Bot.scope) {
             state.otter_smash_uses++;
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "깨부수기", "바위에 쳐서 단어를 깨부순다.") + " " + lastw + "가 " + sliced.display + "로 갈라진다. 이을 조각은 " + sliced.left + " 또는 " + sliced.right + "다.");
           }
-        } else if (state.job === "우라늄" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "우라늄") && !isAbilityDisabled) {
           if (ability === "핵분열") {
             if (state.fission_uses >= 1) {
               replier.reply("핵분열은 이미 사용했습니다.");
@@ -9102,7 +9116,7 @@ with (Bot.scope) {
             state.no_yudo_turns = Math.max(state.no_yudo_turns, 2);
             replyJob(replier, state.job, getJobDialogue(state.job, "active", "핵분열", "핵분열을 시작한다.") + " 이번 턴과 다음 턴에는 " + availableSyllables.join(", ") + " 음절로도 이을 수 있고 한방단어와 유도단어는 쓸 수 없다.");
           }
-        } else if (state.job === "피보나치" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "피보나치") && !isAbilityDisabled) {
           if (ability === "뤼카 수열") {
             if (state.lucas_cooldown > 0) {
               replier.reply("뤼카 수열 쿨타임입니다. (" + state.lucas_cooldown + "턴 남음)");
@@ -9123,7 +9137,7 @@ with (Bot.scope) {
               return;
             }
           }
-        } else if (state.job === "피아니스트" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "피아니스트") && !isAbilityDisabled) {
           let noteUses = state.pianist_note_uses || {
             "도": 0,
             "레": 8,
@@ -9281,7 +9295,7 @@ with (Bot.scope) {
             let songResult = pianistApplySongEffect(state, oppState, game, state.pianist_last_song_name);
             replyJob(replier, state.job, "이음줄로 [" + state.pianist_last_song_name + "]을 한 번 더 연주한다. " + songResult.lines.join(" "));
           }
-        } else if (state.job === "프로그래머" && !isAbilityDisabled) {
+        } else if (Bot.scope.owns(state, "프로그래머") && !isAbilityDisabled) {
           if (ability === "Restart") {
             replier.reply("Restart는 패시브입니다. 2Restart로 사용할 수 없습니다.");
             return;
@@ -9521,7 +9535,7 @@ with (Bot.scope) {
         let is_hb = isHanbang(word);
         let is_yd = isYudo(word);
         let is_rt = isRoot(word);
-        let canUseKnightExchange = state.job === "나이트" && state.exchange_active && is_rt;
+        let canUseKnightExchange = Bot.scope.owns(state, "나이트") && state.exchange_active && is_rt;
         let is_exception = is_hb || is_yd;
         let oppIndex = game.currentTurnIndex === -1 ? (game.players.indexOf(sender) + 1) % game.players.length : (game.currentTurnIndex + 1) % game.players.length;
         let oppState = game.playerStates[game.players[oppIndex]];
@@ -9534,18 +9548,18 @@ with (Bot.scope) {
           replier.reply("비밀요원에 의해 차단(포획)된 단어입니다.");
           return;
         }
-        if (!isValidWord && state.job === "뜀틀선수" && word === "뜀틀") isValidWord = true;
-        if (!isValidWord && state.job === "과학자" && state.challenge_active) isValidWord = true;
+        if (!isValidWord && Bot.scope.owns(state, "뜀틀선수") && word === "뜀틀") isValidWord = true;
+        if (!isValidWord && Bot.scope.owns(state, "과학자") && state.challenge_active) isValidWord = true;
         if (!isValidWord) {
-          if (state.job !== "해커" || state.jojak_active === 0) {
+          if (!Bot.scope.owns(state, "해커") || state.jojak_active === 0) {
             replier.reply("사전에 등록되지 않은 단어입니다.");
             return;
           }
         }
         if (game.used.has(word)) {
-          if (state.job === "해커" && state.jojak_active > 0) {
+          if (Bot.scope.owns(state, "해커") && state.jojak_active > 0) {
             replier.reply("조작 능력이 적용되어 중복 단어 [" + word + "] 를 재사용했습니다.");
-          } else if (state.job === "스핔이" && state.speaki_clean_active) {
+          } else if (Bot.scope.owns(state, "스핔이") && state.speaki_clean_active) {
             replier.reply("물걸레질로 청소되어 사용된 단어 [" + word + "] 를 재사용합니다.");
           } else if (canUseKnightExchange) {} else {
             replier.reply("이미 사용된 단어입니다.");
@@ -9553,9 +9567,9 @@ with (Bot.scope) {
           }
         }
         let currentNextChar = nextCharForWord(game);
-        let canUseFissionRoute = state.job === "우라늄" && state.fission_active && state.fission_syllables.indexOf(word[0]) !== -1;
+        let canUseFissionRoute = Bot.scope.owns(state, "우라늄") && state.fission_active && state.fission_syllables.indexOf(word[0]) !== -1;
         let canUseAfterimageRoute = false;
-        if (state.job === "전우치" && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2 && is_rt) {
+        if (Bot.scope.owns(state, "전우치") && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2 && is_rt) {
           let noSystemShift = !game.lastLetter.split && !state.hallucination_active && !canUseFissionRoute && !canUseKnightExchange;
           let noBlockingDebuff = !(state.no_du_eum_turns > 0 || state.no_hanbang_turns > 0 || state.no_yudo_turns > 0 || state.no_root_turns > 0 || state.only_even_turns > 0 || state.only_odd_turns > 0 || state.only_length_2_turns > 0 || state.no_length_2_turns > 0 || state.only_root_turns > 0 || state.last_route_only_turns > 0 || state.last_kill_or_root_turns > 0 || state.limited_length > 0 || state.min_length > 0 || state.target_active_turns > 0 || state.apple_debuff_turns > 0 || state.otter_clam_turns > 0 || state.no_all_batchim_turns > 0);
           let availNormal = cpuCountAvailFast(game.lastLetter.s2, game) + (game.lastLetter.s1 !== game.lastLetter.s2 ? cpuCountAvailFast(game.lastLetter.s1, game) : 0);
@@ -9575,13 +9589,13 @@ with (Bot.scope) {
             }
           }
         }
-        if (oppState && oppState.job === "고죠" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0) {
+        if (oppState && Bot.scope.owns(oppState, "고죠") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0) {
           if (word[0] === word[word.length - 1]) {
             replier.reply("무하한의 경계에 닿았습니다. 시작과 끝이 같은 되돌림단어는 이 공간에서 허락되지 않습니다.");
             return;
           }
         }
-        if (oppState && oppState.job === "갈릴레오" && !oppState.lost_abilities) {
+        if (oppState && Bot.scope.owns(oppState, "갈릴레오") && !oppState.lost_abilities) {
           let galileoLast = decomposeSyllable(word[word.length - 1]);
           if (galileoLast && (galileoLast.chosung === "ㄲ" || galileoLast.chosung === "ㄸ" || galileoLast.chosung === "ㅃ" || galileoLast.chosung === "ㅆ" || galileoLast.chosung === "ㅉ")) {
             replyJob(replier, oppState.job, getJobDialogue(oppState.job, "passive", "관성의 법칙", "쌍자음으로 끝나는 단어는 받아들이지 않는다.") + " 끝음절 초성이 쌍자음인 단어는 사용할 수 없다.");
@@ -9692,7 +9706,7 @@ with (Bot.scope) {
           replier.reply("언령의 제약! " + state.limited_length + "자 이하의 단어만 읊조릴 수 있습니다.");
           return;
         }
-        if (state.job === "스폰지밥" && isSpongebobWanted(state) && word.length >= 5) {
+        if (Bot.scope.owns(state, "스폰지밥") && isSpongebobWanted(state) && word.length >= 5) {
           replier.reply("현상수배범의 압박! 5글자 이상의 긴 단어는 눈에 띕니다. 사용할 수 없습니다.");
           return;
         }
@@ -9723,14 +9737,14 @@ with (Bot.scope) {
           replier.reply("날카로운 검기에 베였습니다! 예외단어(한방/유도)를 읊조릴 힘이 없습니다.");
           return;
         }
-        if (oppState && oppState.job === "악당" && oppState.barrier_turns > 0) {
+        if (oppState && Bot.scope.owns(oppState, "악당") && oppState.barrier_turns > 0) {
           let lastChosung = decomposeSyllable(word[word.length - 1]).chosung;
           if (oppState.barrier_chosungs.includes(lastChosung)) {
             replier.reply("악당의 칠흑 같은 결계가 앞을 가로막습니다! 끝음절 초성 [" + lastChosung + "]은 결계에 닿아 소멸했습니다. (남은 지속: " + oppState.barrier_turns + "턴)");
             return;
           }
         }
-        if (oppState && oppState.job === "혜성전사" && oppState.comet_barrier_turns > 0) {
+        if (oppState && Bot.scope.owns(oppState, "혜성전사") && oppState.comet_barrier_turns > 0) {
           let cometLastDecomposed = decomposeSyllable(word[word.length - 1]);
           let cometLastChosung = cometLastDecomposed ? cometLastDecomposed.chosung : "";
           if (oppState.comet_barrier_chosungs.includes(cometLastChosung)) {
@@ -9739,7 +9753,7 @@ with (Bot.scope) {
           }
           // 혜성전사 결계는 끝음절 초성만 막는다. 유도단어 금지는 [성]을 쓴 직후의 no_yudo_turns 1턴으로만 처리한다.
         }
-        if (oppState && oppState.job === "기자" && oppState.report_turns > 0) {
+        if (oppState && Bot.scope.owns(oppState, "기자") && oppState.report_turns > 0) {
           if (is_exception) {
             word = word.substring(0, word.length - 1) + "삐";
             state.disabled_turns = Math.max(state.disabled_turns, 1);
@@ -9747,11 +9761,11 @@ with (Bot.scope) {
             replier.reply("📢 긴급 속보! 부적절한 단어 사용이 감지되었습니다. 강제 검열되어 마지막 글자가 '삐'로 교체되며, 1턴간 침묵(유도/능력 불가) 상태가 됩니다.");
           }
         }
-        if (state.job === "마법사" && state.magic_side_effect_ignore_turns <= 0 && is_yd) {
+        if (Bot.scope.owns(state, "마법사") && state.magic_side_effect_ignore_turns <= 0 && is_yd) {
           replier.reply("마법의 대가... 뒤틀린 마력의 부작용으로 유도단어를 사용할 수 없습니다.");
           return;
         }
-        if (oppState && oppState.job === "기관사" && state.job !== "기관사") {
+        if (oppState && Bot.scope.owns(oppState, "기관사") && !Bot.scope.owns(state, "기관사")) {
           if (game.turnCount % 2 === 0) {
             if (word.length > oppState.train_stations) {
               replier.reply("철로의 법도입니다. 현재 정차 중인 전철역 수(" + oppState.train_stations + ")보다 긴 단어는 탈선할 위험이 있습니다!");
@@ -9759,7 +9773,7 @@ with (Bot.scope) {
             }
           }
         }
-        if (oppState && oppState.job === "프로그래머" && (oppState.programmer_delete_pending || 0) > 0) {
+        if (oppState && Bot.scope.owns(oppState, "프로그래머") && (oppState.programmer_delete_pending || 0) > 0) {
           oppState.programmer_delete_pending = 0;
           oppState.programmer_bios_turns = 9;
           oppState.no_hanbang_turns = Math.max(oppState.no_hanbang_turns || 0, 1);
@@ -9783,7 +9797,7 @@ with (Bot.scope) {
         }
         let msgs = [];
         let cometBarrierEndedThisTurn = false;
-        if (state.job === "프로그래머" && (state.programmer_delete_yudo_trap || 0) > 0) {
+        if (Bot.scope.owns(state, "프로그래머") && (state.programmer_delete_yudo_trap || 0) > 0) {
           if (is_yd) {
             state.knight_lock_turns = Math.max(state.knight_lock_turns || 0, 3);
             pushJob(msgs, state.job, "Delete 후 유도단어를 사용해 3턴간 그로기에 빠진다.");
@@ -9804,7 +9818,7 @@ with (Bot.scope) {
         if (mapPassiveBlocked) {
           if (noUsedWordYet) pushSystem(msgs, "아직 사용된 단어가 0개라 이번 턴에는 패시브가 발동하지 않는다.");else if (game.selectedMap === "지옥") pushSystem(msgs, "지옥 맵 효과로 이번 턴에는 모든 패시브가 봉쇄된다.");else if (game.selectedMap === "학교") pushSystem(msgs, "학교 맵 효과로 홀수 턴에는 패시브가 발동하지 않는다.");
         }
-        if (state.job === "뜀틀선수" && word === "뜀틀" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "뜀틀선수") && word === "뜀틀" && !isAbilityDisabled && !mapPassiveBlocked) {
           if (state.vault_uses >= state.vault_max) {
             replier.reply("뜀틀 사용 횟수가 고갈되었습니다.");
             return;
@@ -9819,7 +9833,7 @@ with (Bot.scope) {
           oppState.absolutely_disabled = Math.max(oppState.absolutely_disabled, 1);
           pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "뜀틀", "경쾌한 도약으로 상대의 흐름을 완전히 끊어버립니다.") + " 상대는 1턴간 심연의 구속(절대 봉쇄/유도 불가) 상태에 빠집니다.");
         }
-        if (oppState && oppState.job === "해커" && oppState.chotohwa_active > 0) {
+        if (oppState && Bot.scope.owns(oppState, "해커") && oppState.chotohwa_active > 0) {
           if (word.length >= 4 || is_exception) {
             state.lost_abilities = true;
             pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "초토화", "세상이 잿더미로 변하며 상대의 영혼마저 태워버립니다.") + " " + sender + "의 능력이 영구 상실(영혼의 침묵)되었습니다.");
@@ -9830,7 +9844,7 @@ with (Bot.scope) {
           state.afterimage_uses++;
           pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "잔상", "남은 길이 없어 루트로 빠져나간다.") + " 잔상으로 아무 루트단어를 이어간다.");
         }
-        if (oppState && oppState.job === "투자자" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
+        if (oppState && Bot.scope.owns(oppState, "투자자") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
           let change = 0;
           if (oppState.juga_jojak_active) {
             change = -word.length;
@@ -9848,7 +9862,7 @@ with (Bot.scope) {
             return;
           }
         }
-        if (oppState && oppState.job === "환자" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
+        if (oppState && Bot.scope.owns(oppState, "환자") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
           if (word.length % 2 !== 0 && oppState.opcd_cooldown === 0) {
             oppState.opcd_cooldown = 3;
             state.only_even_turns = Math.max(state.only_even_turns, 1);
@@ -9857,7 +9871,7 @@ with (Bot.scope) {
             pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "강박증", "홀수는 용납할 수 없습니다! 완벽한 균형만이 허락됩니다.") + " 상대는 1턴간 짝수 글자만 사용 가능하며, 능력이 마비(능력/유도 불가)됩니다.");
           }
         }
-        if (oppState && oppState.job === "수집가" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
+        if (oppState && Bot.scope.owns(oppState, "수집가") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
           let collected = [word[0]];
           if (oppState.mine_active > 0) {
             collected = word.split('');
@@ -9867,12 +9881,12 @@ with (Bot.scope) {
           oppState.collected_syllables = oppState.collected_syllables.concat(collected);
           pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "수집", "상대가 남긴 음절을 챙긴다.") + " 수집 음절: " + collected.join(", ") + ".");
         }
-        if (state.job === "수집가" && game.customWords && game.customWords.has(word) && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "수집가") && game.customWords && game.customWords.has(word) && !mapPassiveBlocked) {
           oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
           pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "추가단어 사용", "직접 만든 단어로 상대 흐름을 끊는다.") + " 상대는 1턴 동안 능력을 사용할 수 없다.");
           game.customWords.delete(word);
         }
-        if (oppState && oppState.job === "감시자" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
+        if (oppState && Bot.scope.owns(oppState, "감시자") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
           let deduction = 0;
           if (is_yd) deduction += 4;
           if (is_hb) deduction += 8;
@@ -9892,7 +9906,7 @@ with (Bot.scope) {
             }
           }
         }
-        if (state.job === "늑대인간" && !isAbilityDisabled && state.roar_cooldown === 0 && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "늑대인간") && !isAbilityDisabled && state.roar_cooldown === 0 && !mapPassiveBlocked) {
           let count = countWolfRoar(word);
           if (count >= 1) {
             oppState.only_even_turns = Math.max(oppState.only_even_turns, 2);
@@ -9904,7 +9918,7 @@ with (Bot.scope) {
             state.roar_cooldown = 2;
           }
         }
-        if (state.job === "과학자" && state.experiment_cooldown === 0 && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "과학자") && state.experiment_cooldown === 0 && !mapPassiveBlocked) {
           let experimentCount = 0;
           {
             let i;
@@ -9945,10 +9959,10 @@ with (Bot.scope) {
           } else if (state.dna_tracking) {
             state.dna_success_streak = 0;
           }
-        } else if (state.job === "과학자" && state.dna_tracking) {
+        } else if (Bot.scope.owns(state, "과학자") && state.dna_tracking) {
           state.dna_success_streak = 0;
         }
-        if (state.job === "갈릴레오" && !state.lost_abilities && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "갈릴레오") && !state.lost_abilities && !mapPassiveBlocked) {
           let newMoons = getGalileoNewMoons(state, word);
           if (newMoons.length > 0) {
             oppState.last_route_only_turns = Math.max(oppState.last_route_only_turns, 3);
@@ -9961,7 +9975,7 @@ with (Bot.scope) {
             }
           }
         }
-        if (state.job === "작곡가" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "작곡가") && !isAbilityDisabled && !mapPassiveBlocked) {
           let noteType = null;
           if (word.length === 2) noteType = "2";else if (word.length === 4) noteType = "4";else if (word.length === 8) noteType = "8";
           if (noteType) {
@@ -10013,12 +10027,12 @@ with (Bot.scope) {
             }
           }
         }
-        if (oppState && oppState.job === "스폰지밥" && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
+        if (oppState && Bot.scope.owns(oppState, "스폰지밥") && !oppState.lost_abilities && oppState.disabled_turns === 0 && oppState.absolutely_disabled === 0 && !mapPassiveBlocked) {
           let saveGain = addSpongebobMoney(oppState, word.length * 1000);
           let saveText = saveGain.doubled ? " 보너스 효과로 " + saveGain.amount + "원을" : " " + saveGain.amount + "원을";
           pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "저금통", "상대가 말할 때마다 저금통에 돈을 모은다.") + saveText + " 저금한다. 현재 잔액은 " + oppState.money + "원이다.");
         }
-        if (state.job === "스폰지밥" && state.robber_turns > 0) {
+        if (Bot.scope.owns(state, "스폰지밥") && state.robber_turns > 0) {
           if (state.robber_skip_current) {
             state.robber_skip_current = false;
           } else {
@@ -10028,7 +10042,7 @@ with (Bot.scope) {
             pushJob(msgs, state.job, getJobDialogue(state.job, "active", "강도 채용", "위험을 감수하고 은행 습격 수익을 굴린다.") + robberText + " 남은 습격 수익은 " + state.robber_turns + "회다.");
           }
         }
-        if (state.job === "나이트" && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "나이트") && !mapPassiveBlocked) {
           let ownLensKnight = state.personal_word_lengths || [word.length];
           state.knight_pattern = ownLensKnight.slice(Math.max(0, ownLensKnight.length - 3));
           if (state.knight_pattern.length === 3 && state.knight_pattern[0] === 2 && state.knight_pattern[1] === 4 && state.knight_pattern[2] === 2) {
@@ -10037,12 +10051,12 @@ with (Bot.scope) {
             pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "L자 도약", "2-4-2 리듬으로 상대를 흔든다.") + " 개인 사용 단어 길이 [2-4-2]가 완성되어 상대는 2턴 동안 그로기 상태가 된다.");
           }
         }
-        if (oppState && oppState.job === "나이트" && oppState.exchange_pending) {
+        if (oppState && Bot.scope.owns(oppState, "나이트") && oppState.exchange_pending) {
           oppState.exchange_pending = false;
           oppState.exchange_active = true;
           pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "active", "교환", "다음 차례에는 아무 루트단어로 말을 바꿔 탄다.") + " 다음 차례에는 어떤 음절을 받았든 아무 루트단어를 중복과 무관하게 사용할 수 있다.");
         }
-        if (state.job === "비밀요원" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "비밀요원") && !isAbilityDisabled && !mapPassiveBlocked) {
           let tgt_last = word[word.length - 1];
           let tgt_due = applyDuEum(tgt_last);
           let foundTargets = [];
@@ -10085,13 +10099,13 @@ with (Bot.scope) {
             state.targets = [];
           }
         }
-        if (oppState && oppState.job === "비밀요원" && oppState.targets.length > 0 && oppState.targets.includes(word) && !mapPassiveBlocked) {
+        if (oppState && Bot.scope.owns(oppState, "비밀요원") && oppState.targets.length > 0 && oppState.targets.includes(word) && !mapPassiveBlocked) {
           state.disabled_turns = Math.max(state.disabled_turns, 1);
           state.target_active_turns = 2;
           pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "타깃 적중", "예상한 타깃이 걸려들었다.") + " 상대는 1턴 동안 능력을 쓰지 못하고 2턴 동안 5글자 이상 단어를 사용할 수 없다.");
           oppState.targets = [];
         }
-        if (state.job === "67" && !isAbilityDisabled && state.sixtyseven_cooldown === 0 && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "67") && !isAbilityDisabled && state.sixtyseven_cooldown === 0 && !mapPassiveBlocked) {
           if (word.length === 6) {
             state.sixtyseven_cooldown = 1;
             if (oppState.no_yudo_turns > 0) oppState.no_yudo_turns *= 7;else {
@@ -10106,7 +10120,7 @@ with (Bot.scope) {
             }
           }
         }
-        if (state.job === "우라늄" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "우라늄") && !isAbilityDisabled && !mapPassiveBlocked) {
           let ownLensUranium = state.personal_word_lengths || [word.length];
 
           state.uranium_two_streak = 0;
@@ -10175,7 +10189,7 @@ with (Bot.scope) {
             pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "감마선", "상대를 두 글자 리듬에 영구히 가둔다.") + " 개인 사용 단어 길이 [2-3-4-5-4-3-2]가 완성되어 상대는 이제 영구적으로 2글자 단어만 사용할 수 있다.");
           }
         }
-        if (state.job === "사과" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "사과") && !isAbilityDisabled && !mapPassiveBlocked) {
           if (state.apple_passive_cooldown === 0) {
             let countApple = 0;
             let checkArr = ["ㅅ", "ㄱ", "ㄴ", "ㅁ", "ㅇ"];
@@ -10214,7 +10228,7 @@ with (Bot.scope) {
             state.apple_unused_turns++;
           }
         }
-        if (oppState && oppState.job === "마하트마간디" && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
+        if (oppState && Bot.scope.owns(oppState, "마하트마간디") && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
           if (is_hb || is_yd) {
             oppState.gandhi_stacks++;
             pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "비폭력", "거친 수를 한 번 더 기록한다.") + " 현재 스택은 " + oppState.gandhi_stacks + "이다.");
@@ -10225,7 +10239,7 @@ with (Bot.scope) {
             return;
           }
         }
-        if (state.job === "은하계전사" && !state.lost_abilities && state.absolutely_disabled === 0 && state.star_cooldown === 0 && !state.star_ult_used && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "은하계전사") && !state.lost_abilities && state.absolutely_disabled === 0 && state.star_cooldown === 0 && !state.star_ult_used && !mapPassiveBlocked) {
           if (word.includes("별") || word.includes("달")) {
             state.star_stacks++;
             state.star_cooldown = 1;
@@ -10245,7 +10259,7 @@ with (Bot.scope) {
             }
           }
         }
-        if (state.job === "혜성전사" && state.comet_passive_cooldown === 0 && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "혜성전사") && state.comet_passive_cooldown === 0 && !mapPassiveBlocked) {
           let hasSeong = word.indexOf("성") !== -1;
           let hasHye = word.indexOf("혜") !== -1;
           if (hasSeong) {
@@ -10278,7 +10292,7 @@ with (Bot.scope) {
             pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "영구 결계", "우주의 섭리가 상대를 구속합니다.") + " 상대는 이제 영구적으로 끝음절 초성이 [ㅎ, ㅅ]인 단어만 사용 가능합니다.");
           }
         }
-        if (state.job === "사신" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "사신") && !isAbilityDisabled && !mapPassiveBlocked) {
           state.execution_count -= word.length;
           pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "처형", "단어 길이만큼 처형 수를 줄인다.") + " 남은 처형 수는 " + state.execution_count + "이다.");
           if (word.length >= 8) {
@@ -10288,10 +10302,10 @@ with (Bot.scope) {
             pushSystem(msgs, "처형식이 이어져 상대는 1턴 동안 능력과 한방단어, 유도단어를 사용할 수 없다.");
           }
         }
-        if (state.job === "기관사" && !isAbilityDisabled && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "기관사") && !isAbilityDisabled && !mapPassiveBlocked) {
           if (game.turnCount % 2 === 0) {
             state.train_stations--;
-            let oppIsEngineer = oppState.job === "기관사";
+            let oppIsEngineer = Bot.scope.owns(oppState, "기관사");
             if (!oppIsEngineer) {
               oppState.disabled_turns = Math.max(oppState.disabled_turns, 1);
               oppState.no_yudo_turns = Math.max(oppState.no_yudo_turns, 1);
@@ -10312,7 +10326,7 @@ with (Bot.scope) {
             }
           }
         }
-        if (state.job === "생존자" && !isAbilityDisabled && state.signal_cooldown === 0 && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "생존자") && !isAbilityDisabled && state.signal_cooldown === 0 && !mapPassiveBlocked) {
           const SOS_SEQ = ["·", "·", "·", "-", "-", "-", "·", "·", "·", "-", "·", "-", "·", "-", "-"];
           let newSignal = word.length === 2 ? "·" : "-";
           let curSeq = state.signal_sequence ? state.signal_sequence.split(" ").filter(function (s) {
@@ -10339,7 +10353,7 @@ with (Bot.scope) {
             pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "오신호", "신호가 어긋나도 누적 신호는 유지된다.") + " 기존 신호는 유지되고 상대는 1턴 동안 3글자 이상 유도단어를 사용할 수 없다.");
           }
         }
-        if (oppState && oppState.job === "악당" && oppState.barrier_turns > 0) {
+        if (oppState && Bot.scope.owns(oppState, "악당") && oppState.barrier_turns > 0) {
           let additionalCount = word.length;
           let adds = ["ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
           {
@@ -10359,7 +10373,7 @@ with (Bot.scope) {
             if (__botLoop147) return __botLoop147;
           }
         }
-        if (oppState && oppState.job === "혜성전사" && oppState.comet_barrier_turns > 0) {
+        if (oppState && Bot.scope.owns(oppState, "혜성전사") && oppState.comet_barrier_turns > 0) {
           let cometAdds = ["ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
           {
             let i;
@@ -10378,13 +10392,13 @@ with (Bot.scope) {
             if (__botLoop148) return __botLoop148;
           }
         }
-        if (state.job === "수리사" && !isAbilityDisabled && state.bulletproof_cooldown === 0 && state.bulletproof_uses > 0 && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "수리사") && !isAbilityDisabled && state.bulletproof_cooldown === 0 && state.bulletproof_uses > 0 && !mapPassiveBlocked) {
           state.bulletproof_uses -= 1;
           state.bulletproof_cooldown = 1;
           oppState.bulletproof_debuff_turns = 1;
           pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "방탄", "상대의 공격을 튕겨내고 제약을 건다.") + " 상대는 1턴 동안 이을 음절의 연결 단어 수가 10개 이하인 단어를 사용할 수 없다.");
         }
-        if (state.job === "피보나치" && !isAbilityDisabled && isFibonacciTurn(game.turnCount) && !mapPassiveBlocked) {
+        if (Bot.scope.owns(state, "피보나치") && !isAbilityDisabled && isFibonacciTurn(game.turnCount) && !mapPassiveBlocked) {
           oppState.last_route_only_turns = Math.max(oppState.last_route_only_turns, 1);
           pushJob(msgs, state.job, getJobDialogue(state.job, "passive", "피보나치 수열", "턴의 흐름을 수열로 지배한다.") + " " + game.turnCount + "턴은 피보나치 수열 턴이라 상대는 1턴 동안 끝음절이 루트음절인 단어만 사용할 수 있다.");
         }
@@ -10444,7 +10458,7 @@ with (Bot.scope) {
             if (state.speaki_pumpkin_cooldown > 0) state.speaki_pumpkin_cooldown -= 1;
             if (state.otter_clam_cooldown > 0) state.otter_clam_cooldown -= 1;
             if (state.lucas_cooldown > 0) state.lucas_cooldown -= 1;
-            if (!(state.job === "피아니스트" && (state.pianist_hold_turns || 0) > 0)) {
+            if (!(Bot.scope.owns(state, "피아니스트") && (state.pianist_hold_turns || 0) > 0)) {
               if (state.pianist_sharp_cooldown > 0) state.pianist_sharp_cooldown -= 1;
               if (state.pianist_flat_cooldown > 0) state.pianist_flat_cooldown -= 1;
               if (state.pianist_natural_cooldown > 0) state.pianist_natural_cooldown -= 1;
@@ -10513,7 +10527,7 @@ with (Bot.scope) {
           }
         }
         if (state.used_active_this_turn) {
-          if (oppState && oppState.job === "마하트마간디" && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
+          if (oppState && Bot.scope.owns(oppState, "마하트마간디") && !oppState.lost_abilities && !isMapPassiveBlocked(game)) {
             oppState.gandhi_stacks++;
             pushJob(msgs, oppState.job, getJobDialogue(oppState.job, "passive", "비폭력 능력", "능력 사용까지 모두 스택으로 바꿔 둔다.") + " 현재 스택은 " + oppState.gandhi_stacks + "이다.");
             if (oppState.gandhi_stacks >= 3) {
@@ -10535,6 +10549,10 @@ with (Bot.scope) {
         recalculateGameTurnCount(game);
         if (msgs.length > 0) replier.reply(foldByVisibleLines(msgs.join("\n"), 2));
         replier.reply(foldByVisibleLines(buildStatusMsg(game), 3));
+        /* 조합 모드는 정해진 턴마다 능력을 추가로 드래프트한다. */
+        if (Bot.combat && Bot.combat.play.modeOn(game)) {
+          try { Bot.combat.session.checkRedraft(game, replier); } catch (eRedraft) {}
+        }
         if (games[room] && games[room].isPractice && games[room].phase === "playing" && games[room].currentTurnIndex !== -1 && isCpuPlayerName(games[room].players[games[room].currentTurnIndex]) && sender !== games[room].players[games[room].currentTurnIndex]) {
           try {
             runCpuTurn(room, replier);
@@ -11029,7 +11047,7 @@ with (Bot.scope) {
   cpuAriPrecalcThreatIndex = function cpuAriPrecalcThreatIndex(word, game, state, oppState) {
     let __botResult = function () {
       if (!oppState) return 0;
-      if (oppState.job === "67") {
+      if (Bot.scope.owns(oppState, "67")) {
         if (state && state.no_yudo_turns > 0 || (oppState.no_yudo_turns || 0) >= 40) return 2;
         return 1;
       }
@@ -11158,20 +11176,20 @@ with (Bot.scope) {
         }).length : 0;
         if (len2 === 0) score += 210000;else score -= len2 * 22000;
       }
-      if (oppState.job === "67") {
+      if (Bot.scope.owns(oppState, "67")) {
         let sixCount = cpuCountExactLengthRepliesForSyllable(last, 6, game);
         if (sixCount === 0) score += 260000;else score -= sixCount * 180000;
         if (state.no_yudo_turns > 0) score -= sixCount * 120000;
         if (usedCount >= 18) score -= sixCount * 30000;
       }
-      if (oppState.job === "작곡가") {
+      if (Bot.scope.owns(oppState, "작곡가")) {
         let len8 = cpuCountExactLengthRepliesForSyllable(last, 8, game);
         if (len8 > 0) score -= len8 * 50000;
       }
-      if (oppState.job === "생존자") {
+      if (Bot.scope.owns(oppState, "생존자")) {
         if (wl === 2) score -= 12000;else score += 4000;
       }
-      if (oppState.job === "갈릴레오" && ROUTESYL_SET && ROUTESYL_SET.has(last)) score -= 10000;
+      if (Bot.scope.owns(oppState, "갈릴레오") && ROUTESYL_SET && ROUTESYL_SET.has(last)) score -= 10000;
       return score;
     }.call(this);
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
@@ -11374,7 +11392,7 @@ with (Bot.scope) {
               if (state && (state.only_root_turns > 0 || state.last_route_only_turns > 0) && isRoot(w)) score += 120000;
               if (ROUTESYL_SET && ROUTESYL_SET.has(w[w.length - 1])) score += 22000;
               score += cpuRuntimeContextScoreWord(w, game, state, oppState || {});
-              if (oppState && oppState.job === "67") {
+              if (oppState && Bot.scope.owns(oppState, "67")) {
                 let sidx = cpuAriPrecalcSyllableIndex(w[w.length - 1]);
                 let sixCount = 0;
                 if (CPU_PRECALC && CPU_PRECALC.syllableStats && sidx >= 0 && CPU_PRECALC.syllableStats[sidx]) {
@@ -11816,18 +11834,18 @@ with (Bot.scope) {
       if (!profile) profile = cpuBuildResponseProfile(last);
       let rootCount = cpuProfileRootCount(profile);
       if (profile && profile.count <= 1) score += 28000;else if (profile && profile.count <= 2) score += 18000;else if (profile && profile.count <= 4) score += 9000;
-      if (oppState.job === "마하트마간디") {
+      if (Bot.scope.owns(oppState, "마하트마간디")) {
         if (isHanbang(word)) score -= 220000;
         if (isYudo(word)) score -= 150000;
         if ((oppState.gandhi_stacks || 0) >= 2 && (isHanbang(word) || isYudo(word))) score -= 260000;
       }
-      if (oppState.job === "67") {
+      if (Bot.scope.owns(oppState, "67")) {
         let sixCount = cpuCountExactLengthRepliesForSyllable(last, 6, game);
         if (sixCount === 0) score += 520000;else score -= sixCount * (state.no_yudo_turns > 0 || (oppState.no_yudo_turns || 0) >= 20 ? 420000 : 280000);
         if (usedCount >= 15) score -= sixCount * 45000;
         if (profile && profile.count <= 3 && sixCount === 0) score += 28000;
       }
-      if (oppState.job === "작곡가") {
+      if (Bot.scope.owns(oppState, "작곡가")) {
         let len8 = cpuCountExactRepliesGEForSyllable(last, 8, game);
         let len4 = cpuCountExactLengthRepliesForSyllable(last, 4, game);
         let len2 = cpuCountExactLengthRepliesForSyllable(last, 2, game);
@@ -11838,7 +11856,7 @@ with (Bot.scope) {
         score -= Math.floor(len2 * 16000 * Math.max(1, mul - 0.2));
         if (len8 === 0 && len4 === 0) score += remain <= 2 ? 90000 : 26000;
       }
-      if (oppState.job === "생존자") {
+      if (Bot.scope.owns(oppState, "생존자")) {
         let need = cpuSurvivorNextSignal(oppState);
         let dots = cpuCountExactLengthRepliesForSyllable(last, 2, game);
         let dashes = cpuCountExactRepliesGEForSyllable(last, 3, game);
@@ -11856,7 +11874,7 @@ with (Bot.scope) {
           if (dashes === 0) score += weight;else score -= dashes * weight;
         }
       }
-      if (oppState.job === "투자자") {
+      if (Bot.scope.owns(oppState, "투자자")) {
         let diff = (oppState.investor_stock || 20) - (game.turnCount || 1);
         let evenCnt = cpuCountExactParityRepliesForSyllable(last, true, game);
         let oddCnt = cpuCountExactParityRepliesForSyllable(last, false, game);
@@ -11867,7 +11885,7 @@ with (Bot.scope) {
           score -= Math.min(evenCnt, oddCnt) * 18000;
         }
       }
-      if (oppState.job === "사신") {
+      if (Bot.scope.owns(oppState, "사신")) {
         let ec = oppState.execution_count || 44;
         if (ec <= 12) {
           let danger = cpuCountExactRepliesGEForSyllable(last, Math.max(2, ec), game);
@@ -11875,51 +11893,51 @@ with (Bot.scope) {
           if (danger === 0) score += ec <= 4 ? 180000 : 50000;
         }
       }
-      if (oppState.job === "수학자") {
+      if (Bot.scope.owns(oppState, "수학자")) {
         let cur = oppState.math_result == null ? 1 : oppState.math_result;
         let exact = cpuCountExactLengthRepliesForSyllable(last, cur, game);
         score -= exact * 90000;
         if (exact === 0) score += cur >= 2 && cur <= 12 ? 22000 : 0;
         if (cur !== 2) score -= cpuCountExactLengthRepliesForSyllable(last, 2, game) * 12000;
       }
-      if (oppState.job === "기관사" && state.job !== "기관사") {
+      if (Bot.scope.owns(oppState, "기관사") && !Bot.scope.owns(state, "기관사")) {
         let station = oppState.train_stations || 10;
         let legalShort = cpuCountExactRepliesLEForSyllable(last, station, game);
         if (legalShort <= 1) score += 110000;else if (legalShort <= 2) score += 50000;else score -= legalShort * 12000;
       }
-      if (oppState.job === "갈릴레오") {
+      if (Bot.scope.owns(oppState, "갈릴레오")) {
         if (ROUTESYL_SET && ROUTESYL_SET.has(last)) score -= 35000;
         if (rootCount === 0) score += 22000;
         let g = cpuProfileGalileoPatternCounts(profile);
         score -= g.io * 12000 + g.europa * 6000 + g.ganymede * 7000 + g.callisto * 7000;
       }
-      if ((oppState.job === "기자" || oppState.job === "검객") && profile && profile.directCount === 0 && profile.dueumCount > 0) {
+      if ((Bot.scope.owns(oppState, "기자") || Bot.scope.owns(oppState, "검객")) && profile && profile.directCount === 0 && profile.dueumCount > 0) {
         score -= 180000;
       }
-      if (oppState.job === "시인") {
+      if (Bot.scope.owns(oppState, "시인")) {
         let len2 = cpuCountExactLengthRepliesForSyllable(last, 2, game);
         if (len2 === 0) score += 40000;else score -= len2 * 26000;
       }
-      if (oppState.job === "피보나치" && typeof isFibonacciTurn === "function" && isFibonacciTurn((game.turnCount || 0) + 1)) {
+      if (Bot.scope.owns(oppState, "피보나치") && typeof isFibonacciTurn === "function" && isFibonacciTurn((game.turnCount || 0) + 1)) {
         if (rootCount === 0) score += 50000;else score -= rootCount * 26000;
       }
-      if (oppState.job === "혜성전사" && profile) {
+      if (Bot.scope.owns(oppState, "혜성전사") && profile) {
         score -= (cpuProfileContainsCount(profile, "성") + cpuProfileContainsCount(profile, "혜")) * 18000;
       }
-      if (oppState.job === "은하계전사" && profile) {
+      if (Bot.scope.owns(oppState, "은하계전사") && profile) {
         score -= (cpuProfileContainsCount(profile, "별") + cpuProfileContainsCount(profile, "달")) * 18000;
       }
-      if (state.job === "기자" || state.job === "검객") {
+      if (Bot.scope.owns(state, "기자") || Bot.scope.owns(state, "검객")) {
         if (profile && profile.directCount === 0 && profile.dueumCount > 0) score += 80000;
       }
-      if (state.job === "시인") {
+      if (Bot.scope.owns(state, "시인")) {
         let len2 = cpuCountExactLengthRepliesForSyllable(last, 2, game);
         if (len2 === 0) score += 60000;
       }
-      if (state.job === "나이트") {
+      if (Bot.scope.owns(state, "나이트")) {
         if (rootCount === 0) score += 28000;
       }
-      if (state.job === "고죠" || state.job === "뜀틀선수" || state.job === "수리사") {
+      if (Bot.scope.owns(state, "고죠") || Bot.scope.owns(state, "뜀틀선수") || Bot.scope.owns(state, "수리사")) {
         if (profile && profile.count <= 4) score += 18000;
       }
       return score;
@@ -13407,7 +13425,7 @@ Alt-F4 콤보를 준비합니다.`;
       function __patchHandleMathAfterWord(game, sender, word, room, replier) {
         let __botResult = function () {
           var senderState = game && game.playerStates && game.playerStates[sender] ? game.playerStates[sender] : null;
-          if (senderState && senderState.job === "수학자" && !senderState.lost_abilities) {
+          if (senderState && Bot.scope.owns(senderState, "수학자") && !senderState.lost_abilities) {
             senderState.math_result = senderState.math_result == null ? 1 : senderState.math_result;
             senderState.math_study_uses_left = word.length === 2 ? 0 : word.length;
             senderState.math_study_ignore_disable = word.length >= 4 ? 1 : 0;
@@ -13415,7 +13433,7 @@ Alt-F4 콤보를 준비합니다.`;
           var ended = false;
           Bot.functions.each(__patchGetOpponents(game, sender), function (name) {
             var mathState = game.playerStates && game.playerStates[name] ? game.playerStates[name] : null;
-            if (!mathState || mathState.job !== "수학자" || mathState.lost_abilities) return null;
+            if (!mathState || !Bot.scope.owns(mathState, "수학자") || mathState.lost_abilities) return null;
             mathState.math_result = mathState.math_result == null ? 1 : mathState.math_result;
             if (mathState.math_result === word.length && !(mathState.disabled_turns > 0) && !(mathState.absolutely_disabled > 0)) {
               replyJob(replier, mathState.job, "논문 발표 조건이 완성되었습니다.");
@@ -13517,7 +13535,7 @@ Alt-F4 콤보를 준비합니다.`;
       function __jsonThreatIndex(word, state, oppState) {
         let __botResult = function () {
           if (!oppState) return 0;
-          if (oppState.job === "67") {
+          if (Bot.scope.owns(oppState, "67")) {
             if (state && state.no_yudo_turns > 0 || (oppState.no_yudo_turns || 0) >= 40) return 2;
             return 1;
           }
@@ -14034,11 +14052,11 @@ Alt-F4 콤보를 준비합니다.`;
               var ability = String(msg).substring(1).trim();
               var abilityNorm = String(ability || "").replace(/\s+/g, " ").trim();
               var abilityCompact = abilityNorm.replace(/\s+/g, "");
-              if (state.job === "프로그래머" && (abilityNorm === "Restart" || abilityNorm === "재부팅")) {
+              if (Bot.scope.owns(state, "프로그래머") && (abilityNorm === "Restart" || abilityNorm === "재부팅")) {
                 replier.reply("Restart는 패시브입니다. 2Restart로 사용할 수 없습니다.");
                 return;
               }
-              if (state.job === "?" && (abilityNorm === "?" || abilityNorm === "물음표" || abilityNorm === "쉼표" || abilityNorm === "마침표")) {
+              if (Bot.scope.owns(state, "?") && (abilityNorm === "?" || abilityNorm === "물음표" || abilityNorm === "쉼표" || abilityNorm === "마침표")) {
                 if (!game || game.phase !== "playing" || !game.players || game.players.indexOf(sender) === -1) return;
                 if (game.history.length === 0) {
                   replier.reply("아직 사용된 단어가 없어 능력을 사용할 수 없습니다.");
@@ -14112,7 +14130,7 @@ Alt-F4 콤보를 준비합니다.`;
                   return;
                 }
               }
-              if (state.job === "반장" && (abilityNorm === "담임의 가호" || abilityCompact === "담임의가호")) {
+              if (Bot.scope.owns(state, "반장") && (abilityNorm === "담임의 가호" || abilityCompact === "담임의가호")) {
                 if ((state.class_president_homeroom_uses || 0) >= 2) {
                   replier.reply("담임의 가호를 모두 사용했습니다.");
                   return;
@@ -14136,7 +14154,7 @@ Alt-F4 콤보를 준비합니다.`;
                 replyJob(replier, state.job, "담임의 가호가 발동되어 상대는 1턴간 공격단어를 사용할 수 없고, 반장은 1턴간 디버프를 무시합니다.");
                 return;
               }
-              if (state.job === "반장" && (abilityNorm === "교장의 가호" || abilityCompact === "교장의가호")) {
+              if (Bot.scope.owns(state, "반장") && (abilityNorm === "교장의 가호" || abilityCompact === "교장의가호")) {
                 if ((state.class_president_principal_uses || 0) >= 1) {
                   replier.reply("교장의 가호를 모두 사용했습니다.");
                   return;
@@ -14155,9 +14173,9 @@ Alt-F4 콤보를 준비합니다.`;
                 replyJob(replier, state.job, "교장의 가호가 발동되어 상대는 2턴간 능력과 패시브를 사용할 수 없습니다. 다음 수가 2글자가 아니면 즉시 패배합니다.");
                 return;
               }
-              if (state.job === "투자자" && ability === "조작") {
+              if (Bot.scope.owns(state, "투자자") && ability === "조작") {
                 rewrittenMsg = "2주가 조작";
-              } else if (state.job === "투자자" && ability === "도박") {
+              } else if (Bot.scope.owns(state, "투자자") && ability === "도박") {
                 if (state.debtor_gamble_uses >= 2) {
                   replier.reply("도박을 모두 사용했습니다.");
                   return;
@@ -14171,7 +14189,7 @@ Alt-F4 콤보를 준비합니다.`;
                 state.debtor_gamble_pending = 1;
                 replyJob(replier, "빚쟁이", "도박으로 다음 빚 변동률이 2배가 됩니다.");
                 return;
-              } else if (state.job === "기관사" && ability === "폭주기관차") {
+              } else if (Bot.scope.owns(state, "기관사") && ability === "폭주기관차") {
                 if (state.train_rush_uses >= 2) {
                   replier.reply("폭주기관차를 모두 사용했습니다.");
                   return;
@@ -14183,7 +14201,7 @@ Alt-F4 콤보를 준비합니다.`;
                   finalizeMatch(room, sender, "폭주기관차", replier);
                 }
                 return;
-              } else if (state.job === "시인" && ability === "유도음절") {
+              } else if (Bot.scope.owns(state, "시인") && ability === "유도음절") {
                 if (state.poetic_yudo_uses >= 2) {
                   replier.reply("유도음절을 모두 사용했습니다.");
                   return;
@@ -14197,7 +14215,7 @@ Alt-F4 콤보를 준비합니다.`;
                 state.poetic_yudo_force = 1;
                 replyJob(replier, state.job, "이번 수를 일반음절로 끝내면 상대 끝음절이 유도/한방 계열로 강제됩니다.");
                 return;
-              } else if (state.job === "생존자" && ability === "아이쿠") {
+              } else if (Bot.scope.owns(state, "생존자") && ability === "아이쿠") {
                 if (state.signal_double_uses >= 2) {
                   replier.reply("아이쿠를 모두 사용했습니다.");
                   return;
@@ -14211,7 +14229,7 @@ Alt-F4 콤보를 준비합니다.`;
                 state.signal_double_pending = 1;
                 replyJob(replier, state.job, "다음 신호 패시브가 2번 발동됩니다.");
                 return;
-              } else if (state.job === "기자" && ability === "거짓 뉴스") {
+              } else if (Bot.scope.owns(state, "기자") && ability === "거짓 뉴스") {
                 if (state.fake_news_uses >= 1) {
                   replier.reply("거짓 뉴스는 이미 사용했습니다.");
                   return;
@@ -14229,7 +14247,7 @@ Alt-F4 콤보를 준비합니다.`;
                 state.fake_news_self_lock = 4;
                 replyJob(replier, state.job, "2턴간 거짓 뉴스 보도가 이어집니다. 이후 기자는 2턴간 능력을 사용할 수 없습니다.");
                 return;
-              } else if (state.job === "볼링선수" && ability === "스트라이크") {
+              } else if (Bot.scope.owns(state, "볼링선수") && ability === "스트라이크") {
                 if (state.bowling_strike_uses >= 3) {
                   replier.reply("스트라이크를 모두 사용했습니다.");
                   return;
@@ -14254,7 +14272,7 @@ Alt-F4 콤보를 준비합니다.`;
                 });
                 replyJob(replier, state.job, "스트라이크! 점수 30을 사용하여 상대는 1턴간 유도단어를 사용할 수 없습니다.");
                 return;
-              } else if (state.job === "볼링선수" && ability === "스페어") {
+              } else if (Bot.scope.owns(state, "볼링선수") && ability === "스페어") {
                 if (state.bowling_spare_uses >= 2) {
                   replier.reply("스페어를 모두 사용했습니다.");
                   return;
@@ -14285,7 +14303,7 @@ Alt-F4 콤보를 준비합니다.`;
           try {
             if (game && game.playerStates && game.playerStates[sender]) {
               var preState = game.playerStates[sender];
-              if (preState.job === "반장" && (preState.class_president_ignore_debuff_turns || 0) > 0) {
+              if (Bot.scope.owns(preState, "반장") && (preState.class_president_ignore_debuff_turns || 0) > 0) {
                 __patchClearDebuffs(preState);
               }
             }
@@ -14312,7 +14330,7 @@ Alt-F4 콤보를 준비합니다.`;
             }
             if (__patchHandleMathAfterWord(afterGame, sender, word, room, replier)) return;
             __patchTickCustomStates(afterGame);
-            if (state.job === "프로그래머" && isYudo(word)) {
+            if (Bot.scope.owns(state, "프로그래머") && isYudo(word)) {
               state.programmer_restarted = true;
               state.programmer_restart_turn = afterGame.turnCount;
               if (afterGame.used) afterGame.used.clear();
@@ -14329,7 +14347,7 @@ Alt-F4 콤보를 준비합니다.`;
               replyJob(replier, state.job, "Restart 패시브가 발동되어 기보가 초기화됩니다.");
               return;
             }
-            if (state.job === "볼링선수") {
+            if (Bot.scope.owns(state, "볼링선수")) {
               var count = 0;
               var targets = {
                 "ㅅ": 1,
@@ -14381,7 +14399,7 @@ Alt-F4 콤보를 준비합니다.`;
                 return;
               }
             }
-            if (state.job === "피보나치" && afterGame.turnCount >= 3 && isFibonacciTurn(afterGame.turnCount)) {
+            if (Bot.scope.owns(state, "피보나치") && afterGame.turnCount >= 3 && isFibonacciTurn(afterGame.turnCount)) {
               __patchApplyToOpp(afterGame, sender, function (oppState) {
                 let __botResult = function () {
                   oppState.last_route_only_turns = Math.max(oppState.last_route_only_turns || 0, 1);
@@ -14402,7 +14420,7 @@ Alt-F4 콤보를 준비합니다.`;
               }, function () {
                 var oppName = oppNames[oi];
                 var oppState = afterGame.playerStates[oppName];
-                if (oppState && oppState.job === "피보나치" && isLucasTurn(afterGame.turnCount) && __patchIsAttackWord(word)) {
+                if (oppState && Bot.scope.owns(oppState, "피보나치") && isLucasTurn(afterGame.turnCount) && __patchIsAttackWord(word)) {
                   replyJob(replier, oppState.job, "뤼카 수열이 완성되어 공격단어를 응징합니다.");
                   finalizeMatch(room, oppName, "뤼카 수열", replier);
                   return Bot.functions.control("return", undefined);
@@ -14410,25 +14428,25 @@ Alt-F4 콤보를 준비합니다.`;
               });
               if (__botLoop193) return __botLoop193;
             }
-            if (state.job === "생존자" && state.signal_double_pending > 0) {
+            if (Bot.scope.owns(state, "생존자") && state.signal_double_pending > 0) {
               state.signal_double_pending = 0;
               var sig = word.length === 2 ? "." : "-";
               state.signal_sequence = String(state.signal_sequence || "") + sig;
               replyJob(replier, state.job, "아이쿠 효과로 신호가 한 번 더 발동했습니다.");
             }
-            if (false && state.job === "?" && afterGame.turnCount >= 24) {
+            if (false && Bot.scope.owns(state, "?") && afterGame.turnCount >= 24) {
               replyJob(replier, state.job, "마침표가 찍혀 경기를 끝냅니다.");
               finalizeMatch(room, sender, "마침표", replier);
               return;
             }
-            if (state.job === "투자자" && state.debtor_gamble_pending > 0) {
+            if (Bot.scope.owns(state, "투자자") && state.debtor_gamble_pending > 0) {
               state.debtor_gamble_pending = 0;
               if (typeof state.investor_stock === "number" && beforeHistoryLen >= 0) {
                 var delta = word.length % 2 === 0 ? -word.length : word.length;
                 state.investor_stock += delta;
               }
             }
-            if (state.job === "시인" && state.poetic_yudo_force > 0) {
+            if (Bot.scope.owns(state, "시인") && state.poetic_yudo_force > 0) {
               state.poetic_yudo_force = 0;
               if (!(isHanbang(word) || isYudo(word) || isRoot(word))) {
                 __patchApplyToOpp(afterGame, sender, function (oppState) {
@@ -14441,10 +14459,10 @@ Alt-F4 콤보를 준비합니다.`;
                 });
               }
             }
-            if (state.job === "기자" && state.fake_news_self_lock > 0 && state.fake_news_self_lock <= 2) {
+            if (Bot.scope.owns(state, "기자") && state.fake_news_self_lock > 0 && state.fake_news_self_lock <= 2) {
               state.disabled_turns = Math.max(state.disabled_turns || 0, 2);
             }
-            if (state.job === "반장") {
+            if (Bot.scope.owns(state, "반장")) {
               if ((state.class_president_passive_skip_once || 0) > 0) {
                 state.class_president_passive_skip_once = Math.max(0, (state.class_president_passive_skip_once || 0) - 1);
               } else if ((state.class_president_passive_cooldown || 0) <= 0) {
@@ -15436,7 +15454,7 @@ Alt-F4 콤보를 준비합니다.`;
         if ((game.turnCount || 0) < 12) return false;
         var curName = game.players[game.currentTurnIndex];
         var state = game.playerStates ? game.playerStates[curName] : null;
-        if (!state || state.job !== "?") return false;
+        if (!state || !Bot.scope.owns(state, "?")) return false;
         replyJob(replier, state.job, "24턴이 지나 마침표가 자동으로 찍혀 경기를 끝냅니다.");
         finalizeMatch(room, curName, "마침표", replier);
         return true;
@@ -15642,53 +15660,53 @@ Alt-F4 콤보를 준비합니다.`;
       function __deepDec(v) { return v > 0 ? v - 1 : 0; }
       function __deepNormalizeState(st) {
         if (!st) return st;
-        if (st.job === "해커") {
+        if (Bot.scope.owns(st, "해커")) {
           if (typeof st.jojak_uses !== "number") st.jojak_uses = 0;
           if (typeof st.jojak_cooldown !== "number") st.jojak_cooldown = 0;
           if (typeof st.jojak_active !== "number") st.jojak_active = 0;
           if (typeof st.chotohwa_uses !== "number") st.chotohwa_uses = 0;
           if (typeof st.chotohwa_cooldown !== "number") st.chotohwa_cooldown = 0;
-        } else if (st.job === "투자자") {
+        } else if (Bot.scope.owns(st, "투자자")) {
           if (typeof st.investor_stock !== "number") st.investor_stock = 20;
           if (typeof st.debtor_gamble_uses !== "number") st.debtor_gamble_uses = 0;
           if (typeof st.debtor_gamble_cooldown !== "number") st.debtor_gamble_cooldown = 0;
           if (typeof st.debtor_gamble_pending !== "number") st.debtor_gamble_pending = 0;
-        } else if (st.job === "환자") {
+        } else if (Bot.scope.owns(st, "환자")) {
           if (typeof st.opcd_cooldown !== "number") st.opcd_cooldown = 0;
           if (typeof st.hallucination_uses !== "number") st.hallucination_uses = 0;
           if (typeof st.patient_doom_turns !== "number") st.patient_doom_turns = 0;
           if (typeof st.patient_doom_skip !== "number") st.patient_doom_skip = 0;
-        } else if (st.job === "수집가") {
+        } else if (Bot.scope.owns(st, "수집가")) {
           if (typeof st.make_uses !== "number") st.make_uses = 0;
           if (!st.collector_extra_words || typeof st.collector_extra_words !== "object") st.collector_extra_words = {};
-        } else if (st.job === "감시자") {
+        } else if (Bot.scope.owns(st, "감시자")) {
           if (typeof st.watch_count !== "number") st.watch_count = 32;
           if (st.watch_count === 30 && !st.__watch32_fixed) st.watch_count = 32;
           st.__watch32_fixed = true;
           if (typeof st.detect_cooldown !== "number") st.detect_cooldown = 0;
           if (typeof st.detect_uses !== "number") st.detect_uses = 0;
-        } else if (st.job === "전우치") {
+        } else if (Bot.scope.owns(st, "전우치")) {
           if (typeof st.lightning_uses !== "number") st.lightning_uses = 0;
           if (typeof st.lightning_bonus_uses !== "number") st.lightning_bonus_uses = 0;
-        } else if (st.job === "기관사") {
+        } else if (Bot.scope.owns(st, "기관사")) {
           if (typeof st.train_stations !== "number" || st.train_stations === 8) st.train_stations = 10;
           if (typeof st.train_rush_uses !== "number") st.train_rush_uses = 0;
-        } else if (st.job === "늑대인간") {
+        } else if (Bot.scope.owns(st, "늑대인간")) {
           if (typeof st.roar_cooldown !== "number") st.roar_cooldown = 0;
           if (typeof st.roar_perma_one !== "boolean") st.roar_perma_one = false;
-        } else if (st.job === "사과") {
+        } else if (Bot.scope.owns(st, "사과")) {
           if (typeof st.sagua_uses !== "number") st.sagua_uses = 0;
-        } else if (st.job === "공룡") {
+        } else if (Bot.scope.owns(st, "공룡")) {
           if (typeof st.breath_uses !== "number") st.breath_uses = 0;
           if (typeof st.breath_cooldown !== "number") st.breath_cooldown = 0;
-        } else if (st.job === "마법사") {
+        } else if (Bot.scope.owns(st, "마법사")) {
           if (typeof st.explosion_uses !== "number") st.explosion_uses = 0;
-        } else if (st.job === "사신") {
+        } else if (Bot.scope.owns(st, "사신")) {
           if (typeof st.execution_count !== "number") st.execution_count = 44;
           if (typeof st.death_cooldown !== "number") st.death_cooldown = 0;
           if (typeof st.death_uses !== "number") st.death_uses = 0;
           if (typeof st.soul_uses !== "number") st.soul_uses = 0;
-        } else if (st.job === "수학자") {
+        } else if (Bot.scope.owns(st, "수학자")) {
           if (typeof st.math_result !== "number" || st.__math_spec_init !== true) st.math_result = 0;
           st.__math_spec_init = true;
           var names = ["calc", "add", "sub", "mul", "fix", "calculus"];
@@ -15697,7 +15715,7 @@ Alt-F4 콤보를 준비합니다.`;
             if (typeof st["math_" + n + "_uses"] !== "number") st["math_" + n + "_uses"] = 0;
             if (typeof st["math_" + n + "_cooldown"] !== "number") st["math_" + n + "_cooldown"] = 0;
           }
-        } else if (st.job === "과학자") {
+        } else if (Bot.scope.owns(st, "과학자")) {
           if (typeof st.experiment_success_total !== "number") st.experiment_success_total = 0;
           if (st.experiment_success_total >= 10) st.challenge_active = true;
         }
@@ -15744,7 +15762,7 @@ Alt-F4 콤보를 준비합니다.`;
         var oppName = __deepOppName(game, sender);
         if (!opp) return false;
 
-        if (state.job === "해커" && (ability === "조작" || ability === "초토화")) {
+        if (Bot.scope.owns(state, "해커") && (ability === "조작" || ability === "초토화")) {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if (ability === "조작") {
             if ((state.jojak_uses || 0) >= 2) { replier.reply("조작 능력을 모두 사용했습니다."); return true; }
@@ -15766,7 +15784,7 @@ Alt-F4 콤보를 준비합니다.`;
           }
         }
 
-        if (state.job === "환자" && ability === "환각증") {
+        if (Bot.scope.owns(state, "환자") && ability === "환각증") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if ((state.hallucination_uses || 0) >= 1) { replier.reply("환각증을 모두 사용했습니다."); return true; }
           var lastWord = game.history[game.history.length - 1] || "";
@@ -15781,7 +15799,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "수집가" && ability === "제작") {
+        if (Bot.scope.owns(state, "수집가") && ability === "제작") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if ((state.make_uses || 0) >= 10) { replier.reply("제작을 모두 사용했습니다."); return true; }
           if (!target || target.length < 2) { replier.reply("2글자 이상의 추가단어를 지정해야 합니다."); return true; }
@@ -15801,7 +15819,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "감시자" && ability === "탐지") {
+        if (Bot.scope.owns(state, "감시자") && ability === "탐지") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if ((state.detect_uses || 0) >= 2) { replier.reply("탐지를 모두 사용했습니다."); return true; }
           if ((state.detect_cooldown || 0) > 0) { replier.reply("탐지 쿨타임입니다."); return true; }
@@ -15812,7 +15830,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "전우치" && ability === "직격뢰") {
+        if (Bot.scope.owns(state, "전우치") && ability === "직격뢰") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           var maxLightning = 3 + (state.lightning_bonus_uses || 0);
           if ((state.lightning_uses || 0) >= maxLightning) { replier.reply("직격뢰 능력을 모두 사용했습니다."); return true; }
@@ -15824,7 +15842,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "사과" && ability === "사구아") {
+        if (Bot.scope.owns(state, "사과") && ability === "사구아") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if ((state.sagua_uses || 0) >= 2) { replier.reply("사구아를 모두 사용했습니다."); return true; }
           state.sagua_uses = (state.sagua_uses || 0) + 1;
@@ -15833,7 +15851,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "공룡" && ability === "브레스") {
+        if (Bot.scope.owns(state, "공룡") && ability === "브레스") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if (game.turnCount < 8) { replier.reply("브레스는 8턴부터 사용할 수 있습니다."); return true; }
           if ((state.breath_uses || 0) >= 2) { replier.reply("브레스를 모두 사용했습니다."); return true; }
@@ -15845,7 +15863,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "공룡" && ability === "꼬리 날리기") {
+        if (Bot.scope.owns(state, "공룡") && ability === "꼬리 날리기") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, true)) return true;
           if (game.turnCount < 8) { replier.reply("꼬리 날리기는 8턴부터 사용할 수 있습니다."); return true; }
           if ((state.tail_uses || 0) >= 1) { replier.reply("꼬리 날리기를 모두 사용했습니다."); return true; }
@@ -15856,7 +15874,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "마법사" && ability === "폭발") {
+        if (Bot.scope.owns(state, "마법사") && ability === "폭발") {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if (game.turnCount < 12) { replier.reply("폭발은 12턴부터 사용할 수 있습니다."); return true; }
           if ((state.explosion_uses || 0) >= 1) { replier.reply("폭발을 이미 사용했습니다."); return true; }
@@ -15866,7 +15884,7 @@ Alt-F4 콤보를 준비합니다.`;
           return true;
         }
 
-        if (state.job === "사신" && (ability === "사형 선고" || ability === "영혼")) {
+        if (Bot.scope.owns(state, "사신") && (ability === "사형 선고" || ability === "영혼")) {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, false)) return true;
           if (ability === "사형 선고") {
             if ((state.death_cooldown || 0) > 0) { replier.reply("사형 선고 쿨타임입니다."); return true; }
@@ -15901,7 +15919,7 @@ Alt-F4 콤보를 준비합니다.`;
           }
         }
 
-        if (state.job === "수학자" && ["계산", "덧셈", "뺄셈", "곱셈", "교정", "미적분"].indexOf(ability) !== -1) {
+        if (Bot.scope.owns(state, "수학자") && ["계산", "덧셈", "뺄셈", "곱셈", "교정", "미적분"].indexOf(ability) !== -1) {
           if (!__deepBasicAbilityCheck(game, sender, state, replier, ability === "미적분")) return true;
           var len = __deepGetLastLen(game);
           if (ability === "계산") {
@@ -15957,7 +15975,7 @@ Alt-F4 콤보를 준비합니다.`;
         __deepNormalizeGame(game);
         if (String(msg || "").indexOf(INPUT_PFX) !== 0) return false;
         var word = String(msg).substring(String(INPUT_PFX).length).replace(/^\s+|\s+$/g, "");
-        if (state.job === "환자" && (state.patient_self_limit || 0) > 0) {
+        if (Bot.scope.owns(state, "환자") && (state.patient_self_limit || 0) > 0) {
           var endSyl = state.patient_self_end_syllable || "";
           if (word.length > 3 || word[word.length - 1] !== endSyl) {
             replier.reply("환각증 여파: 환자는 이번 수를 현재 이을 음절 [" + endSyl + "]로 끝나는 3글자 이하 단어로 내야 합니다.");
@@ -15969,7 +15987,7 @@ Alt-F4 콤보를 준비합니다.`;
           var keys = Object.keys(game.playerStates || {});
           for (var i = 0; i < keys.length; i++) {
             var st = game.playerStates[keys[i]];
-            if (st && st.job === "수집가" && st.collector_extra_words && st.collector_extra_words[word] > 0) {
+            if (st && Bot.scope.owns(st, "수집가") && st.collector_extra_words && st.collector_extra_words[word] > 0) {
               if (keys[i] === sender) ownerOk = true;
             }
           }
@@ -15991,11 +16009,11 @@ Alt-F4 콤보를 준비합니다.`;
         var opp = __deepOppState(game, sender);
         var oppName = __deepOppName(game, sender);
 
-        if (state.job === "환자" && (state.patient_self_limit || 0) > 0) {
+        if (Bot.scope.owns(state, "환자") && (state.patient_self_limit || 0) > 0) {
           state.patient_self_limit = 0;
           state.patient_self_end_syllable = "";
         }
-        if (state.job === "환자" && (state.patient_doom_turns || 0) > 0) {
+        if (Bot.scope.owns(state, "환자") && (state.patient_doom_turns || 0) > 0) {
           if ((state.patient_doom_skip || 0) > 0) {
             state.patient_doom_skip = 0;
           } else {
@@ -16007,15 +16025,15 @@ Alt-F4 콤보를 준비합니다.`;
             }
           }
         }
-        if (state.job === "수집가" && state.collector_extra_words && state.collector_extra_words[word] > 0) {
+        if (Bot.scope.owns(state, "수집가") && state.collector_extra_words && state.collector_extra_words[word] > 0) {
           state.collector_extra_words[word] -= 1;
           if (opp) opp.disabled_turns = Math.max(opp.disabled_turns || 0, 1);
           if (game.customWords && state.collector_extra_words[word] > 0) game.customWords.add(word);
         }
-        if (state.job === "전우치" && (state.afterimage_uses || 0) > (beforeGame.selfAfterimage || 0)) {
+        if (Bot.scope.owns(state, "전우치") && (state.afterimage_uses || 0) > (beforeGame.selfAfterimage || 0)) {
           state.lightning_bonus_uses = (state.lightning_bonus_uses || 0) + 1;
         }
-        if (state.job === "늑대인간" && opp && (state.roar_cooldown > 0 || state.roar_perma_one)) {
+        if (Bot.scope.owns(state, "늑대인간") && opp && (state.roar_cooldown > 0 || state.roar_perma_one)) {
           var wc = countWolfRoar ? countWolfRoar(word) : __deepCountConsonants(word, ["ㅇ", "ㅎ"]);
           var prev = beforeOppMap && beforeOppMap[oppName] ? beforeOppMap[oppName] : {};
           if (wc >= 1) opp.only_even_turns = Math.max(prev.only_even_turns || 0, 1);
@@ -16034,14 +16052,14 @@ Alt-F4 콤보를 준비합니다.`;
             return;
           }
         }
-        if (state.job === "과학자" && (state.experiment_success_total || 0) >= 10) {
+        if (Bot.scope.owns(state, "과학자") && (state.experiment_success_total || 0) >= 10) {
           state.challenge_active = true;
         }
-        if (opp && opp.job === "환자" && word.length % 2 !== 0) {
+        if (opp && Bot.scope.owns(opp, "환자") && word.length % 2 !== 0) {
           opp.opcd_cooldown = Math.min(opp.opcd_cooldown || 2, 2);
           state.no_hanbang_turns = Math.max(state.no_hanbang_turns || 0, 1);
         }
-        if (opp && opp.job === "감시자" && word && word.length > 0) {
+        if (opp && Bot.scope.owns(opp, "감시자") && word && word.length > 0) {
           var prevW = beforeOppMap && beforeOppMap[oppName] ? beforeOppMap[oppName] : {};
           var extra = 0;
           if (word[0] === word[word.length - 1]) extra += 4;
@@ -16216,12 +16234,12 @@ Alt-F4 콤보를 준비합니다.`;
     function __ccHasSurvivalEscape(state, game){
       try {
         if (!state || state.lost_abilities || state.disabled_turns > 0 || state.absolutely_disabled > 0) return false;
-        if (state.job === "뜀틀선수" && (state.vault_uses || 0) < (state.vault_max || 3) && (state.vault_cooldown || 0) <= 0) return true;
-        if (state.job === "기자" && (state.report_uses || 0) < 2 && (state.report_cooldown || 0) <= 0) return true;
-        if (state.job === "고죠" && (state.gongcheo_uses || 0) > 0 && (state.gongcheo_cooldown || 0) <= 0) return true;
-        if (state.job === "생존자" && (state.rescue_uses || 0) < 3 && (state.rescue_cooldown || 0) <= 0 && game && game.history && game.history.length >= 3) return true;
-        if (state.job === "전우치" && game && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) return true;
-        if (state.job === "공룡" && (state.swallow_uses || 0) < 3 && (state.swallow_cooldown || 0) <= 0 && game && game.history && game.history.length >= 2) return true;
+        if (Bot.scope.owns(state, "뜀틀선수") && (state.vault_uses || 0) < (state.vault_max || 3) && (state.vault_cooldown || 0) <= 0) return true;
+        if (Bot.scope.owns(state, "기자") && (state.report_uses || 0) < 2 && (state.report_cooldown || 0) <= 0) return true;
+        if (Bot.scope.owns(state, "고죠") && (state.gongcheo_uses || 0) > 0 && (state.gongcheo_cooldown || 0) <= 0) return true;
+        if (Bot.scope.owns(state, "생존자") && (state.rescue_uses || 0) < 3 && (state.rescue_cooldown || 0) <= 0 && game && game.history && game.history.length >= 3) return true;
+        if (Bot.scope.owns(state, "전우치") && game && game.turnCount >= 8 && (state.afterimage_uses || 0) < 2) return true;
+        if (Bot.scope.owns(state, "공룡") && (state.swallow_uses || 0) < 3 && (state.swallow_cooldown || 0) <= 0 && game && game.history && game.history.length >= 2) return true;
       } catch(e) {}
       return false;
     }
@@ -16507,5 +16525,964 @@ Alt-F4 콤보를 준비합니다.`;
   if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
   return __botResult;
 })();
+
+/* ============================================================
+   채린룰 · 조합(능력 드래프트) 모드 — Bot.combat 계층
+   - owns(): 직업 게이트 일반화. 비조합이면 state.job===job 과 동일.
+   - 능력 엔진 위에 kit. 액티브=임퍼소네이션, 패시브=owns 다발발동.
+   - 진입점만 combatModeOn 가드. 비조합 게임은 무영향.
+   ============================================================ */
+(function () {
+  var S = Bot.scope;
+
+  /* cfrule 적응: 이 빌드는 방 코드 하나당 게임 하나라, 카카오봇의 다중방 헬퍼
+     (findPlayerGameGlobal / createGameReplier)가 없다. 본문을 원본과 동일하게
+     유지하려고 같은 자리에서 쓰는 얇은 대체물만 둔다. */
+  var combatFindGame = function (room) {
+    var g = S.games ? S.games[room] : null;
+    return g ? { game: g } : null;
+  };
+  var combatReplier = function (game, room, replier) {
+    return replier;
+  };
+
+
+  Bot.combat = {};
+  Bot.combat.rules = {
+    POOL_SIZE: 16,
+    PICKS_PER: 2,
+    MAX_RESTRICT_PASSIVE: 2,
+    REDRAFT_INTERVAL: 10,
+    REDRAFT_PICKS_PER: 2
+  };
+  Bot.combat.pool = {
+    cards: [],
+    abilityIndex: {},
+    jobHasPassive: {}
+  };
+  Bot.combat.util = {};
+  Bot.combat.draft = {};
+  Bot.combat.kit = {};
+  Bot.combat.play = {};
+  Bot.combat.ui = {};
+  Bot.combat.session = {};
+
+  /* cfrule 적응: 이 빌드엔 1ㅅㅈ 방 설정이 없다. 방을 만들 때 서버가 여기에 조합 여부를
+     기록해 두면, 게임 객체가 생기는 순간(=참가 인원이 찬 시점) 그 값을 적용한다.
+     1채린/1연습 한 번의 명령 안에서 생성과 직업선택이 모두 끝나 버려, 생성 이후엔
+     설정할 틈이 없어서 필요한 우회다. */
+  Bot.combat.roomDefaults = {};
+  Bot.combat.setRoomDefault = function (room, on) {
+    if (on) Bot.combat.roomDefaults[room] = { combat: true };
+    else delete Bot.combat.roomDefaults[room];
+  };
+  Bot.combat.applyRoomDefault = function (room, game) {
+    var def = Bot.combat.roomDefaults[room];
+    if (!def || !game) return;
+    game.gueruleSettings = game.gueruleSettings || {};
+    if (def.combat) game.gueruleSettings.combat = true;
+  };
+
+  /* ---------- owns: 게이트 일반화 ---------- */
+  /* jobHasPassive 는 풀 정의 직후 채워진다. owns 는 게임 중에만 호출된다. */
+  S.owns = function (state, job) {
+    if (!state) return false;
+    if (state.job === job) return true;
+    if (state.__exactOwns) return false;
+
+    var kit = state.kit;
+    if (state.mode !== "조합" || !kit || !kit.list) return false;
+
+    var draftedThisJob = false;
+    var draftedPassive = false;
+    var list = kit.list;
+    var i;
+    var card;
+
+    for (i = 0; i < list.length; i++) {
+      card = list[i];
+      if (card.homeJob !== job) continue;
+      draftedThisJob = true;
+      if (card.kind === "passive") draftedPassive = true;
+    }
+
+    if (!draftedThisJob) return false;
+    /* 풀에 패시브가 있는 직업은 그 패시브를 실제로 뽑았을 때만 인정 */
+    if (Bot.combat.pool.jobHasPassive[job]) return draftedPassive;
+    return true;
+  };
+
+  /* ---------- 능력 풀 ---------- */
+  Bot.combat.pool.makeCard = function (ability, homeJob, kind, tag, skipWin) {
+    return {
+      ability: ability,
+      homeJob: homeJob,
+      kind: kind,
+      tag: tag,
+      skipWin: !!skipWin
+    };
+  };
+
+  (function buildPool() {
+    var P = Bot.combat.pool.makeCard;
+    Bot.combat.pool.cards = [
+      P("조작", "해커", "active", "탈출"),
+      P("복제", "해커", "active", "조작"),
+      P("초토화", "해커", "active", "제약"),
+      P("강박증", "환자", "passive", "제약"),
+      P("환각증", "환자", "active", "조작"),
+      P("감시", "감시자", "passive", "탈출"),
+      P("뜀틀", "뜀틀선수", "passive", "제약"),
+      P("잔상", "전우치", "passive", "탈출"),
+      P("직격뢰", "전우치", "active", "조작"),
+      P("운행", "기관사", "passive", "제약", true),
+      P("포효", "늑대인간", "passive", "제약", true),
+      P("시프트", "시프터", "active", "조작"),
+      P("빅 시프트", "시프터", "active", "조작"),
+      P("타깃 확보", "비밀요원", "passive", "제약"),
+      P("67", "67", "passive", "제약", true),
+      P("삭와", "사과", "passive", "제약", true),
+      P("사구아", "사과", "active", "제약"),
+      P("2음절", "시인", "active", "제약"),
+      P("유도음절", "시인", "active", "제약"),
+      P("시적 허용", "시인", "active", "제약"),
+      P("삼키기", "공룡", "active", "조작"),
+      P("브레스", "공룡", "active", "제약"),
+      P("꼬리 날리기", "공룡", "active", "제약"),
+      P("공허", "마법사", "active", "조작"),
+      /* 처형(패시브) 제거: 짝 액티브(사형 선고)가 풀에 없음 */
+      P("영혼", "사신", "active", "조작"),
+      P("피보나치 수열", "피보나치", "passive", "제약"),
+      P("물음표", "?", "active", "조작"),
+      P("쉼표", "?", "active", "조작"),
+      P("실험", "과학자", "passive", "제약"),
+      P("관측", "갈릴레오", "passive", "제약", true),
+      P("관성의 법칙", "갈릴레오", "passive", "제약"),
+      P("작곡", "작곡가", "passive", "제약", true),
+      P("L자 도약", "나이트", "passive", "제약"),
+      P("체크메이트", "나이트", "active", "제약"),
+      P("교환", "나이트", "active", "조작"),
+      P("긴급 구조", "생존자", "active", "조작"),
+      P("결계", "악당", "active", "제약"),
+      P("거짓 보도", "기자", "active", "제약"),
+      P("거짓 뉴스", "기자", "active", "제약"),
+      P("찌르기", "검객", "active", "제약"),
+      P("가르기", "검객", "active", "조작"),
+      P("별인 듯 달 아닌 별", "은하계전사", "passive", "제약"),
+      P("핼리 혜성", "혜성전사", "passive", "제약"),
+      P("방탄", "수리사", "passive", "제약"),
+      P("수리", "수리사", "active", "조작"),
+      P("방사선", "우라늄", "passive", "제약"),
+      P("핵분열", "우라늄", "active", "조작"),
+      P("무하한", "고죠", "passive", "제약"),
+      P("무량공처", "고죠", "active", "제약"),
+      P("물걸레질", "스핔이", "active", "조작"),
+      P("호박", "스핔이", "active", "탈출"),
+      P("돌대가리", "해달", "passive", "버프"),
+      P("조개", "해달", "active", "제약"),
+      P("Restart", "프로그래머", "passive", "조작"),
+      P("Shift", "프로그래머", "active", "조작"),
+      P("Caps Lock", "프로그래머", "active", "조작"),
+      P("Backspace", "프로그래머", "active", "조작"),
+      P("Tab", "프로그래머", "active", "조작"),
+      P("잘못 뽑은 반장", "반장", "passive", "제약"),
+      P("담임의 가호", "반장", "active", "버프"),
+      P("교장의 가호", "반장", "active", "제약", true),
+      P("볼링중독", "볼링선수", "passive", "제약", true)
+    ];
+  })();
+
+  Bot.combat.pool.baseCardPower = function (card) {
+    if (card.tag === "제약") {
+      return card.kind === "passive" ? 100 : 80;
+    }
+    if (card.tag === "탈출") return 55;
+    if (card.tag === "조작") return 40;
+    return 20;
+  };
+
+  Bot.combat.pool.computePower = function () {
+    var cards = Bot.combat.pool.cards;
+    var byJob = {};
+    var i;
+    var card;
+    var job;
+    var jobCards;
+
+    for (i = 0; i < cards.length; i++) {
+      card = cards[i];
+      card.power = Bot.combat.pool.baseCardPower(card);
+      if (!byJob[card.homeJob]) byJob[card.homeJob] = [];
+      byJob[card.homeJob].push(card);
+    }
+
+    for (job in byJob) {
+      if (!byJob.hasOwnProperty(job)) continue;
+      jobCards = byJob[job];
+      if (jobCards.length === 1) {
+        jobCards[0].power = Math.round(jobCards[0].power / 2) * 2;
+      }
+    }
+  };
+
+  Bot.combat.pool.indexCards = function () {
+    var cards = Bot.combat.pool.cards;
+    var index = Bot.combat.pool.abilityIndex;
+    var passiveMap = Bot.combat.pool.jobHasPassive;
+    var i;
+    var card;
+    var key;
+
+    for (i = 0; i < cards.length; i++) {
+      card = cards[i];
+      key = card.ability.replace(/\s+/g, "");
+      index[key] = card;
+      if (card.kind === "passive") passiveMap[card.homeJob] = true;
+    }
+  };
+
+  Bot.combat.pool.computePower();
+  Bot.combat.pool.indexCards();
+
+  /* ---------- util ---------- */
+  Bot.combat.util.mulberry32 = function (seed) {
+    var a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  Bot.combat.util.shuffle = function (arr, rnd) {
+    var a = arr.slice();
+    var i;
+    var j;
+    var t;
+    for (i = a.length - 1; i > 0; i--) {
+      j = Math.floor(rnd() * (i + 1));
+      t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+    return a;
+  };
+
+  Bot.combat.util.range = function (n) {
+    var r = [];
+    var i;
+    for (i = 0; i < n; i++) r.push(i);
+    return r;
+  };
+
+  /* 2인·PICKS_PER=2 이면 A B B A */
+  Bot.combat.util.snakeOrder = function (players, per) {
+    var out = [];
+    var n = players.length;
+    var r;
+    var i;
+    var seq;
+    for (r = 0; r < per; r++) {
+      seq = r % 2 === 0
+        ? Bot.combat.util.range(n)
+        : Bot.combat.util.range(n).reverse();
+      for (i = 0; i < seq.length; i++) out.push(seq[i]);
+    }
+    return out;
+  };
+
+  Bot.combat.util.cloneCard = function (card, no) {
+    var o = {};
+    var k;
+    for (k in card) {
+      if (card.hasOwnProperty(k)) o[k] = card[k];
+    }
+    o.no = no;
+    return o;
+  };
+
+  Bot.combat.util.countRestrictPassive = function (kit) {
+    var c = 0;
+    var i;
+    var card;
+    for (i = 0; i < kit.length; i++) {
+      card = kit[i];
+      if (card.kind === "passive" && card.tag === "제약") c++;
+    }
+    return c;
+  };
+
+  Bot.combat.util.canAdd = function (kit, card) {
+    if (!(card.kind === "passive" && card.tag === "제약")) return true;
+    return Bot.combat.util.countRestrictPassive(kit) < Bot.combat.rules.MAX_RESTRICT_PASSIVE;
+  };
+
+  /* ---------- draft ---------- */
+  Bot.combat.draft.start = function (players, seed) {
+    var rules = Bot.combat.rules;
+    var rnd = Bot.combat.util.mulberry32(seed >>> 0);
+    var deck = Bot.combat.util.shuffle(Bot.combat.pool.cards, rnd);
+    var drawn = [];
+    var i;
+    var picks = [];
+
+    for (i = 0; i < rules.POOL_SIZE; i++) {
+      drawn.push(Bot.combat.util.cloneCard(deck[i], i + 1));
+    }
+    for (i = 0; i < players.length; i++) picks.push([]);
+
+    return {
+      players: players.slice(),
+      seed: seed >>> 0,
+      deck: deck,
+      deckIdx: rules.POOL_SIZE,
+      cycle: 0,
+      pool: drawn,
+      picks: picks,
+      order: Bot.combat.util.snakeOrder(players, rules.PICKS_PER),
+      turnIdx: 0,
+      done: false
+    };
+  };
+
+  Bot.combat.draft.currentDrafter = function (d) {
+    if (d.done || d.turnIdx >= d.order.length) return -1;
+    return d.order[d.turnIdx];
+  };
+
+  Bot.combat.draft.findCard = function (d, choice) {
+    var raw = String(choice == null ? "" : choice).trim();
+    var n = parseInt(raw, 10);
+    var pool = d.pool;
+    var i;
+    var card;
+    var q;
+
+    if (!isNaN(n) && String(n) === raw) {
+      for (i = 0; i < pool.length; i++) {
+        card = pool[i];
+        if (card.no === n) return { idx: i, card: card };
+      }
+    }
+
+    q = raw.replace(/\s+/g, "");
+    for (i = 0; i < pool.length; i++) {
+      card = pool[i];
+      if (card.ability.replace(/\s+/g, "") === q) {
+        return { idx: i, card: card };
+      }
+    }
+    return null;
+  };
+
+  Bot.combat.draft.applyPick = function (d, pi, choice) {
+    var drafter;
+    var found;
+    var card;
+    var kit;
+
+    if (d.done) {
+      return { ok: false, error: "드래프트가 이미 끝났습니다." };
+    }
+
+    drafter = Bot.combat.draft.currentDrafter(d);
+    if (drafter !== pi) {
+      return { ok: false, error: "당신의 픽 차례가 아닙니다." };
+    }
+
+    found = Bot.combat.draft.findCard(d, choice);
+    if (!found) {
+      return { ok: false, error: "그 카드가 풀에 없습니다. (번호나 능력 이름으로)" };
+    }
+
+    kit = d.picks[pi];
+    card = found.card;
+    if (!Bot.combat.util.canAdd(kit, card)) {
+      return {
+        ok: false,
+        error: "제약 패시브는 최대 " + Bot.combat.rules.MAX_RESTRICT_PASSIVE + "개까지만."
+      };
+    }
+
+    kit.push(card);
+    d.pool.splice(found.idx, 1);
+    d.turnIdx++;
+    if (d.turnIdx >= d.order.length) d.done = true;
+    return { ok: true, card: card };
+  };
+
+  Bot.combat.draft.cpuChoose = function (d, pi) {
+    var kit = d.picks[pi];
+    var pool = d.pool;
+    var best = 0;
+    var bestScore = -1;
+    var i;
+    var k;
+    var card;
+    var score;
+    var hasSameJob;
+
+    for (i = 0; i < pool.length; i++) {
+      card = pool[i];
+      if (!Bot.combat.util.canAdd(kit, card)) continue;
+      score = card.power;
+      hasSameJob = false;
+      for (k = 0; k < kit.length; k++) {
+        if (kit[k].homeJob === card.homeJob) {
+          hasSameJob = true;
+          break;
+        }
+      }
+      if (hasSameJob) score += 8;
+      if (score > bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    }
+
+    if (pool[best]) return pool[best].no;
+    if (pool[0]) return pool[0].no;
+    return 1;
+  };
+
+  /* ---------- kit ---------- */
+  Bot.combat.kit.build = function (list) {
+    var abilities = {};
+    var homeJobs = {};
+    var i;
+    var card;
+    for (i = 0; i < list.length; i++) {
+      card = list[i];
+      abilities[card.ability] = card;
+      homeJobs[card.homeJob] = true;
+    }
+    return {
+      abilities: abilities,
+      homeJobs: homeJobs,
+      list: list.slice()
+    };
+  };
+
+  Bot.combat.kit.initState = function (baseState, kit) {
+    var job;
+    var sub;
+    var field;
+    var abilityKey;
+    var ability;
+
+    baseState.mode = "조합";
+    baseState.kit = kit;
+    baseState.kit_win_suppressed = {};
+
+    for (job in kit.homeJobs) {
+      if (!kit.homeJobs.hasOwnProperty(job)) continue;
+      sub = null;
+      try {
+        sub = S.initJobState(job);
+      } catch (e) {
+        sub = null;
+      }
+      if (!sub) continue;
+      for (field in sub) {
+        if (!sub.hasOwnProperty(field) || field === "job") continue;
+        if (!(field in baseState)) baseState[field] = sub[field];
+      }
+    }
+
+    for (abilityKey in kit.abilities) {
+      if (!kit.abilities.hasOwnProperty(abilityKey)) continue;
+      ability = kit.abilities[abilityKey];
+      if (ability.skipWin) baseState.kit_win_suppressed[abilityKey] = true;
+    }
+    return baseState;
+  };
+
+  Bot.combat.kit.line = function (kit) {
+    return kit.list.map(function (card) {
+      return card.ability + (card.kind === "passive" ? "(패)" : "");
+    }).join(", ");
+  };
+
+  /* ---------- play ---------- */
+  Bot.combat.play.modeOn = function (game) {
+    if (!game) return false;
+    if (game.combat) return true;
+    return !!(game.gueruleSettings && game.gueruleSettings.combat);
+  };
+
+  Bot.combat.play.withImpersonation = function (state, homeJob, fn) {
+    var savedJob = state.job;
+    var savedExact = state.__exactOwns;
+    state.job = homeJob;
+    state.__exactOwns = true;
+    try {
+      return fn();
+    } finally {
+      state.job = savedJob;
+      state.__exactOwns = savedExact;
+    }
+  };
+
+  Bot.combat.play.matchKitAbility = function (kit, abilRaw) {
+    var key;
+    var compact;
+    for (key in kit.abilities) {
+      if (!kit.abilities.hasOwnProperty(key)) continue;
+      compact = key.replace(/\s+/g, "");
+      if (abilRaw === compact || abilRaw.indexOf(compact) === 0) {
+        return kit.abilities[key];
+      }
+    }
+    return null;
+  };
+
+  /* ---------- ui ---------- */
+  Bot.combat.ui.poolText = function (d) {
+    var out = ["[공개 풀 · 남은 " + d.pool.length + "장]"];
+    var i;
+    var card;
+    var kindLabel;
+    for (i = 0; i < d.pool.length; i++) {
+      card = d.pool[i];
+      kindLabel = card.kind === "passive" ? "패시브" : "액티브";
+      out.push(
+        card.no + ". " + card.ability +
+        " [" + card.homeJob + "·" + kindLabel + "·" + card.tag + "]"
+      );
+    }
+    return out.join("\n");
+  };
+
+  /* 드래프트 중에도 직업 정보/목록은 본체로 통과 */
+  Bot.combat.ui.isJobInfoCommand = function (mm) {
+    var pfx = typeof S.PREFIX === "string" ? S.PREFIX : "1";
+    if (mm === pfx + "직업정보" || mm === pfx + "직업선택" || mm === pfx + "ㅈㅂ") {
+      return true;
+    }
+    if (mm === pfx + "직업목록" || mm === pfx + "ㅈㅇ") {
+      return true;
+    }
+    if (mm.indexOf(pfx + "직업정보 ") === 0) return true;
+    if (mm.indexOf(pfx + "직업선택 ") === 0) return true;
+    if (mm.indexOf(pfx + "ㅈㅂ ") === 0) return true;
+    return false;
+  };
+
+  /* ---------- session: 드래프트 진행 ---------- */
+  Bot.combat.session.ensureDraft = function (game) {
+    var seed;
+    if (!game.combatDraft) {
+      seed = (Date.now() ^ (game.players.join("").length * 2654435761)) >>> 0;
+      game.combatDraft = Bot.combat.draft.start(game.players.slice(), seed);
+      game.phase = "combat_draft";
+    }
+    return game.combatDraft;
+  };
+
+  Bot.combat.session.announcePick = function (gr, game, d) {
+    var whoIdx;
+    var who;
+    if (d.done) return;
+    whoIdx = Bot.combat.draft.currentDrafter(d);
+    who = game.players[whoIdx];
+    gr.reply(S.joinLines([
+      S.systemLine(Bot.combat.ui.poolText(d)),
+      S.systemLine(who + " 님 픽 차례입니다. (1픽 <번호/이름>)")
+    ]));
+  };
+
+  Bot.combat.session.runCpuPicks = function (gr, game, d) {
+    var guard = 0;
+    var who;
+    var name;
+    var result;
+    while (!d.done && guard++ < 40) {
+      who = Bot.combat.draft.currentDrafter(d);
+      if (who < 0) break;
+      name = game.players[who];
+      if (!S.isCpuPlayerName(name)) break;
+      result = Bot.combat.draft.applyPick(
+        d,
+        who,
+        Bot.combat.draft.cpuChoose(d, who)
+      );
+      if (!result.ok) break;
+      gr.reply(S.systemLine(name + " (CPU) → " + result.card.ability + " 픽"));
+    }
+  };
+
+  Bot.combat.session.finishDraftIfDone = function (gr, game, d) {
+    var i;
+    var name;
+    var kit;
+    var stt;
+    var lines;
+
+    if (!d.done) return false;
+
+    for (i = 0; i < game.players.length; i++) {
+      name = game.players[i];
+      kit = Bot.combat.kit.build(d.picks[i]);
+      stt = game.playerStates[name] || { job: null };
+      stt.job = name;
+      Bot.combat.kit.initState(stt, kit);
+      game.playerStates[name] = stt;
+      if (game.teamStates && S.attachTeamState) {
+        try {
+          S.attachTeamState(stt, game.teamStates[i % 2]);
+        } catch (e) {}
+      }
+    }
+
+    game.combat = true;
+    game.gueruleSettings = game.gueruleSettings || {};
+    game.gueruleSettings.jobsMode = "charynn";
+    game.gueruleSettings.combat = true;
+    game.phase = "playing";
+    game.started = true;
+    game.currentTurnIndex = -1;
+
+    lines = [S.systemLine("드래프트 완료! 조합전 시작.")];
+    for (i = 0; i < game.players.length; i++) {
+      name = game.players[i];
+      lines.push(S.systemLine(
+        name + " kit: " + Bot.combat.kit.line(game.playerStates[name].kit)
+      ));
+    }
+    lines.push(S.systemLine("단어: 0단어 · 능력: 2능력명 · 첫 수엔 한방/유도 불가"));
+    gr.reply(S.joinLines(lines));
+    return true;
+  };
+
+  Bot.combat.session.startCombatDraft = function (game, room, replier) {
+    var d = Bot.combat.session.ensureDraft(game);
+    var gr = combatReplier(game, room || game.hostRoom, replier);
+    var picksPer = Bot.combat.rules.PICKS_PER;
+    gr.reply(S.systemLine(
+      "조합 모드: 능력 드래프트 시작 (공개 풀 " + d.pool.length +
+      "장 · ABBA " + picksPer + "픽 · 1픽 <번호/이름>)"
+    ));
+    Bot.combat.session.runCpuPicks(gr, game, d);
+    if (!Bot.combat.session.finishDraftIfDone(gr, game, d)) {
+      Bot.combat.session.announcePick(gr, game, d);
+    }
+  };
+
+  /* 10턴마다 재드래프트 (ABBA · 각 2픽) */
+  Bot.combat.session.openRedraft = function (game, gr) {
+    var d = game.combatDraft;
+    var rules = Bot.combat.rules;
+    var order;
+    var need;
+    var revealed;
+    var i;
+
+    if (!d) return false;
+    if (d.deckIdx >= d.deck.length) {
+      gr.reply(S.systemLine("[조합 재드래프트] 남은 능력 풀이 없어 이번 주기는 생략합니다."));
+      return false;
+    }
+
+    d.cycle = (d.cycle || 0) + 1;
+    order = Bot.combat.util.snakeOrder(d.players, rules.REDRAFT_PICKS_PER);
+    need = Math.min(order.length, d.deck.length - d.deckIdx);
+    order = order.slice(0, need);
+    revealed = [];
+    for (i = 0; i < need; i++) {
+      revealed.push(Bot.combat.util.cloneCard(d.deck[d.deckIdx + i], i + 1));
+    }
+    d.deckIdx += need;
+    d.pool = revealed;
+    d.order = d.order.concat(order);
+    d.done = false;
+    return true;
+  };
+
+  Bot.combat.session.finishRedraftIfDone = function (gr, game, d) {
+    var i;
+    var name;
+    var kit;
+    var stt;
+    var lines;
+
+    if (!d.done) return false;
+
+    for (i = 0; i < game.players.length; i++) {
+      name = game.players[i];
+      stt = game.playerStates[name];
+      if (!stt) continue;
+      kit = Bot.combat.kit.build(d.picks[i]);
+      Bot.combat.kit.initState(stt, kit);
+      game.playerStates[name] = stt;
+    }
+
+    lines = [S.systemLine("[조합 재드래프트 완료 · " + (game.turnCount || 1) + "턴]")];
+    for (i = 0; i < game.players.length; i++) {
+      name = game.players[i];
+      lines.push(S.systemLine(
+        name + " kit: " + Bot.combat.kit.line(game.playerStates[name].kit)
+      ));
+    }
+    gr.reply(S.joinLines(lines));
+    game.phase = "playing";
+    return true;
+  };
+
+  Bot.combat.session.checkRedraft = function (game, gr) {
+    var rules = Bot.combat.rules;
+    var d;
+    var turnCount;
+
+    if (!game || !Bot.combat.play.modeOn(game)) return;
+    if (game.phase !== "playing" || !game.combatDraft) return;
+
+    if (game.combatNextRedraftTurn == null) {
+      game.combatNextRedraftTurn = rules.REDRAFT_INTERVAL;
+    }
+
+    turnCount = game.turnCount || 1;
+    if (turnCount < game.combatNextRedraftTurn) return;
+
+    game.combatNextRedraftTurn += rules.REDRAFT_INTERVAL;
+    d = game.combatDraft;
+    if (!Bot.combat.session.openRedraft(game, gr)) return;
+
+    game.phase = "combat_draft";
+    gr.reply(S.systemLine(
+      "[조합 재드래프트 시작 · " + turnCount + "턴] 공개 풀 " +
+      d.pool.length + "장 · ABBA " + rules.REDRAFT_PICKS_PER +
+      "픽 · 1픽 <번호/이름>"
+    ));
+    Bot.combat.session.runCpuPicks(gr, game, d);
+    if (!Bot.combat.session.finishRedraftIfDone(gr, game, d)) {
+      Bot.combat.session.announcePick(gr, game, d);
+    }
+  };
+
+  Bot.combat.session.dumpStatus = function (game, d) {
+    var whoIdx = Bot.combat.draft.currentDrafter(d);
+    var turnName = whoIdx >= 0 ? game.players[whoIdx] : "-";
+    var dbg = [
+      "[조합 드래프트 상태]",
+      "phase: " + game.phase,
+      "참가자: " + game.players.join(", "),
+      "현재 차례: " + turnName +
+        " (order idx " + d.turnIdx + "/" + d.order.length + ")",
+      "남은 풀: " + d.pool.length + "장"
+    ];
+    var pj;
+    var picks;
+    var names;
+    for (pj = 0; pj < game.players.length; pj++) {
+      picks = d.picks[pj];
+      names = picks.map(function (c) { return c.ability; }).join(", ") || "-";
+      dbg.push(game.players[pj] + " 픽(" + picks.length + "): " + names);
+    }
+    return dbg.join("\n");
+  };
+
+  /* 하위호환 파사드 (기존 S.__combatMode.* 호출부) */
+  S.__combatMode = {
+    POOL: Bot.combat.pool.cards,
+    RULES: Bot.combat.rules,
+    ABIL_INDEX: Bot.combat.pool.abilityIndex,
+    startDraft: Bot.combat.draft.start,
+    currentDrafter: Bot.combat.draft.currentDrafter,
+    applyPick: Bot.combat.draft.applyPick,
+    cpuChoose: Bot.combat.draft.cpuChoose,
+    findCard: Bot.combat.draft.findCard,
+    buildKit: Bot.combat.kit.build,
+    initKitState: Bot.combat.kit.initState,
+    combatModeOn: Bot.combat.play.modeOn,
+    owns: S.owns,
+    startCombatDraft: Bot.combat.session.startCombatDraft,
+    checkRedraft: Bot.combat.session.checkRedraft
+  };
+
+  /* ---------- 메인 래퍼 ---------- */
+  Bot.combat._origMain = Bot.functions.main;
+  Bot.functions.main = function (
+    room, msg, sender, isGroupChat, replier, imageDB, packageName, isMultiChat
+  ) {
+    var m;
+    var info;
+    var game;
+    var gr;
+    var d;
+    var mm;
+    var whoIdx;
+    var turnName;
+    var pk;
+    var arg;
+    var pi;
+    var result;
+    var pickDone;
+    var st;
+    var abilRaw;
+    var matched;
+    var self;
+    var args;
+    var stk;
+    var firstChar;
+
+    try {
+      m = String(msg == null ? "" : msg);
+      info = combatFindGame(room);
+      game = info && info.game ? info.game : null;
+
+      /* (A) 드래프트 페이즈 */
+      if (game && game.phase === "combat_draft" && game.combatDraft) {
+        gr = combatReplier(game, room, replier);
+        d = game.combatDraft;
+        mm = m.replace(/\u3000/g, " ").trim();
+        whoIdx = Bot.combat.draft.currentDrafter(d);
+        turnName = whoIdx >= 0 ? game.players[whoIdx] : "-";
+
+        /* 직업 정보/목록은 본체 핸들러로 통과 */
+        if (Bot.combat.ui.isJobInfoCommand(mm)) {
+          return Bot.combat._origMain(
+            room, msg, sender, isGroupChat, replier, imageDB, packageName, isMultiChat
+          );
+        }
+
+        if (mm === "1풀" || mm === "1조합풀") {
+          gr.reply(Bot.combat.ui.poolText(d) + "\n\n현재 차례: " + turnName);
+          return;
+        }
+
+        if (mm === "1조합상태") {
+          gr.reply(Bot.combat.session.dumpStatus(game, d));
+          return;
+        }
+
+        pk = mm.match(/^1픽\s*(.*)$/);
+        if (pk) {
+          arg = String(pk[1] || "").trim();
+          pi = game.players.indexOf(String(sender));
+          if (pi < 0) {
+            gr.reply(S.systemLine("참가자만 픽할 수 있습니다."));
+            return;
+          }
+          if (!arg) {
+            gr.reply(
+              Bot.combat.ui.poolText(d) + "\n\n" + turnName +
+              " 님 차례입니다. 사용법: 1픽 <번호 또는 능력이름>"
+            );
+            return;
+          }
+          result = Bot.combat.draft.applyPick(d, pi, arg);
+          if (!result.ok) {
+            gr.reply(S.systemLine(
+              result.error + " (현재 차례: " + turnName + ")"
+            ));
+            return;
+          }
+          gr.reply(S.systemLine(String(sender) + " → " + result.card.ability + " 픽"));
+          Bot.combat.session.runCpuPicks(gr, game, d);
+          pickDone = d.cycle > 0
+            ? Bot.combat.session.finishRedraftIfDone(gr, game, d)
+            : Bot.combat.session.finishDraftIfDone(gr, game, d);
+          if (!pickDone) Bot.combat.session.announcePick(gr, game, d);
+          return;
+        }
+
+        firstChar = mm.charAt(0);
+        if (firstChar === "1" || firstChar === "0" || firstChar === "2") {
+          gr.reply(S.systemLine(
+            "드래프트 진행 중입니다. 1픽 <번호/이름> · 1풀 · 1조합상태 · 1ㅈㅂ 직업명"
+          ));
+        }
+        return;
+      }
+
+      /* (B) 조합 시작 트리거 */
+      if (
+        game &&
+        Bot.combat.play.modeOn(game) &&
+        game.phase !== "playing" &&
+        game.phase !== "combat_draft"
+      ) {
+        if (m === "1시작" || m === "1드래프트" || m === "1조합시작") {
+          if (game.players.length < 2) {
+            combatReplier(game, room, replier).reply(
+              S.systemLine("2명 이상이어야 시작합니다.")
+            );
+            return;
+          }
+          gr = combatReplier(game, room, replier);
+          d = Bot.combat.session.ensureDraft(game);
+          Bot.combat.session.runCpuPicks(gr, game, d);
+          if (!Bot.combat.session.finishDraftIfDone(gr, game, d)) {
+            Bot.combat.session.announcePick(gr, game, d);
+          }
+          return;
+        }
+      }
+
+      /* (C) 액티브 능력 임퍼소네이션 */
+      if (
+        game &&
+        Bot.combat.play.modeOn(game) &&
+        game.phase === "playing" &&
+        m.indexOf("2") === 0 &&
+        game.playerStates &&
+        game.playerStates[String(sender)]
+      ) {
+        st = game.playerStates[String(sender)];
+        if (st.mode === "조합" && st.kit) {
+          abilRaw = m.substring(1).trim().replace(/\s+/g, "");
+          matched = Bot.combat.play.matchKitAbility(st.kit, abilRaw);
+          if (matched) {
+            self = this;
+            args = arguments;
+            return Bot.combat.play.withImpersonation(
+              st,
+              matched.homeJob,
+              function () {
+                return Bot.combat._origMain.apply(self, args);
+              }
+            );
+          }
+          combatReplier(game, room, replier).reply(
+            S.systemLine("이 kit에 없는 능력입니다. (1손패로 확인)")
+          );
+          return;
+        }
+      }
+
+      /* (D) 손패 확인 */
+      if (
+        game &&
+        Bot.combat.play.modeOn(game) &&
+        game.phase === "playing" &&
+        (m === "1손패" || m === "1킷" || m === "1kit")
+      ) {
+        stk = game.playerStates && game.playerStates[String(sender)];
+        if (stk && stk.kit) {
+          combatReplier(game, room, replier).reply(
+            S.systemLine("내 kit: " + Bot.combat.kit.line(stk.kit))
+          );
+          return;
+        }
+      }
+    } catch (eCombat) {
+      try {
+        if (replier && replier.reply) {
+          replier.reply(
+            "조합모드 오류: " +
+            String(eCombat && eCombat.message ? eCombat.message : eCombat)
+          );
+        }
+      } catch (e2) {}
+    }
+
+    return Bot.combat._origMain(
+      room, msg, sender, isGroupChat, replier, imageDB, packageName, isMultiChat
+    );
+  };
+})();
+
 
 const response = Bot.functions.main;

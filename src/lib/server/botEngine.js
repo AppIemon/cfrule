@@ -370,6 +370,15 @@ export async function botRoomState(room) {
   return serializeGame(raw);
 }
 
+// 조합 mode has to be known before the room's first command runs: creating the game
+// and moving it to job selection / the draft happens inside that single dispatch, so
+// there is no window to configure it afterwards.
+export async function botSetRoomCombat(room, enabled) {
+  const bot = await getBotEngine();
+  const combat = bot.context.__Bot?.combat || bot.context.Bot?.combat;
+  if (combat?.setRoomDefault) combat.setRoomDefault(room, !!enabled);
+}
+
 // Drops a room's in-memory game. Used when a command replay fails partway through,
 // so callers see "no game" (and fall back to the persisted snapshot) rather than a
 // half-rebuilt one stuck in an early phase.
@@ -460,7 +469,48 @@ function serializeGame(game) {
     firstPicker: game.firstPicker || null,
     banPhase: !!game.banPhase,
     isPractice: !!game.isPractice,
+    combat: !!(game.gueruleSettings && game.gueruleSettings.combat),
+    combatDraft: serializeCombatDraft(game),
+    kits: serializeKits(game, players),
     used: serializeSet(game.used),
     playerStates
   };
+}
+
+// 조합 mode: the client needs the open pool, whose pick it is, and what each player
+// already holds. Null for every other mode so the normal UI is untouched.
+function serializeCombatDraft(game) {
+  const draft = game.combatDraft;
+  if (!draft) return null;
+  const turnIndex = draft.done || draft.turnIdx >= draft.order.length ? -1 : draft.order[draft.turnIdx];
+  return {
+    done: !!draft.done,
+    cycle: draft.cycle || 0,
+    picksPerPlayer: Array.isArray(draft.picks) ? draft.picks.map((list) => list.length) : [],
+    currentPlayer: turnIndex >= 0 ? (game.players || [])[turnIndex] || '' : '',
+    pool: (draft.pool || []).map((card) => ({
+      no: card.no,
+      ability: card.ability,
+      homeJob: card.homeJob,
+      kind: card.kind,
+      tag: card.tag
+    }))
+  };
+}
+
+function serializeKits(game, players) {
+  const out = {};
+  let any = false;
+  for (const name of players) {
+    const kit = game.playerStates?.[name]?.kit;
+    if (!kit || !Array.isArray(kit.list)) continue;
+    any = true;
+    out[name] = kit.list.map((card) => ({
+      ability: card.ability,
+      homeJob: card.homeJob,
+      kind: card.kind,
+      tag: card.tag
+    }));
+  }
+  return any ? out : null;
 }
