@@ -29009,7 +29009,7 @@ Alt-F4 콤보를 준비합니다.`;
       head = headOfWord(word, chain);
       tail = tailOfWord(word, chain);
       if (!isHangulSyllable(head) || !isHangulSyllable(tail)) continue;
-      var h = idOf(head), t = idOf(tail), pk = h + " " + t;
+      var h = idOf(head), t = idOf(tail), pk = h + "" + t;
       var e = edgeByPair[pk];
       if (e == null) {
         e = edgeHead.length;
@@ -29562,7 +29562,7 @@ Alt-F4 콤보를 준비합니다.`;
     var g = session.graph, chain = g.cfg.chain;
     var h = g.sylId[headOfWord(word, chain)], t = g.sylId[tailOfWord(word, chain)];
     if (h == null || t == null) return false;
-    var e = g.edgeByPair[h + " " + t];
+    var e = g.edgeByPair[h + "" + t];
     if (e == null || session.used[e] >= g.edgeCap[e]) return false;
     session.usedWords.add(word);
     session.used[e] += 1;

@@ -2,8 +2,9 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import bundledBotSource from '../../../bot.js?raw';
-import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import bundledBotSource from '../../../charynnBot.js?raw';
+import { resolveBotDataPath, readJsonFile, readTextFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import { CROSS_DICTIONARIES, dictionaryList, PREFIXES, PRIMARY_DICTIONARY } from './engineConfig.js';
 import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
 import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
@@ -55,6 +56,10 @@ function createContext(initialRatings = {}) {
       readJson(inputPath) {
         return readJsonFile(resolveBotDataPath(inputPath), null);
       },
+      // Raw text read, used by the roble/kkutu word-list loaders.
+      read(inputPath) {
+        return readTextFile(resolveBotDataPath(inputPath), null);
+      },
       writeJson(inputPath, value) {
         if (isRatingJsonPath(inputPath)) {
           syncRatingsToMongo(value);
@@ -73,7 +78,19 @@ function createContext(initialRatings = {}) {
     },
     Api: { gc() {} },
     java: {
-      lang: { System: { gc() {} } },
+      lang: {
+        System: { gc() {} },
+        // The bot spawns background java.lang.Thread timers (idle sweeps, etc.)
+        // that make no sense in the request-scoped web runtime. Stub them so
+        // `new java.lang.Thread(...).start()` is a no-op and Thread.sleep never
+        // blocks the event loop.
+        Thread: Object.assign(
+          function Thread() {
+            return { start() {}, run() {}, interrupt() {}, join() {}, setDaemon() {} };
+          },
+          { sleep() {}, currentThread: () => ({ interrupt() {} }) }
+        )
+      },
       io: {
         File: function File(inputPath) {
           return { exists: () => existsSync(resolveBotDataPath(inputPath)) };
@@ -103,10 +120,12 @@ function normalizeLine(text) {
 
 function bootSync(initialRatings = {}) {
   ensureRuntimeDir();
-  const source = (bundledBotSource || readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8'))
-    .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
+  // charynnBot.js already gates the expensive all-job syllable table behind
+  // `fastMode`, and boot uses the fast `1t listload`, so no source patching is
+  // needed (the earlier bot.js had an unconditional call that had to be cut).
+  const source = bundledBotSource || readFileSync(fileURLToPath(new URL('../../../charynnBot.js', import.meta.url)), 'utf8');
   const context = createContext(initialRatings);
-  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'charynnBot.js' });
   installCpuStrategyPatch(context);
 
   const response = context.__response;
@@ -147,6 +166,37 @@ function getTierPlayers(context) {
 
 function getGames(context) {
   return context.__Bot?.scope?.games || context.games || {};
+}
+
+// charynnBot.js stores games in a per-room container keyed by slot id
+// (`games[room] = { __multiSlotContainer:true, A:{game}, B:{game}, ... }`) so a
+// single room can run up to 26 games at once. The web UI drives one game per
+// room, so this resolves the "active" slot: a started, non-finished game if one
+// exists, otherwise the first slot (e.g. a lobby still waiting to start).
+function activeSlotGame(scope, room) {
+  if (!scope) return null;
+  const container = (scope.games || {})[room];
+  if (!container) return null;
+  // Legacy/direct game object (single game, not a slot container).
+  if (container.players || container.phase) return container;
+  let ids = [];
+  try {
+    if (typeof scope.getRoomSlotIds === 'function') ids = scope.getRoomSlotIds(room) || [];
+  } catch {}
+  if (!ids.length) ids = Object.keys(container).filter((k) => k !== '__multiSlotContainer' && container[k]);
+  let first = null;
+  for (const id of ids) {
+    let g = null;
+    try {
+      g = typeof scope.getRoomGame === 'function' ? scope.getRoomGame(room, id) : container[id];
+    } catch {
+      g = container[id];
+    }
+    if (!g) continue;
+    if (!first) first = g;
+    if (g.started && g.phase !== 'ended' && g.phase !== 'finished') return g;
+  }
+  return first;
 }
 
 function bestJobWins(player) {
@@ -363,9 +413,47 @@ export async function botBootStatus() {
   };
 }
 
+// Loads one of the extra ("cross") dictionaries (로블 / 끄투) into the running
+// engine by replaying its admin command, then reports the resulting set size.
+export async function loadCrossDictionary(id) {
+  const spec = CROSS_DICTIONARIES[id];
+  if (!spec) return { id, ok: false, message: `unknown dictionary: ${id}` };
+  const bot = await getBotEngine();
+  const out = [];
+  bot.response('admin_room', spec.command, 'admin', true, { reply: (text) => out.push(normalizeLine(text)) }, null, 'web', false);
+  const size = bot.context.__Bot?.scope?.[spec.setKey]?.size || 0;
+  return { id, ok: size > 0, size, message: out.filter(Boolean).join('\n') };
+}
+
+// Snapshot of the engine's dictionary configuration and load state, for the
+// /api/engine customization surface.
+export async function engineStatus() {
+  const bot = await getBotEngine();
+  const scope = bot.context.__Bot?.scope || {};
+  const dictionaries = dictionaryList().map((dict) => {
+    let loaded = false;
+    let size = 0;
+    if (dict.id === PRIMARY_DICTIONARY) {
+      loaded = !!scope.WORD_SET;
+      size = scope.WORD_SET?.size || 0;
+    } else if (CROSS_DICTIONARIES[dict.id]) {
+      const set = scope[CROSS_DICTIONARIES[dict.id].setKey];
+      loaded = !!(set && set.size);
+      size = set?.size || 0;
+    }
+    return { ...dict, loaded, size };
+  });
+  return {
+    primaryDictionary: PRIMARY_DICTIONARY,
+    prefixes: PREFIXES,
+    jobs: Array.isArray(scope.ALL_JOBS) ? scope.ALL_JOBS.slice() : [],
+    dictionaries
+  };
+}
+
 export async function botRoomState(room) {
   const bot = await getBotEngine();
-  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  const raw = activeSlotGame(bot.context.__Bot?.scope, room);
   if (!raw) return null;
   return serializeGame(raw);
 }
@@ -390,7 +478,7 @@ export async function botDeleteRoom(room) {
 
 export async function configureBotRoom(room, options = {}) {
   const bot = await getBotEngine();
-  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  const raw = activeSlotGame(bot.context.__Bot?.scope, room);
   if (!raw) return null;
   if (Array.isArray(options.disabledJobs) && options.disabledJobs.length) {
     const current = Array.isArray(raw.bannedJobs) ? raw.bannedJobs : [];
@@ -401,10 +489,12 @@ export async function configureBotRoom(room, options = {}) {
 
 export async function botAllRoomStates() {
   const bot = await getBotEngine();
-  const games = bot.context.__Bot?.scope?.games || bot.context.games || {};
+  const scope = bot.context.__Bot?.scope;
+  const games = scope?.games || {};
   const out = {};
-  for (const [room, raw] of Object.entries(games)) {
-    out[room] = serializeGame(raw);
+  for (const room of Object.keys(games)) {
+    const raw = activeSlotGame(scope, room);
+    if (raw) out[room] = serializeGame(raw);
   }
   return out;
 }
