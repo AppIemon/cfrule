@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import bundledBotSource from '../../../charynnBot.js?raw';
 import { resolveBotDataPath, readJsonFile, readTextFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
 import { CROSS_DICTIONARIES, dictionaryList, PREFIXES, PRIMARY_DICTIONARY } from './engineConfig.js';
+import { SEARCH_A_CLASS_SET, WIN_TURN_MAP, NORMAL_SYL } from './readingEngine.js';
 import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
 import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
@@ -449,6 +450,130 @@ export async function engineStatus() {
     jobs: Array.isArray(scope.ALL_JOBS) ? scope.ALL_JOBS.slice() : [],
     dictionaries
   };
+}
+
+// ---------------------------------------------------------------------------
+// Dictionary search — encapsulated here so routes never reach into Bot.scope.
+// Both search endpoints run on the engine's *live* dictionary, so switching the
+// primary dictionary (e.g. to Roblox) transparently changes search results too.
+// ---------------------------------------------------------------------------
+function engineScope(bot) {
+  return bot.context.__Bot?.scope || bot.context || {};
+}
+
+function toArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    if (typeof value[Symbol.iterator] === 'function') return Array.from(value);
+  } catch {}
+  return [];
+}
+
+// Multi-kind label (whole-word predicates) — used by the in-game word helper.
+function kindsLabel(scope, word) {
+  const kinds = [];
+  try { if (typeof scope.isRoot === 'function' && scope.isRoot(word)) kinds.push('루트'); } catch {}
+  try { if (typeof scope.isHanbang === 'function' && scope.isHanbang(word)) kinds.push('한방'); } catch {}
+  try { if (typeof scope.isYudo === 'function' && scope.isYudo(word)) kinds.push('유도'); } catch {}
+  return kinds.length ? kinds.join(' · ') : '일반';
+}
+
+// Single prioritized kind from the retrograde-computed syllable sets.
+function kindOf(scope, word) {
+  const last = String(word || '').slice(-1);
+  if (scope.KILLSYL_SET?.has?.(last)) return '한방';
+  if (scope.INTENDSYL_SET?.has?.(last)) return '유도';
+  if (scope.ROUTESYL_SET?.has?.(last)) return '루트';
+  return '일반';
+}
+
+export async function searchWords({ q = '', start = '', used = [], limit = 50 }) {
+  const bot = await getBotEngine();
+  const scope = engineScope(bot);
+  const byStart = scope.WORDS_BY_START || {};
+  const usedSet = new Set(used || []);
+  let pool = start ? toArray(byStart[start]) : Object.values(byStart).flat();
+  if (q) pool = pool.filter((word) => String(word || '').includes(q));
+  if (start) pool = pool.filter((word) => String(word || '').startsWith(start));
+  pool = pool.filter((word) => word && !usedSet.has(word));
+
+  const results = pool
+    .slice(0, 5000)
+    .map((word) => {
+      const end = String(word).slice(-1);
+      return {
+        word,
+        start: String(word).slice(0, 1),
+        end,
+        kind: kindsLabel(scope, word),
+        replyCount: toArray(byStart[end]).length
+      };
+    })
+    .sort((a, b) => {
+      const score = (row) =>
+        (row.kind.includes('루트') ? 10000 : 0) +
+        (row.kind.includes('한방') ? 5000 : 0) +
+        (row.kind.includes('유도') ? 800 : 0) -
+        Math.min(row.replyCount || 0, 200);
+      return score(b) - score(a) || a.word.localeCompare(b.word, 'ko');
+    })
+    .slice(0, limit);
+
+  return { q, start, total: pool.length, results };
+}
+
+export async function searchDictionary({ query = '', limit = 200 }) {
+  const bot = await getBotEngine();
+  const scope = engineScope(bot);
+  const q = String(query || '').trim();
+  if (!q) return { total: 0, results: [] };
+  const byStart = scope.WORDS_BY_START || {};
+  const allWords = Object.values(byStart).flat();
+
+  let filtered;
+  const isSpecial = q.includes('*') || q.includes('?') || /[KIRNA]/.test(q);
+  if (isSpecial) {
+    let reStr = q.toUpperCase()
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.')
+      .replace(/K/g, `[${toArray(scope.KILLSYL_SET).join('')}]`)
+      .replace(/I/g, `[${toArray(scope.INTENDSYL_SET).join('')}]`)
+      .replace(/R/g, `[${toArray(scope.ROUTESYL_SET).join('')}]`)
+      .replace(/N/g, `[${NORMAL_SYL}]`)
+      .replace(/A/g, `[${Array.from(SEARCH_A_CLASS_SET).join('')}]`);
+    try {
+      const re = new RegExp(`^${reStr}$`);
+      filtered = allWords.filter((word) => re.test(word));
+    } catch {
+      filtered = [];
+    }
+  } else {
+    filtered = allWords.filter((word) => word.includes(q));
+  }
+
+  const kindRank = { 한방: 3, 유도: 2, 루트: 1, 일반: 0 };
+  const annotated = filtered.map((word) => {
+    const last = word[word.length - 1];
+    return {
+      word,
+      kind: kindOf(scope, word),
+      len: word.length,
+      first: word[0],
+      last,
+      replies: toArray(byStart[last]).length,
+      turnsToWin: WIN_TURN_MAP[last] ?? null
+    };
+  });
+  annotated.sort((a, b) => {
+    const kr = (kindRank[b.kind] || 0) - (kindRank[a.kind] || 0);
+    if (kr !== 0) return kr;
+    const at = a.turnsToWin ?? 999;
+    const bt = b.turnsToWin ?? 999;
+    if (at !== bt) return at - bt;
+    return b.len - a.len;
+  });
+  return { query: q, total: filtered.length, results: annotated.slice(0, limit) };
 }
 
 export async function botRoomState(room) {
