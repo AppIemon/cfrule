@@ -176,6 +176,9 @@
   let practice = $state(false);
   // 조합: draft abilities from an open pool instead of picking a job.
   let combat = $state(false);
+  // Rule set (규칙) and dictionary (사전) — sent to the engine's 1ㄹ 모드/사전 설정.
+  let gameMode = $state(''); // '' = 채린룰, 'guerule' = 구엜룰, 'roble' = 로블룰
+  let dictionary = $state(''); // '' = 기본 사전, 'roble' = 로블 사전
   let cpuJob = $state('');
   let timerEnabled = $state(true);
   let timerMinutes = $state(10);
@@ -889,7 +892,9 @@
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
         disabledJobs,
-        combat
+        combat,
+        gameMode,
+        dictionary
       })
     });
     room = data.room;
@@ -1638,6 +1643,25 @@
               </label>
               {#if combat}
                 <p class="combat-hint">직업 대신 공개된 능력 풀에서 번갈아 뽑고, 10턴마다 추가 드래프트가 열립니다.</p>
+              {/if}
+              {#if !combat}
+                <div class="mode-select-row">
+                  <label class="mode-select">
+                    <span>규칙</span>
+                    <select class="lobby-input" bind:value={gameMode}>
+                      <option value="">채린룰 (직업·능력)</option>
+                      <option value="guerule">구엜룰 (일반)</option>
+                      <option value="roble">로블룰</option>
+                    </select>
+                  </label>
+                  <label class="mode-select">
+                    <span>사전</span>
+                    <select class="lobby-input" bind:value={dictionary}>
+                      <option value="">기본 사전</option>
+                      <option value="roble">로블 사전 (548k)</option>
+                    </select>
+                  </label>
+                </div>
               {/if}
               {#if practice && !combat}
                 <select class="lobby-input" bind:value={cpuJob}>
@@ -3542,6 +3566,10 @@
   .accent-btn:hover:not(:disabled) { background: var(--accent2); }
   .practice-setup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; animation: fadeUp .2s ease both; }
   .combat-hint { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--muted); text-align: center; }
+  .mode-select-row { display: flex; gap: 10px; }
+  .mode-select { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .mode-select > span { font-size: .75rem; color: var(--muted); padding-left: 2px; }
+  .mode-select .lobby-input { width: 100%; }
   .prac-select { height: 40px; min-width: 160px; }
 
   /* ═══════════════════════════════════════════
