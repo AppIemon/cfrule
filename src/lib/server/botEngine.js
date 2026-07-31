@@ -79,18 +79,16 @@ function createContext(initialRatings = {}) {
     },
     Api: { gc() {} },
     java: {
+      // NOTE: java.lang.Thread is intentionally NOT provided. Every `new
+      // java.lang.Thread(...)` call in the bot is a one-shot "sleep then act"
+      // background timer wrapped in try/catch, EXCEPT the standalone chain
+      // engine's move computation, which falls back to a synchronous
+      // `task.run()` when Thread is absent. Omitting Thread therefore (a) makes
+      // the D1~D20 engine compute its move synchronously so the web layer can
+      // read the result immediately, and (b) safely disables the 15s kick-vote
+      // timers that make no sense in a request-scoped runtime.
       lang: {
-        System: { gc() {} },
-        // The bot spawns background java.lang.Thread timers (idle sweeps, etc.)
-        // that make no sense in the request-scoped web runtime. Stub them so
-        // `new java.lang.Thread(...).start()` is a no-op and Thread.sleep never
-        // blocks the event loop.
-        Thread: Object.assign(
-          function Thread() {
-            return { start() {}, run() {}, interrupt() {}, join() {}, setDaemon() {} };
-          },
-          { sleep() {}, currentThread: () => ({ interrupt() {} }) }
-        )
+        System: { gc() {} }
       },
       io: {
         File: function File(inputPath) {
@@ -574,6 +572,73 @@ export async function searchDictionary({ query = '', limit = 200 }) {
     return b.len - a.len;
   });
   return { query: q, total: filtered.length, results: annotated.slice(0, limit) };
+}
+
+// ---------------------------------------------------------------------------
+// Standalone chain engine (1ㅇㅅ 난이도 D1~D20) — the retrograde solver ported
+// from the deploy 전수 평가기. Encapsulated so the web layer drives it with
+// clean methods instead of chat commands. With java.lang.Thread absent the
+// engine computes its move synchronously, so each call returns the full result.
+// ---------------------------------------------------------------------------
+const CHAIN_DICT_TOKENS = { default: '기본', roble: '로블', kkutu: '끄투', urimalsam: '우리말샘', jime: '지메' };
+
+function chainSessions(scope) {
+  return (scope && scope.CHAIN_ENGINE_SESSIONS) || {};
+}
+function chainKey(room, sender) {
+  // charynnBot's sessionKey joins room + sender with a \x01 separator.
+  return String(room) + '\x01' + String(sender);
+}
+function serializeChain(session) {
+  if (!session) return null;
+  const cfg = session.graph?.cfg || {};
+  return {
+    active: true,
+    depth: session.depth,
+    chain: cfg.chain || 'end',
+    dict: cfg.dict || 'roble',
+    history: Array.isArray(session.history) ? session.history.slice() : [],
+    currentChar: session.currentChar || null,
+    awaitingFirst: !!session.awaitingFirst,
+    busy: !!session.busy
+  };
+}
+
+export async function chainEngineStart(room, sender, { depth = 8, chain = 'end', dict = 'roble' } = {}) {
+  const bot = await getBotEngine();
+  const d = Math.min(20, Math.max(1, Math.floor(Number(depth) || 8)));
+  const dictToken = CHAIN_DICT_TOKENS[dict] || '로블';
+  const modeToken = chain === 'prefix' ? '앞말' : '끝말';
+  const out = [];
+  bot.response(String(room), `1ㅇㅅ 난이도 D${d} 모드 ${modeToken} 사전 ${dictToken}`, String(sender), true, { reply: (t) => out.push(normalizeLine(t)) }, null, 'web', false);
+  const state = serializeChain(chainSessions(bot.context.__Bot?.scope)[chainKey(room, sender)]);
+  return { messages: out.filter(Boolean), state };
+}
+
+export async function chainEnginePlay(room, sender, input) {
+  const bot = await getBotEngine();
+  const scope = bot.context.__Bot?.scope;
+  const before = chainSessions(scope)[chainKey(room, sender)];
+  if (!before) return { messages: ['진행 중인 엔진 대전이 없습니다.'], state: null, over: true };
+  // First move accepts a bare syllable/word; later moves need the 0 word prefix.
+  let text = String(input || '').trim();
+  if (!before.awaitingFirst) text = text.startsWith('0') ? text : `0${text}`;
+  const out = [];
+  bot.response(String(room), text, String(sender), true, { reply: (t) => out.push(normalizeLine(t)) }, null, 'web', false);
+  const after = chainSessions(scope)[chainKey(room, sender)];
+  return { messages: out.filter(Boolean), state: serializeChain(after), over: !after };
+}
+
+export async function chainEngineState(room, sender) {
+  const bot = await getBotEngine();
+  return serializeChain(chainSessions(bot.context.__Bot?.scope)[chainKey(room, sender)]);
+}
+
+export async function chainEngineQuit(room, sender) {
+  const bot = await getBotEngine();
+  const out = [];
+  bot.response(String(room), 'ㅈㅈ', String(sender), true, { reply: (t) => out.push(normalizeLine(t)) }, null, 'web', false);
+  return { messages: out.filter(Boolean), state: null, over: true };
 }
 
 export async function botRoomState(room) {

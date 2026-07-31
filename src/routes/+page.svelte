@@ -2,7 +2,7 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
+    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Cpu, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
     Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
@@ -179,6 +179,14 @@
   // Rule set (규칙) and dictionary (사전) — sent to the engine's 1ㄹ 모드/사전 설정.
   let gameMode = $state(''); // '' = 채린룰, 'guerule' = 구엜룰, 'roble' = 로블룰
   let dictionary = $state(''); // '' = 기본 사전, 'roble' = 로블 사전
+  // 엔진 대전 (독립 D1~D20 후퇴분석 엔진)
+  let engineDepth = $state(8);
+  let engineDict = $state('roble');
+  let engineChain = $state('end');
+  let engineState = $state(null);
+  let engineMessages = $state([]);
+  let engineInput = $state('');
+  let engineBusy = $state(false);
   let cpuJob = $state('');
   let timerEnabled = $state(true);
   let timerMinutes = $state(10);
@@ -904,6 +912,43 @@
     fetchRoomList();
   }
 
+  async function engineBattleRequest(payload) {
+    return await request('/api/engine-battle', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+  async function engineStart() {
+    if (!user?.nickname) { error = '로그인 후 이용할 수 있습니다.'; return; }
+    engineBusy = true;
+    try {
+      const d = await engineBattleRequest({ action: 'start', depth: Number(engineDepth), chain: engineChain, dict: engineDict });
+      engineState = d.state;
+      engineMessages = d.messages || [];
+    } finally { engineBusy = false; }
+  }
+  async function enginePlay(event) {
+    event?.preventDefault?.();
+    const text = engineInput.trim();
+    if (!text || engineBusy) return;
+    engineBusy = true;
+    try {
+      const d = await engineBattleRequest({ action: 'play', input: text });
+      engineState = d.state;
+      engineMessages = d.messages || [];
+      engineInput = '';
+    } finally { engineBusy = false; }
+  }
+  async function engineQuit() {
+    engineBusy = true;
+    try {
+      const d = await engineBattleRequest({ action: 'quit' });
+      engineState = d.state;
+      engineMessages = d.messages || [];
+    } finally { engineBusy = false; }
+  }
+
   async function join() {
     if (!user?.nickname) {
       error = '로그인 후 이용할 수 있습니다.';
@@ -1520,6 +1565,9 @@
       </button>
       <button class="nav-btn" class:nav-active={tab === 'search'} onclick={() => (tab = 'search')}>
         <Search size={15} />검색
+      </button>
+      <button class="nav-btn" class:nav-active={tab === 'engine'} onclick={() => (tab = 'engine')}>
+        <Cpu size={15} />엔진
       </button>
       <button class="nav-btn" class:nav-active={tab === 'jobs'} onclick={() => openJobsTab()}>
         <BriefcaseBusiness size={15} />직업
@@ -2470,6 +2518,73 @@
           {/each}
         </div>
       {/if}
+    </div>
+
+  <!-- ══════════════════════ ENGINE BATTLE TAB ══════════════════════ -->
+  {:else if tab === 'engine'}
+    <div class="content-page engine-page">
+      <div class="engine-panel">
+        <h2><Cpu size={18} /> 엔진 대전 <span class="engine-depth-badge">D1~D20</span></h2>
+        <p class="engine-sub">deploy 전수 평가기와 동일한 후퇴분석 엔진. 사람 선공 · 채린컴퓨터 후공.</p>
+        {#if !engineState}
+          <div class="engine-config">
+            <label class="mode-select"><span>깊이</span>
+              <select class="lobby-input" bind:value={engineDepth}>
+                {#each Array(20) as _, i}<option value={i + 1}>D{i + 1}</option>{/each}
+              </select>
+            </label>
+            <label class="mode-select"><span>사전</span>
+              <select class="lobby-input" bind:value={engineDict}>
+                <option value="default">기본(구엜)</option>
+                <option value="roble">로블 (548k)</option>
+                <option value="kkutu">끄투 (569k)</option>
+                <option value="urimalsam">우리말샘 (212k)</option>
+                <option value="jime">지메 (GD)</option>
+              </select>
+            </label>
+            <label class="mode-select"><span>방향</span>
+              <select class="lobby-input" bind:value={engineChain}>
+                <option value="end">끝말잇기</option>
+                <option value="prefix">앞말잇기</option>
+              </select>
+            </label>
+            <button class="lobby-cta" onclick={engineStart} disabled={engineBusy}>
+              <Cpu size={18} />{engineBusy ? '엔진 로딩...' : '대전 시작'}
+            </button>
+          </div>
+        {:else}
+          <div class="engine-board">
+            <div class="engine-status">
+              {#if engineState.awaitingFirst}
+                첫 수: <strong>시작음절 한 글자</strong> 또는 단어를 입력하세요
+              {:else}
+                이을 음절 <strong class="engine-syl">{engineState.currentChar || '-'}</strong>
+              {/if}
+              <span class="engine-cfg">D{engineState.depth} · {engineState.dict} · {engineState.chain === 'prefix' ? '앞말' : '끝말'}</span>
+            </div>
+            <div class="engine-history">
+              {#each engineState.history as w}
+                <span class="eh-word">{w}</span>
+              {/each}
+              {#if !engineState.history.length}<span class="eh-empty">아직 둔 단어가 없습니다.</span>{/if}
+            </div>
+            <form class="engine-input-row" onsubmit={enginePlay}>
+              <input
+                bind:value={engineInput}
+                disabled={engineBusy}
+                placeholder={engineState.awaitingFirst ? '시작음절 또는 단어' : `${engineState.currentChar || ''}(으)로 시작하는 단어`}
+              />
+              <button type="submit" disabled={engineBusy || !engineInput.trim()}><Send size={16} /></button>
+            </form>
+            <button class="engine-quit" onclick={engineQuit} disabled={engineBusy}><Flag size={14} /> 기권 / 종료</button>
+          </div>
+        {/if}
+        {#if engineMessages.length}
+          <div class="engine-log">
+            {#each engineMessages as m}<div class="el-line">{m}</div>{/each}
+          </div>
+        {/if}
+      </div>
     </div>
 
   <!-- ══════════════════════ JOBS TAB ══════════════════════ -->
@@ -3573,6 +3688,28 @@
   .mode-select { flex: 1; display: flex; flex-direction: column; gap: 4px; }
   .mode-select > span { font-size: .75rem; color: var(--muted); padding-left: 2px; }
   .mode-select .lobby-input { width: 100%; }
+
+  .engine-page { display: flex; justify-content: center; padding: 20px 16px; }
+  .engine-panel { width: 100%; max-width: 640px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+  .engine-panel h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 1.25rem; }
+  .engine-depth-badge { font-size: .7rem; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--cyan); border: 1px solid var(--line); }
+  .engine-sub { margin: 0 0 18px; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+  .engine-config { display: flex; flex-direction: column; gap: 12px; }
+  .engine-config .lobby-cta { margin-top: 6px; }
+  .engine-board { display: flex; flex-direction: column; gap: 14px; }
+  .engine-status { font-size: .95rem; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .engine-syl { font-size: 1.6rem; color: var(--cyan); }
+  .engine-cfg { margin-left: auto; font-size: .72rem; color: var(--muted); }
+  .engine-history { display: flex; flex-wrap: wrap; gap: 8px; min-height: 46px; padding: 12px; background: var(--panel-2); border-radius: var(--radius); border: 1px solid var(--line); }
+  .eh-word { padding: 4px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font-size: .9rem; }
+  .eh-empty { color: var(--muted); font-size: .85rem; }
+  .engine-input-row { display: flex; gap: 8px; }
+  .engine-input-row input { flex: 1; height: 48px; padding: 0 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 15px; }
+  .engine-input-row button { width: 56px; border-radius: var(--radius); border: none; background: var(--cyan); color: #062230; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .engine-input-row button:disabled { opacity: .5; cursor: not-allowed; }
+  .engine-quit { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 10px; padding: 6px 12px; cursor: pointer; font-size: .8rem; }
+  .engine-log { margin-top: 16px; padding: 12px; background: var(--panel-2); border-radius: var(--radius); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+  .el-line { font-size: .82rem; color: var(--muted); white-space: pre-wrap; line-height: 1.5; }
   .prac-select { height: 40px; min-width: 160px; }
 
   /* ═══════════════════════════════════════════
