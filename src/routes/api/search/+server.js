@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { searchInEngine } from '$lib/server/readingEngine.js';
+import { searchDictionary } from '$lib/server/botEngine.js';
 import { clientIp, rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
 const QUERY_MAX = 64;
@@ -11,5 +11,7 @@ export async function GET(event) {
   if (!limit.ok) return rateLimitResponse(limit.retryAfter);
 
   const q = String(url.searchParams.get('q') || '').slice(0, QUERY_MAX);
-  return json(searchInEngine(q));
+  // Search runs on the engine's live dictionary (respects the selected primary
+  // dictionary, e.g. Roblox) instead of a separate static word list.
+  return json(await searchDictionary({ query: q }));
 }

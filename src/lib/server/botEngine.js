@@ -2,8 +2,10 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import bundledBotSource from '../../../bot.js?raw';
-import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import bundledBotSource from '../../../charynnBot.js?raw';
+import { resolveBotDataPath, readJsonFile, readTextFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import { CROSS_DICTIONARIES, dictionaryList, PREFIXES, PRIMARY_DICTIONARY } from './engineConfig.js';
+import { SEARCH_A_CLASS_SET, WIN_TURN_MAP, NORMAL_SYL } from './readingEngine.js';
 import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
 import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
@@ -55,6 +57,10 @@ function createContext(initialRatings = {}) {
       readJson(inputPath) {
         return readJsonFile(resolveBotDataPath(inputPath), null);
       },
+      // Raw text read, used by the roble/kkutu word-list loaders.
+      read(inputPath) {
+        return readTextFile(resolveBotDataPath(inputPath), null);
+      },
       writeJson(inputPath, value) {
         if (isRatingJsonPath(inputPath)) {
           syncRatingsToMongo(value);
@@ -73,7 +79,17 @@ function createContext(initialRatings = {}) {
     },
     Api: { gc() {} },
     java: {
-      lang: { System: { gc() {} } },
+      // NOTE: java.lang.Thread is intentionally NOT provided. Every `new
+      // java.lang.Thread(...)` call in the bot is a one-shot "sleep then act"
+      // background timer wrapped in try/catch, EXCEPT the standalone chain
+      // engine's move computation, which falls back to a synchronous
+      // `task.run()` when Thread is absent. Omitting Thread therefore (a) makes
+      // the D1~D20 engine compute its move synchronously so the web layer can
+      // read the result immediately, and (b) safely disables the 15s kick-vote
+      // timers that make no sense in a request-scoped runtime.
+      lang: {
+        System: { gc() {} }
+      },
       io: {
         File: function File(inputPath) {
           return { exists: () => existsSync(resolveBotDataPath(inputPath)) };
@@ -103,10 +119,12 @@ function normalizeLine(text) {
 
 function bootSync(initialRatings = {}) {
   ensureRuntimeDir();
-  const source = (bundledBotSource || readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8'))
-    .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
+  // charynnBot.js already gates the expensive all-job syllable table behind
+  // `fastMode`, and boot uses the fast `1t listload`, so no source patching is
+  // needed (the earlier bot.js had an unconditional call that had to be cut).
+  const source = bundledBotSource || readFileSync(fileURLToPath(new URL('../../../charynnBot.js', import.meta.url)), 'utf8');
   const context = createContext(initialRatings);
-  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'charynnBot.js' });
   installCpuStrategyPatch(context);
 
   const response = context.__response;
@@ -147,6 +165,37 @@ function getTierPlayers(context) {
 
 function getGames(context) {
   return context.__Bot?.scope?.games || context.games || {};
+}
+
+// charynnBot.js stores games in a per-room container keyed by slot id
+// (`games[room] = { __multiSlotContainer:true, A:{game}, B:{game}, ... }`) so a
+// single room can run up to 26 games at once. The web UI drives one game per
+// room, so this resolves the "active" slot: a started, non-finished game if one
+// exists, otherwise the first slot (e.g. a lobby still waiting to start).
+function activeSlotGame(scope, room) {
+  if (!scope) return null;
+  const container = (scope.games || {})[room];
+  if (!container) return null;
+  // Legacy/direct game object (single game, not a slot container).
+  if (container.players || container.phase) return container;
+  let ids = [];
+  try {
+    if (typeof scope.getRoomSlotIds === 'function') ids = scope.getRoomSlotIds(room) || [];
+  } catch {}
+  if (!ids.length) ids = Object.keys(container).filter((k) => k !== '__multiSlotContainer' && container[k]);
+  let first = null;
+  for (const id of ids) {
+    let g = null;
+    try {
+      g = typeof scope.getRoomGame === 'function' ? scope.getRoomGame(room, id) : container[id];
+    } catch {
+      g = container[id];
+    }
+    if (!g) continue;
+    if (!first) first = g;
+    if (g.started && g.phase !== 'ended' && g.phase !== 'finished') return g;
+  }
+  return first;
 }
 
 function bestJobWins(player) {
@@ -363,9 +412,238 @@ export async function botBootStatus() {
   };
 }
 
+// Loads one of the extra ("cross") dictionaries (로블 / 끄투) into the running
+// engine by replaying its admin command, then reports the resulting set size.
+export async function loadCrossDictionary(id) {
+  const spec = CROSS_DICTIONARIES[id];
+  if (!spec) return { id, ok: false, message: `unknown dictionary: ${id}` };
+  const bot = await getBotEngine();
+  const out = [];
+  bot.response('admin_room', spec.command, 'admin', true, { reply: (text) => out.push(normalizeLine(text)) }, null, 'web', false);
+  const size = bot.context.__Bot?.scope?.[spec.setKey]?.size || 0;
+  return { id, ok: size > 0, size, message: out.filter(Boolean).join('\n') };
+}
+
+// Snapshot of the engine's dictionary configuration and load state, for the
+// /api/engine customization surface.
+export async function engineStatus() {
+  const bot = await getBotEngine();
+  const scope = bot.context.__Bot?.scope || {};
+  const dictionaries = dictionaryList().map((dict) => {
+    let loaded = false;
+    let size = 0;
+    if (dict.id === PRIMARY_DICTIONARY) {
+      loaded = !!scope.WORD_SET;
+      size = scope.WORD_SET?.size || 0;
+    } else if (CROSS_DICTIONARIES[dict.id]) {
+      const set = scope[CROSS_DICTIONARIES[dict.id].setKey];
+      loaded = !!(set && set.size);
+      size = set?.size || 0;
+    }
+    return { ...dict, loaded, size };
+  });
+  return {
+    primaryDictionary: PRIMARY_DICTIONARY,
+    prefixes: PREFIXES,
+    jobs: Array.isArray(scope.ALL_JOBS) ? scope.ALL_JOBS.slice() : [],
+    dictionaries
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dictionary search — encapsulated here so routes never reach into Bot.scope.
+// Both search endpoints run on the engine's *live* dictionary, so switching the
+// primary dictionary (e.g. to Roblox) transparently changes search results too.
+// ---------------------------------------------------------------------------
+function engineScope(bot) {
+  return bot.context.__Bot?.scope || bot.context || {};
+}
+
+function toArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    if (typeof value[Symbol.iterator] === 'function') return Array.from(value);
+  } catch {}
+  return [];
+}
+
+// Multi-kind label (whole-word predicates) — used by the in-game word helper.
+function kindsLabel(scope, word) {
+  const kinds = [];
+  try { if (typeof scope.isRoot === 'function' && scope.isRoot(word)) kinds.push('루트'); } catch {}
+  try { if (typeof scope.isHanbang === 'function' && scope.isHanbang(word)) kinds.push('한방'); } catch {}
+  try { if (typeof scope.isYudo === 'function' && scope.isYudo(word)) kinds.push('유도'); } catch {}
+  return kinds.length ? kinds.join(' · ') : '일반';
+}
+
+// Single prioritized kind from the retrograde-computed syllable sets.
+function kindOf(scope, word) {
+  const last = String(word || '').slice(-1);
+  if (scope.KILLSYL_SET?.has?.(last)) return '한방';
+  if (scope.INTENDSYL_SET?.has?.(last)) return '유도';
+  if (scope.ROUTESYL_SET?.has?.(last)) return '루트';
+  return '일반';
+}
+
+export async function searchWords({ q = '', start = '', used = [], limit = 50 }) {
+  const bot = await getBotEngine();
+  const scope = engineScope(bot);
+  const byStart = scope.WORDS_BY_START || {};
+  const usedSet = new Set(used || []);
+  let pool = start ? toArray(byStart[start]) : Object.values(byStart).flat();
+  if (q) pool = pool.filter((word) => String(word || '').includes(q));
+  if (start) pool = pool.filter((word) => String(word || '').startsWith(start));
+  pool = pool.filter((word) => word && !usedSet.has(word));
+
+  const results = pool
+    .slice(0, 5000)
+    .map((word) => {
+      const end = String(word).slice(-1);
+      return {
+        word,
+        start: String(word).slice(0, 1),
+        end,
+        kind: kindsLabel(scope, word),
+        replyCount: toArray(byStart[end]).length
+      };
+    })
+    .sort((a, b) => {
+      const score = (row) =>
+        (row.kind.includes('루트') ? 10000 : 0) +
+        (row.kind.includes('한방') ? 5000 : 0) +
+        (row.kind.includes('유도') ? 800 : 0) -
+        Math.min(row.replyCount || 0, 200);
+      return score(b) - score(a) || a.word.localeCompare(b.word, 'ko');
+    })
+    .slice(0, limit);
+
+  return { q, start, total: pool.length, results };
+}
+
+export async function searchDictionary({ query = '', limit = 200 }) {
+  const bot = await getBotEngine();
+  const scope = engineScope(bot);
+  const q = String(query || '').trim();
+  if (!q) return { total: 0, results: [] };
+  const byStart = scope.WORDS_BY_START || {};
+  const allWords = Object.values(byStart).flat();
+
+  let filtered;
+  const isSpecial = q.includes('*') || q.includes('?') || /[KIRNA]/.test(q);
+  if (isSpecial) {
+    let reStr = q.toUpperCase()
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.')
+      .replace(/K/g, `[${toArray(scope.KILLSYL_SET).join('')}]`)
+      .replace(/I/g, `[${toArray(scope.INTENDSYL_SET).join('')}]`)
+      .replace(/R/g, `[${toArray(scope.ROUTESYL_SET).join('')}]`)
+      .replace(/N/g, `[${NORMAL_SYL}]`)
+      .replace(/A/g, `[${Array.from(SEARCH_A_CLASS_SET).join('')}]`);
+    try {
+      const re = new RegExp(`^${reStr}$`);
+      filtered = allWords.filter((word) => re.test(word));
+    } catch {
+      filtered = [];
+    }
+  } else {
+    filtered = allWords.filter((word) => word.includes(q));
+  }
+
+  const kindRank = { 한방: 3, 유도: 2, 루트: 1, 일반: 0 };
+  const annotated = filtered.map((word) => {
+    const last = word[word.length - 1];
+    return {
+      word,
+      kind: kindOf(scope, word),
+      len: word.length,
+      first: word[0],
+      last,
+      replies: toArray(byStart[last]).length,
+      turnsToWin: WIN_TURN_MAP[last] ?? null
+    };
+  });
+  annotated.sort((a, b) => {
+    const kr = (kindRank[b.kind] || 0) - (kindRank[a.kind] || 0);
+    if (kr !== 0) return kr;
+    const at = a.turnsToWin ?? 999;
+    const bt = b.turnsToWin ?? 999;
+    if (at !== bt) return at - bt;
+    return b.len - a.len;
+  });
+  return { query: q, total: filtered.length, results: annotated.slice(0, limit) };
+}
+
+// ---------------------------------------------------------------------------
+// Standalone chain engine (1ㅇㅅ 난이도 D1~D20) — the retrograde solver ported
+// from the deploy 전수 평가기. Encapsulated so the web layer drives it with
+// clean methods instead of chat commands. With java.lang.Thread absent the
+// engine computes its move synchronously, so each call returns the full result.
+// ---------------------------------------------------------------------------
+const CHAIN_DICT_TOKENS = { default: '기본', roble: '로블', kkutu: '끄투', urimalsam: '우리말샘', jime: '지메' };
+
+function chainSessions(scope) {
+  return (scope && scope.CHAIN_ENGINE_SESSIONS) || {};
+}
+function chainKey(room, sender) {
+  // charynnBot's sessionKey joins room + sender with a \x01 separator.
+  return String(room) + '\x01' + String(sender);
+}
+function serializeChain(session) {
+  if (!session) return null;
+  const cfg = session.graph?.cfg || {};
+  return {
+    active: true,
+    depth: session.depth,
+    chain: cfg.chain || 'end',
+    dict: cfg.dict || 'roble',
+    history: Array.isArray(session.history) ? session.history.slice() : [],
+    currentChar: session.currentChar || null,
+    awaitingFirst: !!session.awaitingFirst,
+    busy: !!session.busy
+  };
+}
+
+export async function chainEngineStart(room, sender, { depth = 8, chain = 'end', dict = 'roble' } = {}) {
+  const bot = await getBotEngine();
+  const d = Math.min(20, Math.max(1, Math.floor(Number(depth) || 8)));
+  const dictToken = CHAIN_DICT_TOKENS[dict] || '로블';
+  const modeToken = chain === 'prefix' ? '앞말' : '끝말';
+  const out = [];
+  bot.response(String(room), `1ㅇㅅ 난이도 D${d} 모드 ${modeToken} 사전 ${dictToken}`, String(sender), true, { reply: (t) => out.push(normalizeLine(t)) }, null, 'web', false);
+  const state = serializeChain(chainSessions(bot.context.__Bot?.scope)[chainKey(room, sender)]);
+  return { messages: out.filter(Boolean), state };
+}
+
+export async function chainEnginePlay(room, sender, input) {
+  const bot = await getBotEngine();
+  const scope = bot.context.__Bot?.scope;
+  const before = chainSessions(scope)[chainKey(room, sender)];
+  if (!before) return { messages: ['진행 중인 엔진 대전이 없습니다.'], state: null, over: true };
+  // First move accepts a bare syllable/word; later moves need the 0 word prefix.
+  let text = String(input || '').trim();
+  if (!before.awaitingFirst) text = text.startsWith('0') ? text : `0${text}`;
+  const out = [];
+  bot.response(String(room), text, String(sender), true, { reply: (t) => out.push(normalizeLine(t)) }, null, 'web', false);
+  const after = chainSessions(scope)[chainKey(room, sender)];
+  return { messages: out.filter(Boolean), state: serializeChain(after), over: !after };
+}
+
+export async function chainEngineState(room, sender) {
+  const bot = await getBotEngine();
+  return serializeChain(chainSessions(bot.context.__Bot?.scope)[chainKey(room, sender)]);
+}
+
+export async function chainEngineQuit(room, sender) {
+  const bot = await getBotEngine();
+  const out = [];
+  bot.response(String(room), 'ㅈㅈ', String(sender), true, { reply: (t) => out.push(normalizeLine(t)) }, null, 'web', false);
+  return { messages: out.filter(Boolean), state: null, over: true };
+}
+
 export async function botRoomState(room) {
   const bot = await getBotEngine();
-  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  const raw = activeSlotGame(bot.context.__Bot?.scope, room);
   if (!raw) return null;
   return serializeGame(raw);
 }
@@ -390,7 +668,7 @@ export async function botDeleteRoom(room) {
 
 export async function configureBotRoom(room, options = {}) {
   const bot = await getBotEngine();
-  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  const raw = activeSlotGame(bot.context.__Bot?.scope, room);
   if (!raw) return null;
   if (Array.isArray(options.disabledJobs) && options.disabledJobs.length) {
     const current = Array.isArray(raw.bannedJobs) ? raw.bannedJobs : [];
@@ -401,10 +679,12 @@ export async function configureBotRoom(room, options = {}) {
 
 export async function botAllRoomStates() {
   const bot = await getBotEngine();
-  const games = bot.context.__Bot?.scope?.games || bot.context.games || {};
+  const scope = bot.context.__Bot?.scope;
+  const games = scope?.games || {};
   const out = {};
-  for (const [room, raw] of Object.entries(games)) {
-    out[room] = serializeGame(raw);
+  for (const room of Object.keys(games)) {
+    const raw = activeSlotGame(scope, room);
+    if (raw) out[room] = serializeGame(raw);
   }
   return out;
 }

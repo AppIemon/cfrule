@@ -151,8 +151,53 @@ async function performRestore(room) {
   }
 }
 
+// A "start" command opens a fresh match and therefore clears the finished
+// marker + replay log. Only the lobby-creation command (`1ㄹ`) counts; the
+// follow-up start (`1ㅇㅅ`) is part of the same match and must stay in the log.
 function isGameStartCommand(command) {
-  return /^1(채린|연습)/.test(String(command || '').trim());
+  return /^1(ㄹ|채린|연습)\b/.test(String(command || '').trim());
+}
+
+// Bot 모드/사전 vocabulary. Kept here so the room-creation surface can pick a
+// rule set and dictionary (the "모드/사전 설정" customization).
+const GAME_MODE_LABELS = {
+  charynn: '채린',
+  guerule: '구엜',
+  roble: '로블',
+  combo: '조합',
+  card: '카드'
+};
+const DICTIONARY_LABELS = {
+  default: '기본',
+  roble: '로블',
+  kkutu: '끄투',
+  urimalsam: '우리말샘',
+  jime: '지메'
+};
+
+function resolveGameMode(meta) {
+  if (meta.combat) return GAME_MODE_LABELS.combo;
+  return GAME_MODE_LABELS[meta.gameMode] || meta.gameMode || GAME_MODE_LABELS.charynn;
+}
+
+function resolveDictionary(meta) {
+  return DICTIONARY_LABELS[meta.dictionary] || (meta.dictionary && meta.dictionary !== 'default' ? meta.dictionary : '기본');
+}
+
+// `1ㄹ 모드 <룰> [사전 <사전>] 인원 <n>` — creates the waiting room/lobby.
+function lobbyCommand(meta) {
+  const parts = ['1ㄹ', '모드', resolveGameMode(meta)];
+  const dict = resolveDictionary(meta);
+  if (dict && dict !== '기본') parts.push('사전', dict);
+  parts.push('인원', String(meta.mode || 1));
+  return parts.join(' ');
+}
+
+// `1ㅇㅅ [cpuJob]` — CPU joins the lobby and the practice match starts.
+function practiceStartCommand(meta) {
+  const job = pickRandomJob(meta);
+  meta.currentCpuJob = job;
+  return `1ㅇㅅ${job ? ` ${job}` : ''}`;
 }
 
 async function discardBotRoom(room) {
@@ -211,30 +256,25 @@ function buildJobRanking(ranking) {
   return byJob;
 }
 
-function startCommand(meta) {
-  const modeText = meta.mode === 1 ? '' : meta.mode;
-  if (!meta.practice) return `1채린${modeText}`;
-  const job = pickRandomJob(meta);
-  meta.currentCpuJob = job;
-  return `1연습${modeText}${job ? ` ${job}` : ''}`;
-}
-
 function scheduleAutoRestart(room, sender, ended) {
   const meta = roomMeta.get(room);
-  if (!meta || !ended) return;
+  // Only practice-vs-CPU rooms auto-restart; real rooms wait for humans.
+  if (!meta || !ended || !meta.practice) return;
   if (restartTimers.has(room)) clearTimeout(restartTimers.get(room));
-  append(room, 'system', '', ['[시스템]: 사람이 충분하다고 보고 다음 게임을 자동으로 준비합니다.']);
+  append(room, 'system', '', ['[시스템]: 다음 게임을 자동으로 준비합니다.']);
   const timer = setTimeout(async () => {
     restartTimers.delete(room);
     try {
-      const command = startCommand(meta);
       // A new match starts here, so the finished marker lifts and the previous game's
       // commands must not stay in the replay log — they would rebuild the old game.
       finishedRooms.delete(room);
       commandHistory.set(room, []);
-      const restartReplies = await dispatchBotMessage(room, command, sender || meta.owner || 'player');
-      rememberCommand(room, sender || meta.owner || 'player', command);
-      append(room, sender || meta.owner || 'system', command, restartReplies);
+      const actor = sender || meta.owner || 'player';
+      for (const command of [lobbyCommand(meta), practiceStartCommand(meta)]) {
+        const replies = await dispatchBotMessage(room, command, actor);
+        rememberCommand(room, actor, command);
+        append(room, actor, command, replies);
+      }
       const state = await getRoomSnapshot(room);
       await persistRoom(room, state);
       publishRoom(room, state);
@@ -406,7 +446,7 @@ function selectionBlocked(room, command) {
   return disabled.find((job) => job === requested || job.replace(/\s+/g, '') === requested.replace(/\s+/g, '')) || '';
 }
 
-export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '', timer = {}, disabledJobs = [], combat = false }) {
+export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '', timer = {}, disabledJobs = [], combat = false, gameMode = '', dictionary = '' }) {
   const room = code();
   const cleanMode = sanitizeMode(mode);
   const cleanDisabledJobs = sanitizeJobs(disabledJobs);
@@ -420,14 +460,25 @@ export async function createRoom({ nickname, mode = 1, practice = false, cpuJob 
     practiceGuest: null,
     disabledJobs: cleanDisabledJobs,
     combat: !!combat,
+    // Rule set (채린/구엜/로블/조합…) and dictionary (기본/로블/끄투…). These map
+    // to the bot's `1ㄹ 모드 … 사전 …` lobby settings.
+    gameMode: String(gameMode || '').trim(),
+    dictionary: String(dictionary || '').trim(),
     timer: normalizeTimer(timer)
   });
   logs.set(room, []);
   commandHistory.set(room, []);
+  const meta = roomMeta.get(room);
   // Must land before the first command: that dispatch both creates the game and
   // decides between job selection and the ability draft.
   await botSetRoomCombat(room, !!combat);
-  const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
+  // New engine protocol: create the lobby first (`1ㄹ 모드 ... 인원 ...`), then
+  // for practice add the CPU + start the match (`1ㅇㅅ [job]`). Real rooms stay
+  // in the lobby until other players join with `1참가`.
+  await sendCommand({ room, nickname, command: lobbyCommand(meta) });
+  if (practice) {
+    await sendCommand({ room, nickname, command: practiceStartCommand(meta) });
+  }
   await applyRoomOptions(room);
   return await getRoomSnapshot(room);
 }
@@ -447,7 +498,17 @@ export async function joinRoom({ room, nickname }) {
     return state;
   }
   roomMeta.set(room, meta);
-  return sendCommand({ room, nickname, command: startCommand(meta) });
+  // Joining an existing lobby uses `1참가`; if the lobby vanished (cold start),
+  // recreate it so the player still lands in a room.
+  const existing = await botRoomState(room);
+  if (existing) {
+    return sendCommand({ room, nickname, command: '1참가' });
+  }
+  await sendCommand({ room, nickname, command: lobbyCommand(meta) });
+  if (meta.practice) {
+    await sendCommand({ room, nickname, command: practiceStartCommand(meta) });
+  }
+  return getRoomSnapshot(room);
 }
 
 export async function sendCommand({ room, nickname, command }) {

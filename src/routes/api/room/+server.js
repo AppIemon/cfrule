@@ -36,7 +36,9 @@ export async function POST({ request, locals }) {
       cpuJob: String(body?.cpuJob || '').slice(0, CPU_JOB_MAX),
       timer: body?.timer,
       disabledJobs: body?.disabledJobs,
-      combat: !!body?.combat
+      combat: !!body?.combat,
+      gameMode: String(body?.gameMode || '').slice(0, 16),
+      dictionary: String(body?.dictionary || '').slice(0, 16)
     }));
   } catch (error) {
     console.error('room POST failed', error);
