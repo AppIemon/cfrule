@@ -1659,6 +1659,9 @@
                     <select class="lobby-input" bind:value={dictionary}>
                       <option value="">기본 사전</option>
                       <option value="roble">로블 사전 (548k)</option>
+                      <option value="kkutu">끄투 사전 (569k)</option>
+                      <option value="urimalsam">우리말샘 사전 (212k)</option>
+                      <option value="jime">지메 사전 (GD)</option>
                     </select>
                   </label>
                 </div>

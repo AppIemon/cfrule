@@ -8,6 +8,11 @@ import wordlist from './data/wordlist.json';
 // Roblox dictionary (548k words, one per line) extracted from the deploy-vercel
 // 전수 평가기. Imported as raw text so it is included in the Vercel/app bundle.
 import robleWordlistRaw from './data/roble_wordlist.txt?raw';
+// 끄투 사전 — a JSON array of ~569k words (kept at the repo root as .txt).
+import kkutuWordlistRaw from '../../../kkutu_wordlist.txt?raw';
+// 우리말샘(신엜) 212k · 지메(GD 레벨명) — newline word lists.
+import urimalsamWordlistRaw from './data/urimalsam_wordlist.txt?raw';
+import jimeWordlistRaw from './data/jime_wordlist.txt?raw';
 import { PRIMARY_DICTIONARY } from './engineConfig.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -19,14 +24,19 @@ export const bundledDataDir = path.join(rootDir, 'src', 'lib', 'server', 'data')
 const bundledJson = { 'diesyl.json': diesyl, 'killword.json': killword, 'loot.json': loot, 'wordlist.json': wordlist };
 
 // Newline-separated word lists that ship with the app.
-const bundledText = { 'roble_wordlist.txt': robleWordlistRaw };
+const bundledText = {
+  'roble_wordlist.txt': robleWordlistRaw,
+  'urimalsam_wordlist.txt': urimalsamWordlistRaw,
+  'jime_wordlist.txt': jimeWordlistRaw
+};
 
 // Data files the bot knows how to read that live in the bundled data dir (as
 // opposed to the writable runtime dir). Keeps admin loaders (robleload /
-// kkutuload) pointed at committed data.
+// kkutuload / …) pointed at committed data.
 const bundledDataNames = new Set([
   'wordlist.json', 'killword.json', 'diesyl.json', 'loot.json',
-  'roble_wordlist.txt', 'kkutu_wordlist.json', 'kkutu_diesyl.json'
+  'roble_wordlist.txt', 'kkutu_wordlist.json', 'kkutu_diesyl.json',
+  'urimalsam_wordlist.txt', 'jime_wordlist.txt'
 ]);
 
 let robleWordsCache;
@@ -40,6 +50,19 @@ function robleWords() {
   return robleWordsCache;
 }
 
+// 끄투 사전은 JSON 배열(.txt 확장자지만 내용은 JSON)이라 파싱해서 캐시한다.
+let kkutuWordsCache;
+function kkutuWords() {
+  if (!kkutuWordsCache) {
+    try {
+      kkutuWordsCache = JSON.parse(kkutuWordlistRaw);
+    } catch {
+      kkutuWordsCache = [];
+    }
+  }
+  return kkutuWordsCache;
+}
+
 export function ensureRuntimeDir() {
   mkdirSync(runtimeDir, { recursive: true });
 }
@@ -50,6 +73,10 @@ export function readJsonFile(filePath, fallback = null) {
   // Roblox words wherever the bot asks for the default wordlist.
   if (name === 'wordlist.json' && PRIMARY_DICTIONARY === 'roble') {
     return robleWords();
+  }
+  // 끄투 사전(JSON 배열) 제공.
+  if (name === 'kkutu_wordlist.json') {
+    return kkutuWords();
   }
   const bundled = bundledJson[name];
   if (bundled) return bundled;

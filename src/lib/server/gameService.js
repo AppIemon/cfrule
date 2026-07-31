@@ -171,7 +171,8 @@ const DICTIONARY_LABELS = {
   default: '기본',
   roble: '로블',
   kkutu: '끄투',
-  urimalsam: '우리말샘'
+  urimalsam: '우리말샘',
+  jime: '지메'
 };
 
 function resolveGameMode(meta) {

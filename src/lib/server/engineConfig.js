@@ -31,12 +31,26 @@ export const DICTIONARIES = {
     wordlist: 'roble_wordlist.txt',
     kind: 'txt'
   },
-  // 끄투 사전 (있을 때만 로드; 없으면 로블 사전을 재사용)
+  // 끄투 사전 (JSON 배열, 약 569k 단어)
   kkutu: {
     id: 'kkutu',
     label: '끄투 사전',
     wordlist: 'kkutu_wordlist.json',
     kind: 'json'
+  },
+  // 우리말샘(신엜) 사전, 약 212k 단어
+  urimalsam: {
+    id: 'urimalsam',
+    label: '우리말샘 사전',
+    wordlist: 'urimalsam_wordlist.txt',
+    kind: 'txt'
+  },
+  // 지메 사전 (Geometry Dash 레벨명, 영문 포함)
+  jime: {
+    id: 'jime',
+    label: '지메 사전',
+    wordlist: 'jime_wordlist.txt',
+    kind: 'txt'
   }
 };
 
@@ -52,7 +66,9 @@ export const PRIMARY_DICTIONARY = (() => {
 // The keys map to the bot's built-in cross-dictionary loaders.
 export const CROSS_DICTIONARIES = {
   roble: { command: '1t robleload', dictionary: 'roble', setKey: 'ROBLE_WORD_SET' },
-  kkutu: { command: '1t kkutuload', dictionary: 'kkutu', setKey: 'KKUTU_WORD_SET' }
+  kkutu: { command: '1t kkutuload', dictionary: 'kkutu', setKey: 'KKUTU_WORD_SET' },
+  urimalsam: { command: '1t urimalsamload', dictionary: 'urimalsam', setKey: 'URIMALSAM_WORD_SET' },
+  jime: { command: '1t jimeload', dictionary: 'jime', setKey: 'JIME_WORD_SET' }
 };
 
 // Command prefixes the bot understands (kept in sync with charynnBot.js
