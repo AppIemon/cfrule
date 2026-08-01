@@ -3173,6 +3173,7 @@
     --radius:   12px;
     --radius-sm:10px;
     --topbar-bg: rgba(255,255,255,.92);
+    --card:     #ffffff;
     --card-shadow: 0 2px 12px rgba(15,23,42,.06);
   }
   :global([data-theme="dark"]) {
@@ -3194,6 +3195,7 @@
     --radius:   12px;
     --radius-sm:10px;
     --topbar-bg: rgba(17,19,24,.92);
+    --card:     #1a1d24;
     --card-shadow: 0 2px 16px rgba(0,0,0,.3);
   }
 
@@ -3739,7 +3741,7 @@
     padding: 0 18px;
     border-radius: 999px;
     border: 1px solid var(--border2);
-    background: transparent;
+    background: var(--bg3);
     color: var(--text2);
     font-size: 13px;
     display: inline-flex;
@@ -6495,34 +6497,43 @@
   .wizard-card {
     width: min(720px, 100%);
     max-height: min(86vh, 900px);
-    background: var(--card);
+    background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: 0 24px 80px rgba(0,0,0,.28);
     display: flex; flex-direction: column;
+    color: var(--text);
   }
   .wizard-head, .wizard-foot { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .wizard-head h2 { font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px; }
   .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
   .wizard-body { padding: 18px; overflow: auto; flex: 1; }
   .wizard-close { color: var(--text3); }
   .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .wizard-choice {
-    text-align: left; padding: 14px;
-    border: 2px solid var(--border);
+    text-align: left;
+    padding: 16px;
+    border: 2px solid var(--border2);
     border-radius: 12px;
-    background: var(--card);
+    background: var(--bg3);
     color: var(--text);
-    display: grid; gap: 4px;
+    display: grid;
+    gap: 6px;
+    transition: border-color .15s, background .15s, box-shadow .15s;
   }
-  .wizard-choice strong { font-size: 15px; color: var(--text); }
-  .wizard-choice span { font-size: 12px; color: var(--text2); }
+  .wizard-choice:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--bg2);
+  }
+  .wizard-choice strong { font-size: 15px; font-weight: 800; color: var(--text); }
+  .wizard-choice span { font-size: 12px; line-height: 1.45; color: var(--text2); }
   .wizard-choice-active {
     border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 14%, var(--card));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+    background: var(--bg2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
   }
-  .wizard-choice-active strong { color: var(--text); }
+  .wizard-choice-active strong { color: var(--accent); }
   .wizard-choice-active span { color: var(--text2); }
   .wizard-extras { display: grid; gap: 12px; }
   .extras-label { font-size: 12px; font-weight: 700; color: var(--text3); margin-right: 8px; }
