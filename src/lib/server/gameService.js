@@ -293,6 +293,35 @@ function sanitizeJobs(value) {
   return out;
 }
 
+export function isCpuPlayer(name) {
+  return /^채린컴퓨터\d*$/.test(String(name || '').trim());
+}
+
+async function destroyWaitingRoom(room) {
+  await discardBotRoom(room);
+  roomMeta.delete(room);
+  logs.delete(room);
+  roomChats.delete(room);
+  presence.delete(room);
+  commandHistory.delete(room);
+  try {
+    const { deleteRoomSnapshot } = await import('./db.js');
+    await deleteRoomSnapshot(room);
+  } catch {}
+  publishRoom(room, { room, meta: null, game: null, log: [], chats: [] });
+}
+
+async function cleanupRoomIfCpuOnly(room) {
+  const game = await botRoomState(room);
+  if (!game || game.phase !== 'waiting') return false;
+  const humans = (game.players || []).filter((p) => !isCpuPlayer(p));
+  if (!humans.length) {
+    await destroyWaitingRoom(room);
+    return true;
+  }
+  return false;
+}
+
 function requiredPlayersFromMeta(meta, game = null) {
   if (!meta && !game) return 2;
   const gameMode = String(meta?.gameMode || '');
@@ -647,7 +676,7 @@ export async function leaveRoom({ room, nickname }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim();
   const meta = roomMeta.get(room);
-  if (!meta) return { room: '', snapshot: null };
+  if (!meta) return { left: true, room: '' };
   if (meta.practice) {
     return sendCommand({ room, nickname: sender, command: 'ㅈㅈ', internal: false });
   }
@@ -657,20 +686,101 @@ export async function leaveRoom({ room, nickname }) {
     if (meta.ready) delete meta.ready[sender];
     const after = await botRoomState(room);
     if (!after) {
-      roomMeta.delete(room);
-      logs.delete(room);
-      publishRoom(room, { room, meta: null, game: null, log: [], chats: [] });
-      return { room: '', left: true };
+      await destroyWaitingRoom(room);
+      return { left: true, room: '' };
     }
-    if (meta.owner === sender) meta.owner = (await botRoomState(room))?.players?.[0] || meta.owner;
+    if (await cleanupRoomIfCpuOnly(room)) {
+      return { left: true, room: '' };
+    }
+    if (meta.owner === sender) {
+      const remaining = (await botRoomState(room))?.players || [];
+      const nextOwner = remaining.find((p) => !isCpuPlayer(p)) || remaining[0];
+      if (nextOwner) meta.owner = nextOwner;
+    }
     roomMeta.set(room, meta);
     append(room, 'system', '', [`[시스템]: ${sender}님이 퇴장했습니다.`]);
     const state = await getRoomSnapshot(room);
     await persistRoom(room, state);
     publishRoom(room, state);
-    return state;
+    return { left: true, room: '' };
   }
   return sendCommand({ room, nickname: sender, command: 'ㅈㅈ' });
+}
+
+export async function updateRoomSettings({ room, nickname, patch = {} }) {
+  await restoreRoom(room);
+  const meta = roomMeta.get(room);
+  if (!meta) throw new Error('방을 찾을 수 없습니다.');
+  const sender = String(nickname || '').trim();
+  if (meta.owner !== sender) throw new Error('방장만 설정을 변경할 수 있습니다.');
+  const game = await botRoomState(room);
+  if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방만 설정을 변경할 수 있습니다.');
+
+  if (patch.roomName !== undefined) {
+    meta.name = String(patch.roomName || '').trim().slice(0, 32);
+  }
+  if (patch.roomPassword !== undefined) {
+    meta.passwordHash = hashRoomPassword(patch.roomPassword);
+  }
+  const isGeonmat = String(meta.gameMode || '').startsWith('geonmat:');
+  if (patch.chainMode !== undefined && !isGeonmat) {
+    meta.chainMode = patch.chainMode === 'start' ? 'start' : 'end';
+  }
+  if (patch.dictSource) {
+    meta.dictSource = String(patch.dictSource);
+  }
+  if (patch.duEum !== undefined) meta.duEum = !!patch.duEum;
+  if (patch.searchAllowed !== undefined) meta.searchAllowed = !!patch.searchAllowed;
+  if (patch.rated !== undefined) meta.rated = !!patch.rated;
+  if (patch.pyohanLives !== undefined && meta.gameMode === 'pyohan') {
+    meta.pyohanLives = Math.min(9, Math.max(1, Math.floor(Number(patch.pyohanLives) || 3)));
+  }
+  if (patch.geonmatRounds !== undefined && isGeonmat) {
+    meta.geonmatRounds = Math.min(20, Math.max(1, Math.floor(Number(patch.geonmatRounds) || 5)));
+  }
+  if (patch.disabledJobs !== undefined) {
+    meta.disabledJobs = sanitizeJobs(patch.disabledJobs);
+  }
+  if (patch.timer) {
+    const prev = meta.timer || normalizeTimer({});
+    meta.timer = normalizeTimer({
+      enabled: patch.timer.enabled ?? prev.enabled,
+      minutes: patch.timer.minutes ?? Math.floor((prev.initialSeconds || 600) / 60),
+      increment: patch.timer.increment ?? prev.incrementSeconds ?? 0
+    });
+  }
+  if (patch.playerCount !== undefined) {
+    const count = Math.floor(Number(patch.playerCount) || 2);
+    if (isGeonmat) {
+      const cap = Math.min(20, Math.max(1, count));
+      meta.geonmatPlayerCap = cap;
+      meta.playerCount = cap;
+      meta.mode = 1;
+    } else {
+      const even = Math.min(6, Math.max(2, count % 2 === 0 ? count : count - 1));
+      meta.playerCount = even;
+      meta.mode = even / 2;
+    }
+    const required = requiredPlayersFromMeta(meta, game);
+    if ((game.players || []).length > required) {
+      throw new Error(`현재 ${game.players.length}명이 참가 중이라 인원을 ${required}명 미만으로 줄일 수 없습니다.`);
+    }
+  }
+
+  meta.ready = {};
+  for (const player of game.players || []) {
+    if (isCpuPlayer(player)) meta.ready[player] = true;
+    else if (player === meta.owner) meta.ready[player] = true;
+    else meta.ready[player] = false;
+  }
+
+  roomMeta.set(room, meta);
+  await applyRoomOptions(room);
+  append(room, 'system', '', ['[시스템]: 방장이 방 설정을 변경했습니다. 다시 준비해 주세요.']);
+  const state = await getRoomSnapshot(room);
+  await persistRoom(room, state);
+  publishRoom(room, state);
+  return state;
 }
 
 export async function sendCommand({ room, nickname, command, internal = false }) {

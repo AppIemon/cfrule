@@ -104,3 +104,9 @@ export async function loadRoomSnapshot(room) {
   const doc = await db.collection('rooms').findOne({ room }, { projection: { _id: 0 } });
   return doc || null;
 }
+
+export async function deleteRoomSnapshot(room) {
+  if (!room) return;
+  const db = await getDb();
+  await db.collection('rooms').deleteOne({ room });
+}
