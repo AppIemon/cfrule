@@ -1,5 +1,5 @@
-import { randomBytes } from 'node:crypto';
-import { botAllRoomStates, botBootStatus, botRankings, botRoomState, botSetRoomCombat, configureBotRoom, dispatchBotMessage } from './botEngine.js';
+import { randomBytes, createHash } from 'node:crypto';
+import { botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { isAllowedWebCommand } from './webCommands.js';
 import { publishRoom } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
@@ -53,7 +53,25 @@ const CPU_RANDOM_JOBS = [
 ];
 
 function code() {
-  return randomBytes(3).toString('hex').toUpperCase();
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const room =
+      letters[Math.floor(Math.random() * 26)] +
+      letters[Math.floor(Math.random() * 26)];
+    if (!roomMeta.has(room)) return room;
+  }
+  throw new Error('방 코드를 만들 수 없습니다. 잠시 후 다시 시도하세요.');
+}
+
+function hashRoomPassword(password) {
+  const value = String(password || '').trim();
+  if (!value) return '';
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function verifyRoomPassword(meta, password) {
+  if (!meta?.passwordHash) return true;
+  return hashRoomPassword(password) === meta.passwordHash;
 }
 
 function pickRandomJob(meta) {
@@ -310,8 +328,29 @@ function metaForSnapshot(room) {
   if (!meta) return null;
   return {
     ...meta,
-    timer: publicTimer(meta.timer)
+    timer: publicTimer(meta.timer),
+    ready: { ...(meta.ready || {}) },
+    hasPassword: !!meta.passwordHash,
+    passwordHash: undefined
   };
+}
+
+function roomOptionsFromMeta(meta) {
+  const options = {};
+  if (!meta) return options;
+  const disabled = sanitizeJobs(meta.disabledJobs);
+  if (disabled.length) options.disabledJobs = disabled;
+  if (meta.dictSource) options.dictSource = meta.dictSource;
+  if (meta.gameMode) options.gameMode = meta.gameMode;
+  if (meta.pyohanLives) options.pyohanLives = meta.pyohanLives;
+  if (meta.geonmatRounds) options.geonmatRounds = meta.geonmatRounds;
+  if (meta.searchAllowed !== undefined) options.searchAllowed = !!meta.searchAllowed;
+  if (meta.cpuLevel) options.cpuLevel = meta.cpuLevel;
+  if (meta.cpuThink !== undefined) options.cpuThink = !!meta.cpuThink;
+  if (meta.chainMode) options.chainMode = meta.chainMode;
+  if (meta.duEum !== undefined) options.duEum = !!meta.duEum;
+  if (meta.rated !== undefined) options.rated = !!meta.rated;
+  return options;
 }
 
 function ensureClockLoop(room) {
@@ -394,16 +433,7 @@ async function updateRoomClock(room, options = {}) {
 async function applyRoomOptions(room) {
   const meta = roomMeta.get(room);
   if (!meta) return;
-  const disabled = sanitizeJobs(meta.disabledJobs);
-  const options = {};
-  if (disabled.length) options.disabledJobs = disabled;
-  if (meta.dictSource) options.dictSource = meta.dictSource;
-  if (meta.gameMode) options.gameMode = meta.gameMode;
-  if (meta.pyohanLives) options.pyohanLives = meta.pyohanLives;
-  if (meta.geonmatRounds) options.geonmatRounds = meta.geonmatRounds;
-  if (meta.searchAllowed !== undefined) options.searchAllowed = !!meta.searchAllowed;
-  if (meta.cpuLevel) options.cpuLevel = meta.cpuLevel;
-  if (meta.cpuThink !== undefined) options.cpuThink = !!meta.cpuThink;
+  const options = roomOptionsFromMeta(meta);
   if (Object.keys(options).length) {
     await configureBotRoom(room, options);
   }
@@ -434,49 +464,81 @@ export async function createRoom({
   geonmatRounds = 5,
   searchAllowed = false,
   cpuLevel = '',
-  cpuThink = false
+  cpuThink = false,
+  chainMode = 'end',
+  duEum = true,
+  rated = true,
+  roomName = '',
+  roomPassword = '',
+  isGuest = false
 }) {
   const room = code();
   const cleanMode = sanitizeMode(mode);
   const cleanDisabledJobs = sanitizeJobs(disabledJobs);
   const cleanCpuJob = cleanDisabledJobs.includes(cpuJob) ? '' : String(cpuJob || '').trim();
+  const owner = String(nickname || '').trim() || 'player';
+  const resolvedGameMode = combat ? 'combat' : String(gameMode || 'guerule');
+  const passwordHash = hashRoomPassword(roomPassword);
   roomMeta.set(room, {
     createdAt: Date.now(),
+    name: String(roomName || '').trim().slice(0, 32),
+    passwordHash: passwordHash || '',
     mode: cleanMode,
     practice,
     cpuJob: cleanCpuJob,
-    owner: String(nickname || '').trim() || 'player',
+    owner,
     practiceGuest: null,
     disabledJobs: cleanDisabledJobs,
     combat: !!combat,
     dictSource: String(dictSource || 'default'),
-    gameMode: combat ? 'combat' : String(gameMode || 'guerule'),
+    gameMode: resolvedGameMode,
     pyohanLives: Number(pyohanLives) || 3,
     geonmatRounds: Number(geonmatRounds) || 5,
     searchAllowed: !!searchAllowed,
     cpuLevel: String(cpuLevel || ''),
     cpuThink: !!cpuThink,
+    chainMode: chainMode === 'start' ? 'start' : 'end',
+    duEum: duEum !== false,
+    rated: isGuest ? false : rated !== false,
+    ready: { [owner]: true },
     timer: normalizeTimer(timer)
   });
   logs.set(room, []);
   commandHistory.set(room, []);
-  // Must land before the first command: that dispatch both creates the game and
-  // decides between job selection and the ability draft.
   await botSetRoomCombat(room, !!combat);
-  const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)), internal: true });
+  if (practice) {
+    await sendCommand({ room, nickname: owner, command: startCommand(roomMeta.get(room)), internal: true });
+  } else {
+    await botCreateWebLobby(room, { owner, mode: cleanMode, combat: !!combat });
+    append(room, 'system', '', [`[시스템]: ${owner}님이 방을 만들었습니다. 플레이어가 모이면 준비 후 시작하세요.`]);
+  }
   await applyRoomOptions(room);
   return await getRoomSnapshot(room);
 }
 
-export async function joinRoom({ room, nickname }) {
+export async function joinRoom({ room, nickname, password = '' }) {
   await restoreRoom(room);
-  const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false, owner: String(nickname || '').trim() || 'player', practiceGuest: null };
+  const meta = roomMeta.get(room);
+  if (!meta) throw new Error('방을 찾을 수 없습니다.');
+  if (!verifyRoomPassword(meta, password)) throw new Error('비밀번호가 틀렸습니다.');
   const sender = String(nickname || '').trim() || 'player';
   if (meta.practice && meta.owner && meta.owner !== sender) {
     meta.practiceGuest = sender;
     meta.practiceGuestAt = Date.now();
     roomMeta.set(room, meta);
-    append(room, 'system', '', [`[시스템]: 연습방 알림: ${sender}님이 방 코드로 들어왔습니다. 연습 종료 버튼을 눌러 일반 방으로 전환할 수 있습니다.`]);
+    append(room, 'system', '', [`[시스템]: 연습방 알림: ${sender}님이 방 코드로 들어왔습니다.`]);
+    const state = await getRoomSnapshot(room);
+    await persistRoom(room, state);
+    publishRoom(room, state);
+    return state;
+  }
+  if (!roomMeta.has(room)) roomMeta.set(room, meta);
+  if (!meta.practice) {
+    await botJoinWebLobby(room, sender);
+    meta.ready = meta.ready || {};
+    meta.ready[sender] = false;
+    roomMeta.set(room, meta);
+    append(room, 'system', '', [`[시스템]: ${sender}님이 입장했습니다.`]);
     const state = await getRoomSnapshot(room);
     await persistRoom(room, state);
     publishRoom(room, state);
@@ -484,6 +546,78 @@ export async function joinRoom({ room, nickname }) {
   }
   roomMeta.set(room, meta);
   return sendCommand({ room, nickname, command: startCommand(meta), internal: true });
+}
+
+export async function setRoomReady({ room, nickname, ready = true }) {
+  await restoreRoom(room);
+  const meta = roomMeta.get(room);
+  if (!meta) throw new Error('방을 찾을 수 없습니다.');
+  const sender = String(nickname || '').trim();
+  const game = await botRoomState(room);
+  if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
+  if (!(game.players || []).includes(sender)) throw new Error('방에 참가 중이 아닙니다.');
+  meta.ready = meta.ready || {};
+  meta.ready[sender] = !!ready;
+  roomMeta.set(room, meta);
+  append(room, 'system', '', [`[시스템]: ${sender}님이 ${ready ? '준비' : '대기'} 상태입니다.`]);
+  const state = await getRoomSnapshot(room);
+  await persistRoom(room, state);
+  publishRoom(room, state);
+  return state;
+}
+
+export async function startRoomGame({ room, nickname }) {
+  await restoreRoom(room);
+  const meta = roomMeta.get(room);
+  if (!meta) throw new Error('방을 찾을 수 없습니다.');
+  const sender = String(nickname || '').trim();
+  if (meta.owner !== sender) throw new Error('방장만 게임을 시작할 수 있습니다.');
+  const game = await botRoomState(room);
+  if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
+  const players = game.players || [];
+  const required = Number(meta.mode || 1) * 2;
+  if (players.length < required) throw new Error(`인원이 부족합니다. (${players.length}/${required})`);
+  const ready = meta.ready || {};
+  for (const player of players) {
+    if (player === meta.owner) continue;
+    if (!ready[player]) throw new Error(`${player}님이 아직 준비하지 않았습니다.`);
+  }
+  await botStartWebLobby(room, meta);
+  append(room, 'system', '', ['[시스템]: 게임을 시작합니다.']);
+  const state = await getRoomSnapshot(room);
+  await persistRoom(room, state);
+  publishRoom(room, state);
+  return state;
+}
+
+export async function leaveRoom({ room, nickname }) {
+  await restoreRoom(room);
+  const sender = String(nickname || '').trim();
+  const meta = roomMeta.get(room);
+  if (!meta) return { room: '', snapshot: null };
+  if (meta.practice) {
+    return sendCommand({ room, nickname: sender, command: 'ㅈㅈ', internal: false });
+  }
+  const game = await botRoomState(room);
+  if (game?.phase === 'waiting') {
+    await botLeaveWebLobby(room, sender);
+    if (meta.ready) delete meta.ready[sender];
+    const after = await botRoomState(room);
+    if (!after) {
+      roomMeta.delete(room);
+      logs.delete(room);
+      publishRoom(room, { room, meta: null, game: null, log: [], chats: [] });
+      return { room: '', left: true };
+    }
+    if (meta.owner === sender) meta.owner = (await botRoomState(room))?.players?.[0] || meta.owner;
+    roomMeta.set(room, meta);
+    append(room, 'system', '', [`[시스템]: ${sender}님이 퇴장했습니다.`]);
+    const state = await getRoomSnapshot(room);
+    await persistRoom(room, state);
+    publishRoom(room, state);
+    return state;
+  }
+  return sendCommand({ room, nickname: sender, command: 'ㅈㅈ' });
 }
 
 export async function sendCommand({ room, nickname, command, internal = false }) {
@@ -629,6 +763,8 @@ export async function listRooms() {
     rooms.push({
       room,
       meta: metaForSnapshot(room),
+      name: meta?.name || '',
+      hasPassword: !!meta?.passwordHash,
       phase: game?.phase || 'waiting',
       players: game?.players || [],
       currentPlayer: game?.currentPlayer || '',
@@ -642,6 +778,8 @@ export async function listRooms() {
     rooms.push({
       room,
       meta: metaForSnapshot(room),
+      name: meta?.name || '',
+      hasPassword: !!meta?.passwordHash,
       phase: game?.phase || 'waiting',
       players: game?.players || [],
       currentPlayer: game?.currentPlayer || '',

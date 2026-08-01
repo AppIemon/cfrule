@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { sendCommand } from '$lib/server/gameService.js';
 import { rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
-const ROOM_RE = /^[A-F0-9]{6}$/;
+const ROOM_RE = /^[A-Z]{2}$/;
 const COMMAND_MAX = 256;
 
 export async function POST({ request, locals }) {
