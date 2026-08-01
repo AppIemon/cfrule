@@ -186,6 +186,7 @@
   let joinPasswordInput = $state('');
   let showBotSetup = $state(false);
   let showInviteModal = $state(false);
+  let waitSettingsOpen = $state(false);
   let friends = $state([]);
   let friendIncoming = $state([]);
   let friendOutgoing = $state([]);
@@ -812,6 +813,25 @@
       ? Number(snapshot.meta.geonmatPlayerCap)
       : Number(snapshot?.meta?.mode || game?.teamMode || mode || 1) * 2
   );
+  const isWaitPhase = $derived(!practice && !hasMatched && (!game || game.phase === 'waiting'));
+  function isCpuPlayerName(name) {
+    return /^채린컴퓨터\d*$/.test(String(name || ''));
+  }
+  const allHumansReady = $derived.by(() => {
+    const players = game?.players || [];
+    const owner = snapshot?.meta?.owner;
+    for (const player of players) {
+      if (player === owner || isCpuPlayerName(player)) continue;
+      if (!roomReadyMap[player]) return false;
+    }
+    return true;
+  });
+  const canStartGame = $derived(
+    isRoomHost
+      && (game?.players || []).length >= requiredPlayers
+      && allHumansReady
+  );
+  const myReady = $derived(!!roomReadyMap[nickname]);
   const maxBanCount = 6;
 
   $effect(() => {
@@ -1036,16 +1056,81 @@
     closeCreateWizard();
   }
 
-  async function toggleReady() {
-    if (!room || !nickname) return;
-    const next = !roomReadyMap[nickname];
+  async function setReadyState(ready) {
+    if (!room || !nickname || isRoomHost) return;
     snapshot = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'ready', room, ready: next })
+      body: JSON.stringify({ action: 'ready', room, ready })
     });
     hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
   }
+
+  async function toggleReady() {
+    await setReadyState(!myReady);
+  }
+
+  function syncWaitSettingsFromSnapshot() {
+    const meta = snapshot?.meta;
+    if (!meta) return;
+    roomName = meta.name || '';
+    chainMode = meta.chainMode === 'start' ? 'start' : 'end';
+    dictSource = meta.dictSource || 'default';
+    duEum = meta.duEum !== false;
+    searchAllowed = !!meta.searchAllowed;
+    rated = meta.rated !== false;
+    pyohanLives = Number(meta.pyohanLives) || 3;
+    geonmatRounds = Number(meta.geonmatRounds) || 5;
+    disabledJobs = Array.isArray(meta.disabledJobs) ? [...meta.disabledJobs] : [];
+    playerCount = requiredPlayers;
+    const timer = meta.timer;
+    if (timer?.enabled) {
+      timerEnabled = true;
+      timerMinutes = Math.max(1, Math.floor((timer.initialSeconds || 600) / 60));
+      timerIncrement = timer.incrementSeconds || 0;
+    } else {
+      timerEnabled = false;
+    }
+  }
+
+  async function saveWaitSettings() {
+    if (!room || !isRoomHost) return;
+    busy = true;
+    try {
+      const patch = {
+        roomName,
+        chainMode,
+        dictSource,
+        duEum,
+        searchAllowed,
+        rated: isGuest ? false : rated,
+        playerCount,
+        disabledJobs,
+        timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) }
+      };
+      if (roomPassword.trim()) patch.roomPassword = roomPassword;
+      if (String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')) {
+        patch.geonmatRounds = Number(geonmatRounds);
+      }
+      if (snapshot?.meta?.gameMode === 'pyohan') {
+        patch.pyohanLives = Number(pyohanLives);
+      }
+      snapshot = await request('/api/room', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'updateSettings', room, patch })
+      });
+      roomPassword = '';
+      waitSettingsOpen = false;
+      hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
+    } finally {
+      busy = false;
+    }
+  }
+
+  $effect(() => {
+    if (isWaitPhase && snapshot?.meta) syncWaitSettingsFromSnapshot();
+  });
 
   async function startGameRoom() {
     if (!room || !isRoomHost) return;
@@ -1064,29 +1149,29 @@
 
   async function leaveCurrentRoom() {
     if (!room) return;
+    const leavingRoom = room;
     busy = true;
     try {
-      const data = await request('/api/room', {
+      await fetch(apiUrl('/api/room'), {
         method: 'POST',
+        credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'leave', room })
+        body: JSON.stringify({ action: 'leave', room: leavingRoom })
       });
-      if (data?.left) {
-        room = '';
-        snapshot = null;
-        hasMatched = false;
-        if (socket) socket.close();
-        socket = null;
-        clearInterval(poller);
-        poller = null;
-      } else {
-        snapshot = data;
-        hasMatched = !!data?.game && data.game.phase !== 'waiting';
-      }
-      fetchRoomList();
-    } finally {
-      busy = false;
+    } catch {}
+    room = '';
+    snapshot = null;
+    hasMatched = false;
+    waitSettingsOpen = false;
+    tab = 'game';
+    if (socket) {
+      try { socket.onclose = null; socket.close(); } catch {}
+      socket = null;
     }
+    clearInterval(poller);
+    poller = null;
+    busy = false;
+    fetchRoomList();
   }
 
   async function signout() {
@@ -2341,16 +2426,107 @@
             <span class="wait-room-mode">{ruleModeLabel(snapshot?.meta?.gameMode || 'guerule')}</span>
           </div>
           <div class="wait-room-rules">
-            <h3>방 설정</h3>
-            <ul>
-              <li><span>잇기</span><strong>{snapshot?.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</strong></li>
-              <li><span>사전</span><strong>{dictLabel(snapshot?.meta?.dictSource || 'default')}</strong></li>
-              <li><span>두음</span><strong>{snapshot?.meta?.duEum === false ? '끔' : '켬'}</strong></li>
-              <li><span>인원</span><strong>{requiredPlayers}명</strong></li>
-              <li><span>검색</span><strong>{snapshot?.meta?.searchAllowed ? '허용' : '불가'}</strong></li>
-              <li><span>레이팅</span><strong>{snapshot?.meta?.rated === false ? '미반영' : '반영'}</strong></li>
-              <li><span>타이머</span><strong>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '없음'}</strong></li>
-            </ul>
+            <div class="wait-rules-head">
+              <h3>방 설정</h3>
+              {#if isRoomHost}
+                <button class="wait-settings-toggle" onclick={() => (waitSettingsOpen = !waitSettingsOpen)}>
+                  {waitSettingsOpen ? '닫기' : '변경'}
+                </button>
+              {/if}
+            </div>
+
+            {#if isRoomHost && waitSettingsOpen}
+              <div class="wait-settings-form">
+                <label class="wizard-field">
+                  <span>방 이름</span>
+                  <input class="lobby-input" bind:value={roomName} maxlength="32" />
+                </label>
+                <label class="wizard-field">
+                  <span>비밀번호 변경</span>
+                  <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="비우면 유지" maxlength="32" />
+                </label>
+                <div class="wizard-field">
+                  <span>인원 ({playerCount}명)</span>
+                  <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}`} />
+                </div>
+                {#if !String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')}
+                  <div class="wait-settings-row">
+                    <button class="mode-btn" class:mode-active={chainMode === 'end'} onclick={() => (chainMode = 'end')}>끝말잇기</button>
+                    <button class="mode-btn" class:mode-active={chainMode === 'start'} onclick={() => (chainMode = 'start')}>앞말잇기</button>
+                  </div>
+                  <label class="wizard-field">
+                    <span>사전</span>
+                    <select class="lobby-input" bind:value={dictSource}>
+                      <option value="default">구엜룰</option>
+                      <option value="urimalsam">우리말샘</option>
+                      <option value="roble">로블</option>
+                      <option value="jime">지메</option>
+                      <option value="kkutu">끄투</option>
+                    </select>
+                  </label>
+                  <label class="practice-toggle">
+                    <input type="checkbox" bind:checked={duEum} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    두음법칙
+                  </label>
+                {/if}
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={searchAllowed} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  검색 허용
+                </label>
+                {#if !isGuest}
+                  <label class="practice-toggle">
+                    <input type="checkbox" bind:checked={rated} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    레이팅 반영
+                  </label>
+                {/if}
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={timerEnabled} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  체스식 타이머
+                </label>
+                {#if timerEnabled}
+                  <div class="timer-row">
+                    <label><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
+                    <label><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+                  </div>
+                {/if}
+                {#if snapshot?.meta?.gameMode === 'pyohan'}
+                  <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
+                {/if}
+                {#if String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')}
+                  <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
+                {/if}
+                {#if isGueruleRoom}
+                  <div class="disabled-job-box">
+                    <div class="disabled-job-head">
+                      <span><Ban size={14} />선택 불가 직업</span>
+                      {#if disabledJobs.length}<button class="tiny-btn" onclick={() => (disabledJobs = [])}>초기화</button>{/if}
+                    </div>
+                    <div class="disabled-job-grid">
+                      {#each availableJobs as job}
+                        <button class="disable-job-chip" class:djc-active={disabledJobs.includes(job)} onclick={() => toggleDisabledJob(job)}>
+                          {job}
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+                <button class="accent-btn" onclick={saveWaitSettings} disabled={busy}>설정 저장</button>
+              </div>
+            {:else}
+              <ul>
+                <li><span>잇기</span><strong>{snapshot?.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</strong></li>
+                <li><span>사전</span><strong>{dictLabel(snapshot?.meta?.dictSource || 'default')}</strong></li>
+                <li><span>두음</span><strong>{snapshot?.meta?.duEum === false ? '끔' : '켬'}</strong></li>
+                <li><span>인원</span><strong>{requiredPlayers}명</strong></li>
+                <li><span>검색</span><strong>{snapshot?.meta?.searchAllowed ? '허용' : '불가'}</strong></li>
+                <li><span>레이팅</span><strong>{snapshot?.meta?.rated === false ? '미반영' : '반영'}</strong></li>
+                <li><span>타이머</span><strong>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '없음'}</strong></li>
+              </ul>
+            {/if}
           </div>
           {#if isRoomHost}
             <button class="accent-btn wait-invite-side" onclick={openInviteModal} disabled={busy}>
@@ -2378,8 +2554,16 @@
                       {#if snapshot?.meta?.owner === player}<span class="wait-badge host">방장</span>{/if}
                     </div>
                   </div>
-                  <div class="wait-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player}>
-                    {snapshot?.meta?.owner === player ? '방장' : roomReadyMap[player] ? '준비 완료' : '대기 중'}
+                  <div class="wait-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player} class:cpu={isCpuPlayerName(player)}>
+                    {#if isCpuPlayerName(player)}
+                      봇
+                    {:else if snapshot?.meta?.owner === player}
+                      방장
+                    {:else if roomReadyMap[player]}
+                      준비
+                    {:else}
+                      대기
+                    {/if}
                   </div>
                 {:else if isRoomHost}
                   <div class="wait-slot-actions">
@@ -2404,14 +2588,20 @@
 
           <div class="wait-room-actions">
             {#if isRoomHost}
-              <button class="accent-btn wait-start" onclick={startGameRoom} disabled={busy || (game?.players || []).length < requiredPlayers}>
-                게임 시작
+              <button class="accent-btn wait-start" onclick={startGameRoom} disabled={busy || !canStartGame}>
+                시작
               </button>
             {:else if (game?.players || []).includes(nickname)}
-              <button class="accent-btn" onclick={toggleReady} disabled={busy}>
-                {roomReadyMap[nickname] ? '준비 취소' : '준비'}
-              </button>
+              <div class="wait-ready-group">
+                <button class="wait-ready-btn" class:wait-ready-active={myReady} onclick={() => setReadyState(true)} disabled={busy || myReady}>
+                  준비
+                </button>
+                <button class="wait-ready-btn" class:wait-ready-active={!myReady} onclick={() => setReadyState(false)} disabled={busy || !myReady}>
+                  대기
+                </button>
+              </div>
             {/if}
+            <button class="ghost-btn wait-leave-inline" onclick={leaveCurrentRoom} disabled={busy}>방 나가기</button>
             <button class="ghost-btn" onclick={() => (showChat = !showChat)} disabled={isGuest}>
               <MessageSquare size={15} />{showChat ? '채팅 닫기' : '채팅'}
             </button>
@@ -7001,6 +7191,31 @@
     background: color-mix(in srgb, var(--accent) 12%, var(--bg3)); color: var(--accent);
   }
   .wait-room-rules h3 { font-size: 13px; font-weight: 800; color: var(--text2); margin-bottom: 10px; }
+  .wait-rules-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .wait-rules-head h3 { margin-bottom: 0; }
+  .wait-settings-toggle {
+    height: 28px; padding: 0 10px; border-radius: 8px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    font-size: 12px; font-weight: 800; color: var(--accent);
+  }
+  .wait-settings-form { display: grid; gap: 10px; }
+  .wait-settings-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .wait-ready-group {
+    display: inline-flex; padding: 4px; gap: 4px;
+    border-radius: 12px; background: var(--bg3); border: 1px solid var(--border2);
+  }
+  .wait-ready-btn {
+    min-width: 64px; height: 36px; padding: 0 14px; border-radius: 9px;
+    font-size: 13px; font-weight: 800; color: var(--text2);
+    background: transparent;
+  }
+  .wait-ready-btn.wait-ready-active {
+    background: var(--card); color: var(--accent);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .08);
+  }
+  .wait-ready-btn:disabled { opacity: .55; }
+  .wait-leave-inline { margin-left: auto; }
+  .wait-player-status.cpu { color: var(--text3); }
   .wait-room-rules ul { list-style: none; display: grid; gap: 8px; }
   .wait-room-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
   .wait-room-rules span { color: var(--text3); }

@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { addRoomBot, createRoom, getRoomSnapshot, joinRoom, leaveRoom, listRooms, setRoomReady, startRoomGame } from '$lib/server/gameService.js';
+import { addRoomBot, createRoom, getRoomSnapshot, joinRoom, leaveRoom, listRooms, setRoomReady, startRoomGame, updateRoomSettings } from '$lib/server/gameService.js';
 import { rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
 const ROOM_RE = /^[A-Z]{2}$/;
@@ -61,6 +61,11 @@ export async function POST({ request, locals }) {
         cpuThink: !!body?.cpuThink,
         cpuJob: String(body?.cpuJob || '')
       }));
+    }
+    if (action === 'updateSettings') {
+      const room = String(body?.room || '').toUpperCase();
+      if (!ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
+      return json(await updateRoomSettings({ room, nickname, patch: body?.patch || body }));
     }
 
     const mode = Number(body?.mode);
