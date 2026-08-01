@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
-import { botAddCpuToLobby, botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
+import { botAddCpuToLobby, botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRestoreWebLobby, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { isAllowedWebCommand } from './webCommands.js';
 import { publishRoom } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
@@ -151,24 +151,33 @@ async function performRestore(room) {
   // A finished match must never be replayed: the bot would re-create the room and walk
   // it back to job selection, and rating-changing commands would run a second time.
   if (finishedRooms.has(room)) return;
-  const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
+  const lastGame = persisted.lastGame || persisted.snapshot?.game || null;
+  const lastPhase = lastGame?.phase || '';
   if (!lastPhase || lastPhase === 'ended' || lastPhase === 'finished') return;
 
   const commands = persisted.commands || [];
   // The command log is capped, so an older room may no longer hold the command that
   // created the game. Replaying from the middle just throws on every entry.
   const startIndex = commands.findIndex((item) => isGameStartCommand(item?.command));
-  if (startIndex === -1) return;
-
-  for (const item of commands.slice(startIndex)) {
-    try {
-      await dispatchBotMessage(room, item.command, item.sender);
-    } catch {
-      // Drop the partial game rather than exposing a half-replayed state; callers
-      // fall back to the persisted snapshot, which is at least self-consistent.
-      await discardBotRoom(room);
-      return;
+  if (startIndex !== -1) {
+    for (const item of commands.slice(startIndex)) {
+      try {
+        await dispatchBotMessage(room, item.command, item.sender);
+      } catch {
+        // Drop the partial game rather than exposing a half-replayed state; callers
+        // fall back to the persisted snapshot, which is at least self-consistent.
+        await discardBotRoom(room);
+        break;
+      }
     }
+  }
+
+  // Web lobbies are created without a 1채린/1연습 command, so command replay cannot
+  // rebuild them after a serverless cold start. Rehydrate waiting rooms from the
+  // persisted game snapshot instead.
+  if (!(await botRoomState(room)) && lastPhase === 'waiting' && persisted.meta && !persisted.meta.practice) {
+    await botRestoreWebLobby(room, { game: lastGame, meta: persisted.meta });
+    await applyRoomOptions(room);
   }
 }
 

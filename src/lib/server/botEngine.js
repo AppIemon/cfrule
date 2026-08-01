@@ -676,6 +676,47 @@ function requiredPlayersForGame(game, meta = {}) {
   return (game?.teamMode || meta?.mode || 1) * 2;
 }
 
+export async function botRestoreWebLobby(room, { game: saved, meta = {} } = {}) {
+  const bot = await getBotEngine();
+  const existing = resolveRoomGame(bot.context, room);
+  if (existing) return serializeGame(existing);
+  if (!saved || saved.phase !== 'waiting' || saved.started) return null;
+
+  const scope = scopeApi(bot.context);
+  const createBaseGameState = scope.createBaseGameState;
+  if (typeof createBaseGameState !== 'function') return null;
+
+  const cleanMode = Math.min(3, Math.max(1, Math.floor(Number(meta.mode || saved.teamMode) || 1)));
+  const game = createBaseGameState(cleanMode);
+  game.players = Array.isArray(saved.players) ? saved.players.slice() : [];
+  game.hostPlayer = saved.hostPlayer || meta.owner || game.players[0] || '';
+  game.webManualStart = true;
+  game.hostRoom = room;
+  game.phase = 'waiting';
+  game.started = false;
+  if (saved.gueruleSettings) game.gueruleSettings = { ...saved.gueruleSettings };
+  if (Array.isArray(saved.bannedJobs)) game.bannedJobs = saved.bannedJobs.slice();
+  if (saved.gameType) game.gameType = saved.gameType;
+  if (saved.ruleType) game.ruleType = saved.ruleType;
+  if (saved.isPractice) game.isPractice = !!saved.isPractice;
+
+  game.playerRooms = game.playerRooms || {};
+  for (const player of game.players) {
+    if (/^채린컴퓨터\d*$/.test(player)) {
+      game.playerRooms[player] = room;
+      game.cpuFill = true;
+    }
+  }
+
+  const games = getGames(bot.context);
+  games[room] = game;
+  if (meta.combat || saved.gueruleSettings?.combat) {
+    const combatApi = bot.context.__Bot?.combat || bot.context.Bot?.combat;
+    combatApi?.setRoomDefault?.(room, true);
+  }
+  return serializeGame(game);
+}
+
 export async function botCreateWebLobby(room, { owner, mode = 1, combat = false }) {
   const bot = await getBotEngine();
   const scope = scopeApi(bot.context);
