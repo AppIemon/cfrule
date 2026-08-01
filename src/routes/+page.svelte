@@ -1807,21 +1807,6 @@
     return '입장 가능';
   }
 
-  function roomModeTone(gameMode) {
-    const mode = String(gameMode || 'guerule');
-    if (mode.startsWith('geonmat:')) return 'tone-geonmat';
-    if (mode === 'combat') return 'tone-combat';
-    if (mode === 'card') return 'tone-card';
-    if (mode === 'pyohan') return 'tone-pyohan';
-    if (mode === 'kkutu') return 'tone-kkutu';
-    return 'tone-guerule';
-  }
-
-  function roomPlayerFill(current, required) {
-    const max = Math.max(1, Number(required) || 1);
-    return Math.min(100, Math.round(((Number(current) || 0) / max) * 100));
-  }
-
   function formatClock(seconds) {
     const safe = Math.max(0, Math.floor(Number(seconds) || 0));
     const min = Math.floor(safe / 60);
@@ -2137,96 +2122,57 @@
     {#if !room}
       <!-- ─── LOBBY ─── -->
       <div class="lobby-hub">
-        <header class="lobby-hero">
-          <div class="lobby-hero-copy">
-            <p class="lobby-hero-kicker">온라인 대전</p>
-            <h1 class="lobby-hero-title">열린 방에서 바로 참가하세요</h1>
-            <p class="lobby-hero-desc">목록에서 방을 고르거나 새 방을 만들어 친구와 대전할 수 있습니다.</p>
-          </div>
+        <div class="lobby-bar">
           <button class="lobby-create-btn" onclick={openCreateWizard} disabled={busy}>
-            <Plus size={18} />
-            <span>새 방 만들기</span>
+            <Plus size={16} />방 만들기
           </button>
-        </header>
+        </div>
 
         {#if roomInvites.length > 0}
-          <section class="lobby-section">
-            <div class="lobby-section-head">
-              <h2>초대</h2>
-              <span class="lobby-section-meta">{roomInvites.length}건</span>
-            </div>
-            <div class="invite-banner-row">
-              {#each roomInvites as inv}
-                <div class="invite-banner">
-                  <div class="invite-banner-copy">
-                    <strong>{inv.from}</strong>
-                    <span>님이 {inv.roomName || '방'}에 초대했습니다</span>
-                  </div>
-                  <div class="invite-banner-actions">
-                    <button class="accent-btn invite-join-btn" onclick={() => joinFromInvite(inv)} disabled={busy}>참가</button>
-                    <button class="ghost-btn" onclick={() => dismissRoomInvite(inv)} disabled={busy}>닫기</button>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          </section>
+          <div class="lobby-chips">
+            {#each roomInvites as inv}
+              <div class="lobby-chip lobby-chip-invite">
+                <span>{inv.from} · {inv.roomName || '방'}</span>
+                <button class="chip-btn" onclick={() => joinFromInvite(inv)} disabled={busy}>참가</button>
+                <button class="chip-btn chip-btn-ghost" onclick={() => dismissRoomInvite(inv)} disabled={busy}>×</button>
+              </div>
+            {/each}
+          </div>
         {/if}
 
         {#if ongoingGames.length > 0}
-          <section class="lobby-section">
-            <div class="lobby-section-head">
-              <h2>이어하기</h2>
-              <span class="lobby-section-meta">{ongoingGames.length}개 진행 중</span>
-            </div>
-            <div class="lobby-resume-row">
-              {#each ongoingGames as g}
-                <button class="resume-card" onclick={() => openExistingRoom(g.room)}>
-                  <span class="resume-card-code">{g.room}</span>
-                  <span class="resume-card-state">{g.phase === 'playing' ? '게임 중' : '대기실'}</span>
-                </button>
-              {/each}
-            </div>
-          </section>
+          <div class="lobby-chips">
+            {#each ongoingGames as g}
+              <button class="lobby-chip" onclick={() => openExistingRoom(g.room)}>
+                {g.room} · {g.phase === 'playing' ? '게임 중' : '대기'}
+              </button>
+            {/each}
+          </div>
         {/if}
 
-        <section class="lobby-section lobby-section-grow">
-          <div class="lobby-section-head">
-            <h2>방 목록</h2>
-            <span class="lobby-section-meta">{roomList.length}개</span>
-          </div>
-
-          <div class="room-grid">
-            {#if roomList.length}
-              {#each roomList as r}
-                {@const fill = roomPlayerFill((r.players || []).length, r.requiredPlayers)}
-                {@const mode = r.meta?.gameMode || 'guerule'}
-                <button class="room-tile" class:room-tile-locked={r.hasPassword} onclick={() => openListedRoom(r)} disabled={busy}>
-                  <div class="room-tile-top">
-                    <span class="room-mode-badge {roomModeTone(mode)}">{ruleModeLabel(mode)}</span>
-                    {#if r.hasPassword}<span class="room-lock-badge" title="비밀번호 방">🔒</span>{/if}
-                    <span class="room-phase-pill">{roomPhaseLabel(r.phase)}</span>
-                  </div>
-                  <h3 class="room-tile-name">{r.name || ruleModeLabel(mode)}</h3>
-                  <p class="room-tile-meta">{dictLabel(r.meta?.dictSource || 'default')} · {r.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</p>
-                  <div class="room-tile-foot">
-                    <div class="room-player-bar" aria-label="{(r.players || []).length}/{r.requiredPlayers || 2}명">
-                      <span class="room-player-bar-fill" style="width: {fill}%"></span>
-                    </div>
-                    <span class="room-player-count">{(r.players || []).length}/{r.requiredPlayers || 2}</span>
-                  </div>
-                  <span class="room-tile-cta">입장</span>
-                </button>
-              {/each}
-            {:else}
-              <div class="room-empty-state">
-                <div class="room-empty-icon"><Swords size={28} /></div>
-                <h3>아직 열린 방이 없어요</h3>
-                <p>첫 번째 방을 만들고 친구를 초대해 보세요.</p>
-                <button class="accent-btn" onclick={openCreateWizard}>방 만들기</button>
-              </div>
-            {/if}
-          </div>
-        </section>
+        <div class="room-grid">
+          {#if roomList.length}
+            {#each roomList as r}
+              {@const mode = r.meta?.gameMode || 'guerule'}
+              <button class="room-tile" onclick={() => openListedRoom(r)} disabled={busy}>
+                <div class="room-tile-row">
+                  <span class="room-tile-name">{r.name || ruleModeLabel(mode)}</span>
+                  {#if r.hasPassword}<span>🔒</span>{/if}
+                  <span class="room-tile-count">{(r.players || []).length}/{r.requiredPlayers || 2}</span>
+                </div>
+                <div class="room-tile-row room-tile-sub">
+                  <span>{ruleModeLabel(mode)}</span>
+                  <span>{roomPhaseLabel(r.phase)}</span>
+                </div>
+              </button>
+            {/each}
+          {:else}
+            <div class="room-empty-state">
+              <p>열린 방 없음</p>
+              <button class="accent-btn" onclick={openCreateWizard}>방 만들기</button>
+            </div>
+          {/if}
+        </div>
       </div>
 
       {#if showJoinPassword}
@@ -7283,18 +7229,6 @@
   .wait-chat-form input { flex: 1; border: 0; padding: 12px; background: transparent; color: var(--text); }
   .wait-chat-form button { width: 44px; color: var(--accent); }
 
-  .invite-banner-row { display: grid; gap: 10px; }
-  .invite-banner {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    padding: 14px 16px; border-radius: 14px;
-    background: color-mix(in srgb, var(--accent) 8%, var(--card));
-    border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
-  }
-  .invite-banner-copy { display: grid; gap: 2px; font-size: 14px; }
-  .invite-banner-copy strong { color: var(--accent); }
-  .invite-banner-actions { display: flex; gap: 8px; }
-  .invite-join-btn { min-width: 72px; }
-
   .invite-modal { width: min(420px, 100%); }
   .invite-modal-body { display: grid; gap: 14px; }
   .friend-add-row { display: flex; gap: 8px; }
@@ -7322,118 +7256,49 @@
   .bot-setup-body { display: grid; gap: 14px; }
   .bot-setup-field { display: grid; gap: 8px; }
   .bot-setup-label { font-size: 12px; font-weight: 800; color: var(--text3); }
-  /* Lobby hub */
+  /* Lobby */
   .lobby-hub {
     flex: 1; min-height: 0; display: flex; flex-direction: column;
-    gap: 18px; padding: 16px 20px 24px;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-      var(--bg);
+    gap: 10px; padding: 12px 16px 16px; background: var(--bg);
   }
-  .lobby-hero {
-    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    padding: 20px 22px; border-radius: 18px;
-    background: var(--card); border: 1px solid var(--border);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
-  }
-  .lobby-hero-copy { display: grid; gap: 6px; max-width: 560px; }
-  .lobby-hero-kicker { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-  .lobby-hero-title { font-size: clamp(22px, 3vw, 30px); font-weight: 900; line-height: 1.2; }
-  .lobby-hero-desc { font-size: 14px; color: var(--text2); line-height: 1.5; }
+  .lobby-bar { display: flex; justify-content: flex-end; }
   .lobby-create-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 40px; padding: 0 14px; border-radius: 10px;
+    background: var(--accent); color: #fff; font-weight: 800; font-size: 14px;
+  }
+  .lobby-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lobby-chip {
     display: inline-flex; align-items: center; gap: 8px;
-    height: 48px; padding: 0 20px; border-radius: 14px;
-    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, #000));
-    color: #fff; font-weight: 800; font-size: 15px;
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 35%, transparent);
-    transition: transform .15s, box-shadow .15s;
-  }
-  .lobby-create-btn:hover:not(:disabled) { transform: translateY(-1px); }
-  .lobby-section { display: grid; gap: 12px; }
-  .lobby-section-grow { flex: 1; min-height: 0; }
-  .lobby-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .lobby-section-head h2 { font-size: 16px; font-weight: 800; }
-  .lobby-section-meta { font-size: 13px; font-weight: 700; color: var(--text3); }
-  .lobby-resume-row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .resume-card {
-    min-width: 120px; padding: 12px 14px; border-radius: 14px;
+    height: 34px; padding: 0 12px; border-radius: 10px;
     background: var(--card); border: 1px solid var(--border);
-    display: grid; gap: 4px; text-align: left;
-    transition: border-color .15s, transform .15s;
+    font-size: 13px; font-weight: 700;
   }
-  .resume-card:hover { border-color: var(--accent); transform: translateY(-1px); }
-  .resume-card-code { font-size: 20px; font-weight: 900; letter-spacing: .12em; color: var(--accent); }
-  .resume-card-state { font-size: 12px; font-weight: 700; color: var(--text2); }
+  .lobby-chip-invite { padding-right: 6px; }
+  .chip-btn {
+    height: 26px; padding: 0 8px; border-radius: 7px;
+    background: var(--accent); color: #fff; font-size: 12px; font-weight: 800;
+  }
+  .chip-btn-ghost { background: transparent; color: var(--text3); font-size: 16px; padding: 0 6px; }
   .room-grid {
     flex: 1; min-height: 0; overflow: auto;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 12px; align-content: start; padding-bottom: 8px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px; align-content: start;
   }
   .room-tile {
-    position: relative; text-align: left; padding: 16px;
+    text-align: left; padding: 12px 14px;
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px; display: grid; gap: 8px;
-    transition: border-color .15s, transform .15s, box-shadow .15s;
-    overflow: hidden;
+    border-radius: 12px; display: grid; gap: 6px;
   }
-  .room-tile::after {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%);
-    opacity: 0; transition: opacity .15s; pointer-events: none;
-  }
-  .room-tile:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
-  }
-  .room-tile:hover:not(:disabled)::after { opacity: 1; }
-  .room-tile-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .room-mode-badge {
-    font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 999px;
-    background: var(--bg3); color: var(--text2);
-  }
-  .room-mode-badge.tone-guerule { background: #dbeafe; color: #1d4ed8; }
-  .room-mode-badge.tone-combat { background: #ede9fe; color: #6d28d9; }
-  .room-mode-badge.tone-card { background: #dcfce7; color: #15803d; }
-  .room-mode-badge.tone-pyohan { background: #ffedd5; color: #c2410c; }
-  .room-mode-badge.tone-kkutu { background: #fce7f3; color: #be185d; }
-  .room-mode-badge.tone-geonmat { background: #e0f2fe; color: #0369a1; }
-  .room-lock-badge { font-size: 13px; }
-  .room-phase-pill {
-    margin-left: auto; font-size: 11px; font-weight: 800;
-    padding: 4px 8px; border-radius: 999px; background: var(--bg3); color: var(--text3);
-  }
-  .room-tile-name { font-size: 17px; font-weight: 800; line-height: 1.3; }
-  .room-tile-meta { font-size: 12px; color: var(--text3); }
-  .room-tile-foot { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
-  .room-player-bar {
-    flex: 1; height: 6px; border-radius: 999px; background: var(--bg3); overflow: hidden;
-  }
-  .room-player-bar-fill {
-    display: block; height: 100%; border-radius: inherit;
-    background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #22c55e));
-    transition: width .25s ease;
-  }
-  .room-player-count { font-size: 12px; font-weight: 800; color: var(--text2); font-variant-numeric: tabular-nums; }
-  .room-tile-cta {
-    position: absolute; right: 14px; bottom: 14px;
-    font-size: 12px; font-weight: 800; color: var(--accent);
-    opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s;
-  }
-  .room-tile:hover:not(:disabled) .room-tile-cta { opacity: 1; transform: translateY(0); }
+  .room-tile:hover:not(:disabled) { border-color: var(--accent); }
+  .room-tile-row { display: flex; align-items: center; gap: 8px; }
+  .room-tile-name { flex: 1; font-size: 15px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .room-tile-count { font-size: 12px; font-weight: 800; color: var(--text2); font-variant-numeric: tabular-nums; }
+  .room-tile-sub { font-size: 12px; color: var(--text3); justify-content: space-between; }
   .room-empty-state {
-    grid-column: 1 / -1; text-align: center; padding: 56px 20px;
-    border: 1px dashed var(--border2); border-radius: 18px;
-    background: color-mix(in srgb, var(--card) 80%, transparent);
-    display: grid; gap: 10px; justify-items: center;
+    grid-column: 1 / -1; text-align: center; padding: 40px 16px;
+    display: grid; gap: 10px; justify-items: center; color: var(--text2);
   }
-  .room-empty-icon {
-    width: 56px; height: 56px; border-radius: 16px;
-    display: grid; place-items: center;
-    background: var(--bg3); color: var(--accent);
-  }
-  .room-empty-state h3 { font-size: 18px; font-weight: 800; }
-  .room-empty-state p { font-size: 14px; color: var(--text2); max-width: 320px; }
   .practice-details-min { margin-top: auto; font-size: 13px; }
 
   .player-slider-block {
@@ -7546,13 +7411,6 @@
     background: var(--bg2); border-radius: 10px;
   }
   .simple-actions { display: flex; gap: 8px; justify-content: flex-end; }
-  :global([data-theme="dark"]) .lobby-hero { box-shadow: none; }
-  :global([data-theme="dark"]) .room-mode-badge.tone-guerule { background: #1e3a5f; color: #93c5fd; }
-  :global([data-theme="dark"]) .room-mode-badge.tone-combat { background: #312e81; color: #c4b5fd; }
-  :global([data-theme="dark"]) .room-mode-badge.tone-card { background: #14532d; color: #86efac; }
-  :global([data-theme="dark"]) .room-mode-badge.tone-pyohan { background: #7c2d12; color: #fdba74; }
-  :global([data-theme="dark"]) .room-mode-badge.tone-kkutu { background: #831843; color: #f9a8d4; }
-  :global([data-theme="dark"]) .room-mode-badge.tone-geonmat { background: #0c4a6e; color: #7dd3fc; }
   :global([data-theme="dark"]) .wait-room-side,
   :global([data-theme="dark"]) .wait-room-main { box-shadow: none; }
   :global([data-theme="dark"]) .wait-player-slot { background: var(--bg3); }

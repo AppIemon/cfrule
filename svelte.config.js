@@ -1,46 +1,22 @@
-body {
-  margin: 0;
-  background: #f7f7f8;
-  font-family: Inter, Pretendard, sans-serif;
-  color: #222;
-}
+import vercel from '@sveltejs/adapter-vercel';
+import staticAdapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-.container {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 24px;
-}
+const isApp = process.env.BUILD_TARGET === 'app';
 
-.card {
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 16px;
-  padding: 24px;
-}
+const config = {
+  preprocess: vitePreprocess(),
+  kit: {
+    adapter: isApp
+      ? staticAdapter({
+          pages: 'build',
+          assets: 'build',
+          fallback: 'index.html',
+          strict: false
+        })
+      : vercel(),
+    paths: isApp ? { relative: false } : undefined
+  }
+};
 
-button {
-  background: #111827;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 12px 18px;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #000;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  outline: none;
-}
-
-input:focus,
-textarea:focus {
-  border-color: #111827;
-}
+export default config;
