@@ -170,6 +170,7 @@
   let password = $state('');
   let authMode = $state('login');
   let showAuthPanel = $state(false);
+  let authReady = $state(false);
   let showCreateWizard = $state(false);
   let wizardStep = $state(0);
   let chainMode = $state('end');
@@ -180,7 +181,6 @@
   let geonmatRounds = $state(5);
   let roomName = $state('');
   let roomPassword = $state('');
-  let guestNickname = $state('');
   let showJoinPassword = $state(false);
   let pendingJoinRoom = $state('');
   let joinPasswordInput = $state('');
@@ -883,33 +883,36 @@
   }
 
   async function loadMe() {
-    const data = await request('/api/auth');
-    user = data.user;
-    if (user?.nickname) nickname = user.nickname;
+    authReady = false;
+    try {
+      const res = await fetch(apiUrl('/api/auth'), { credentials: 'include' });
+      const data = await res.json().catch(() => ({}));
+      const me = data.user;
+      if (me?.isGuest) {
+        await fetch(apiUrl('/api/auth'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'logout' })
+        });
+        user = null;
+      } else {
+        user = me;
+        if (user?.nickname) nickname = user.nickname;
+      }
+    } catch {
+      user = null;
+    } finally {
+      authReady = true;
+    }
   }
 
   const wizardStepKey = $derived(wizardSteps[wizardStep] || 'chain');
 
-  async function guestLogin(name = guestNickname) {
-    const data = await request('/api/auth', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'guest', nickname: String(name || '').trim() })
-    });
-    user = data.user;
-    if (user?.nickname) nickname = user.nickname;
-    showAuthPanel = false;
-    return user;
-  }
-
-  async function ensureSignedIn() {
-    if (user?.nickname) return user;
-    const name = String(guestNickname || '').trim();
-    if (!name) {
-      showError('닉네임을 입력해 주세요.');
-      throw new Error('nickname_required');
-    }
-    return guestLogin(name);
+  function requireLogin() {
+    if (user?.nickname && !user.isGuest) return user;
+    showError('로그인이 필요합니다.');
+    throw new Error('login_required');
   }
 
   async function auth() {
@@ -924,18 +927,10 @@
     showAuthPanel = false;
   }
 
-  function openAuthPanel(mode = 'login') {
-    authMode = mode;
-    showAuthPanel = true;
-  }
-
   function openCreateWizard() {
-    ensureSignedIn()
-      .then(() => {
-        wizardStep = 0;
-        showCreateWizard = true;
-      })
-      .catch(() => {});
+    if (!user?.nickname) return;
+    wizardStep = 0;
+    showCreateWizard = true;
   }
 
   function closeCreateWizard() {
@@ -1046,7 +1041,7 @@
   }
 
   async function create() {
-    await ensureSignedIn();
+    requireLogin();
     nickname = user.nickname;
     const data = await request('/api/room', {
       method: 'POST',
@@ -1080,7 +1075,7 @@
   }
 
   async function join(password = '') {
-    await ensureSignedIn();
+    requireLogin();
     nickname = user.nickname;
     const target = (pendingJoinRoom || roomInput).trim().toUpperCase();
     const data = await request('/api/room', {
@@ -1245,7 +1240,7 @@
   });
 
   $effect(() => {
-    if (browser) {
+    if (browser && user) {
       fetchRoomList();
       const intv = setInterval(fetchRoomList, 3000);
       return () => clearInterval(intv);
@@ -1733,6 +1728,41 @@
 </svelte:head>
 
 <div class="app">
+  {#if error}
+    <div class="toast-error" role="alert">
+      <span class="toast-dot"></span>{error}
+    </div>
+  {/if}
+
+  {#if !authReady}
+    <div class="auth-gate">
+      <div class="auth-gate-card auth-gate-loading">
+        <span class="brand-gem">◆</span>
+        <p>불러오는 중...</p>
+      </div>
+    </div>
+  {:else if !user}
+    <div class="auth-gate">
+      <div class="auth-gate-card">
+        <div class="auth-gate-brand">
+          <span class="brand-gem">◆</span>
+          <h1>채린룰</h1>
+          <p>로그인 후 이용할 수 있습니다</p>
+        </div>
+        <div class="auth-panel-tabs auth-gate-tabs">
+          <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'login'} onclick={() => (authMode = 'login')}>로그인</button>
+          <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'signup'} onclick={() => (authMode = 'signup')}>회원가입</button>
+        </div>
+        <form class="auth-panel-form auth-gate-form" onsubmit={(e) => { e.preventDefault(); auth(); }}>
+          <input class="auth-panel-input" bind:value={username} placeholder="아이디" autocomplete="username" />
+          <input class="auth-panel-input" bind:value={password} placeholder="비밀번호" type="password" autocomplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
+          <button class="auth-panel-submit" type="submit" disabled={!username.trim() || !password.trim() || busy}>
+            {authMode === 'signup' ? '회원가입' : '로그인'}
+          </button>
+        </form>
+      </div>
+    </div>
+  {:else}
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
     <button class="brand" onclick={() => (tab = 'game')} type="button">
@@ -1763,46 +1793,16 @@
       </button>
     </nav>
     <div class="top-auth">
-      {#if user}
-        {#if !isGuest}
-          <button class="icon-btn" class:dm-unread={dmInbox.length > 0} onclick={() => (showDM = !showDM)} title="쪽지">
-            <Mail size={16} />
-            {#if dmInbox.length > 0}<span class="dm-badge">{dmInbox.length}</span>{/if}
-          </button>
-        {/if}
-        <span class="auth-name">{user.nickname}{#if isGuest}<span class="guest-tag">게스트</span>{/if}</span>
-        <button class="icon-btn" onclick={signout} title="나가기"><LogOut size={16} /></button>
-      {:else}
-        <input class="guest-nick-input" bind:value={guestNickname} placeholder="닉네임" maxlength="12" />
-        <button class="auth-tab-btn" onclick={() => guestLogin().catch(() => {})}>게스트</button>
-        <button class="auth-tab-btn" class:auth-tab-active={authMode === 'login' && showAuthPanel} onclick={() => openAuthPanel('login')}>로그인</button>
-        <button class="auth-tab-btn auth-tab-signup" class:auth-tab-active={authMode === 'signup' && showAuthPanel} onclick={() => openAuthPanel('signup')}>가입</button>
+      {#if !isGuest}
+        <button class="icon-btn" class:dm-unread={dmInbox.length > 0} onclick={() => (showDM = !showDM)} title="쪽지">
+          <Mail size={16} />
+          {#if dmInbox.length > 0}<span class="dm-badge">{dmInbox.length}</span>{/if}
+        </button>
       {/if}
+      <span class="auth-name">{user.nickname}</span>
+      <button class="icon-btn" onclick={signout} title="로그아웃"><LogOut size={16} /></button>
     </div>
   </header>
-
-  {#if showAuthPanel && !user}
-    <div class="auth-panel" role="dialog" aria-label="로그인">
-      <div class="auth-panel-tabs">
-        <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'login'} onclick={() => (authMode = 'login')}>로그인</button>
-        <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'signup'} onclick={() => (authMode = 'signup')}>회원가입</button>
-        <button class="auth-panel-close" onclick={() => (showAuthPanel = false)} aria-label="닫기"><X size={16} /></button>
-      </div>
-      <form class="auth-panel-form" onsubmit={(e) => { e.preventDefault(); auth(); }}>
-        <input class="auth-panel-input" bind:value={username} placeholder="아이디" autocomplete="username" />
-        <input class="auth-panel-input" bind:value={password} placeholder="비밀번호" type="password" autocomplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
-        <button class="auth-panel-submit" type="submit" disabled={!username.trim() || !password.trim()}>
-          {authMode === 'signup' ? '회원가입' : '로그인'}
-        </button>
-      </form>
-    </div>
-  {/if}
-
-  {#if error}
-    <div class="toast-error" role="alert">
-      <span class="toast-dot"></span>{error}
-    </div>
-  {/if}
 
   <!-- ══════════════════════ GAME TAB ══════════════════════ -->
   {#if tab === 'game'}
@@ -3127,6 +3127,7 @@
         {/if}
       </button>
     </div>
+  {/if}
   {/if}
 </div>
 
@@ -6626,16 +6627,28 @@
   .room-card-meta { font-size: 12px; color: var(--text3); }
   .room-empty-main { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text2); display: grid; gap: 12px; justify-items: center; }
   .practice-details-min { margin-top: auto; font-size: 13px; }
-  .guest-nick-input {
-    width: 88px; height: 32px; padding: 0 10px;
-    border: 1px solid var(--border); border-radius: 8px;
-    background: var(--bg2); font-size: 13px;
+
+  .auth-gate {
+    flex: 1; min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px;
+    background: linear-gradient(180deg, var(--bg3) 0%, var(--bg) 100%);
   }
-  .guest-tag {
-    margin-left: 6px; font-size: 10px; font-weight: 800;
-    padding: 2px 6px; border-radius: 6px;
-    background: #fef3c7; color: #92400e;
+  .auth-gate-card {
+    width: min(400px, 100%);
+    background: var(--card, var(--bg2));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 24px 24px;
+    box-shadow: var(--card-shadow, 0 8px 32px rgba(0,0,0,.08));
+    display: grid; gap: 18px;
   }
+  .auth-gate-loading { text-align: center; color: var(--text2); }
+  .auth-gate-brand { text-align: center; display: grid; gap: 6px; }
+  .auth-gate-brand h1 { font-size: 28px; font-weight: 900; }
+  .auth-gate-brand p { font-size: 14px; color: var(--text2); }
+  .auth-gate-tabs { justify-content: center; }
+  .auth-gate-form { display: grid; gap: 10px; }
   .wizard-card-sm { width: min(360px, 100%); }
   .wizard-field { display: grid; gap: 6px; }
   .wizard-field span { font-size: 12px; font-weight: 700; color: var(--text3); }
