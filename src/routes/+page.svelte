@@ -7690,9 +7690,15 @@
     gap: 0;
     padding: 0;
     background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 92%, var(--accent) 8%) 100%);
+    animation: ingameEnter .32s ease both;
+    transition: background .45s ease;
   }
   .ingame-board.ingame-my-turn {
     background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 88%, var(--accent) 12%) 100%);
+  }
+  @keyframes ingameEnter {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .ingame-hud {
@@ -7726,6 +7732,11 @@
   .hud-player.hud-active {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+    animation: hudTurnGlow 2.8s ease-in-out infinite;
+  }
+  @keyframes hudTurnGlow {
+    0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent); }
+    50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent); }
   }
   .hud-player.hud-me { outline: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
   .hud-portrait {
@@ -7743,7 +7754,9 @@
     width: 36px; height: 36px; border-radius: 10px;
     border: 1px solid var(--border2); background: var(--card);
     color: var(--text2); display: grid; place-items: center;
+    transition: border-color .18s, color .18s, transform .18s;
   }
+  .hud-icon-btn:active { transform: scale(0.96); }
   .hud-icon-btn:hover, .hud-icon-btn.hud-icon-active {
     border-color: var(--accent); color: var(--accent);
   }
@@ -7752,6 +7765,12 @@
     display: flex; gap: 8px; padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg2);
+    animation: menuReveal .22s ease both;
+    transform-origin: top center;
+  }
+  @keyframes menuReveal {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .ingame-menu button {
     flex: 1; height: 36px; border-radius: 10px;
@@ -7765,25 +7784,36 @@
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     background: var(--card);
+    transition: background .35s ease;
   }
   .chain-next-mine { background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
   .chain-next-main { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
-  .chain-next-label { font-size: 12px; font-weight: 800; color: var(--text3); white-space: nowrap; }
+  .chain-next-label { font-size: 12px; font-weight: 800; color: var(--text3); white-space: nowrap; transition: color .3s ease; }
   .chain-next-mine .chain-next-label { color: var(--accent); }
   .chain-next-syl {
     font-size: clamp(28px, 7vw, 40px); font-weight: 900; line-height: 1;
     letter-spacing: -1px; color: var(--text);
+    transition: transform .3s ease, color .3s ease;
+  }
+  .chain-next-mine .chain-next-syl {
+    animation: sylBreathe 3s ease-in-out infinite;
+  }
+  @keyframes sylBreathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
   }
   .chain-next-clock {
     font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
     color: var(--text2); padding: 6px 10px; border-radius: 999px;
     background: var(--bg2); border: 1px solid var(--border);
+    transition: color .2s ease, border-color .2s ease;
   }
 
   .ingame-vote {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 10px 12px; background: #fff7ed; border-bottom: 1px solid #fed7aa;
     font-size: 13px;
+    animation: menuReveal .24s ease both;
   }
 
   .chain-board {
@@ -7797,7 +7827,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 8px; color: var(--text3);
   }
-  .chain-empty-syl { font-size: 42px; font-weight: 900; color: var(--text2); }
+  .chain-empty-syl { font-size: 42px; font-weight: 900; color: var(--text2); animation: sylBreathe 3.5s ease-in-out infinite; }
   .chain-empty p { font-size: 13px; }
   .chain-track {
     display: flex; align-items: flex-end; gap: 0;
@@ -7806,10 +7836,20 @@
   }
   .chain-item {
     display: flex; align-items: flex-end; flex-shrink: 0;
+    animation: chainPop .28s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  @keyframes chainPop {
+    from { opacity: 0; transform: translateY(5px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
   }
   .chain-link {
     color: var(--text3); font-size: 18px; font-weight: 700;
     padding: 0 6px 14px; opacity: .55;
+    animation: chainLinkIn .2s ease .08s both;
+  }
+  @keyframes chainLinkIn {
+    from { opacity: 0; }
+    to { opacity: .55; }
   }
   .chain-bubble {
     display: flex; flex-direction: column; gap: 4px;
@@ -7818,6 +7858,7 @@
     background: var(--card);
     min-width: 72px; max-width: 180px;
     box-shadow: 0 4px 14px rgba(15,23,42,.05);
+    transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
   }
   .chain-item-me .chain-bubble {
     background: color-mix(in srgb, var(--my-color) 10%, var(--card));
@@ -7826,11 +7867,17 @@
   .chain-item-last .chain-bubble {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+    animation: chainLastFlash .5s ease both;
+  }
+  @keyframes chainLastFlash {
+    0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+    100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
   }
   .chain-item-last .chain-tail {
     color: var(--accent);
     text-decoration: underline;
     text-underline-offset: 3px;
+    transition: color .2s ease;
   }
   .chain-name { font-size: 10px; font-weight: 800; color: var(--text3); letter-spacing: .3px; }
   .chain-word { font-size: 17px; font-weight: 800; line-height: 1.2; word-break: break-all; }
@@ -7839,7 +7886,13 @@
   .chain-bubble-pending {
     min-width: 56px; min-height: 52px;
     display: flex; align-items: center; justify-content: center; gap: 4px;
+    animation: chainPop .24s ease both;
   }
+  .chain-bubble-pending .think-dot {
+    animation: think-pulse 1.1s ease-in-out infinite;
+  }
+  .chain-bubble-pending .think-dot:nth-child(2) { animation-delay: .15s; }
+  .chain-bubble-pending .think-dot:nth-child(3) { animation-delay: .3s; }
 
   .ingame-toasts {
     position: absolute;
@@ -7857,7 +7910,11 @@
     border: 1px solid var(--border);
     font-size: 12px; color: var(--text2);
     box-shadow: 0 8px 24px rgba(15,23,42,.12);
-    animation: fadeUp .25s ease both;
+    animation: ingameToastIn .28s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  @keyframes ingameToastIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .ingame-toast :global(svg) { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
 
@@ -7865,6 +7922,14 @@
     margin-top: auto;
     border-top: 1px solid var(--border);
     box-shadow: 0 -10px 30px rgba(15,23,42,.08);
+    transition: border-color .35s ease, box-shadow .35s ease;
+  }
+  .ingame-dock.bottom-composer.composer-active {
+    animation: dockGlow .45s ease both;
+  }
+  @keyframes dockGlow {
+    from { box-shadow: 0 -10px 30px rgba(15,23,42,.08); }
+    to { box-shadow: 0 -10px 32px color-mix(in srgb, var(--accent) 12%, rgba(15,23,42,.08)); }
   }
   .dock-job-row {
     display: flex; align-items: stretch; gap: 8px;
@@ -7899,14 +7964,21 @@
     background: linear-gradient(180deg, var(--card), var(--bg2));
     text-align: left;
     flex-shrink: 0;
-    transition: border-color .18s, box-shadow .18s, transform .18s;
-    animation: fadeUp .25s ease both;
-    animation-delay: calc(var(--ai) * 40ms);
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease, opacity .2s ease;
+    animation: abilityIn .26s ease both;
+    animation-delay: calc(var(--ai) * 45ms);
+  }
+  @keyframes abilityIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .ability-card-ready:not(:disabled):hover {
     border-color: var(--accent);
-    box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 16%, transparent);
     transform: translateY(-1px);
+  }
+  .ability-card-ready:not(:disabled):active {
+    transform: translateY(0) scale(0.98);
   }
   .ability-card-cooldown {
     opacity: .62;
