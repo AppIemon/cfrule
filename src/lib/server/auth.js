@@ -33,7 +33,8 @@ function publicUser(user) {
     id: String(user._id),
     username: user.username,
     nickname: user.nickname || user.username,
-    createdAt: user.createdAt
+    createdAt: user.createdAt,
+    isGuest: !!user.isGuest
   };
 }
 
@@ -65,8 +66,27 @@ export async function login({ username, password }) {
   await ensureIndexes();
   const db = await getDb();
   const user = await db.collection('users').findOne({ username: normalizeUsername(username) });
-  if (!user || !verifyPassword(password, user.passwordHash)) throw new Error('invalid_login');
+  if (!user || user.isGuest || !verifyPassword(password, user.passwordHash)) throw new Error('invalid_login');
   return { user: publicUser(user), token: await createSession(user._id) };
+}
+
+export async function createGuest({ nickname } = {}) {
+  await ensureIndexes();
+  const db = await getDb();
+  const base = String(nickname || '').trim().replace(/\s+/g, '').slice(0, 12);
+  const guestNick = base || `게스트${Math.floor(1000 + Math.random() * 9000)}`;
+  const now = new Date();
+  const user = {
+    username: `guest_${randomBytes(8).toString('hex')}`,
+    nickname: guestNick,
+    isGuest: true,
+    createdAt: now,
+    updatedAt: now,
+    stats: { games: 0, wins: 0, losses: 0 }
+  };
+  const result = await db.collection('users').insertOne(user);
+  user._id = result.insertedId;
+  return { user: publicUser(user), token: await createSession(result.insertedId) };
 }
 
 export async function createSession(userId) {

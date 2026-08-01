@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { isAllowedWebCommand } from './webCommands.js';
 import { publishRoom } from './realtime.js';
@@ -53,7 +53,25 @@ const CPU_RANDOM_JOBS = [
 ];
 
 function code() {
-  return randomBytes(3).toString('hex').toUpperCase();
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const room =
+      letters[Math.floor(Math.random() * 26)] +
+      letters[Math.floor(Math.random() * 26)];
+    if (!roomMeta.has(room)) return room;
+  }
+  throw new Error('방 코드를 만들 수 없습니다. 잠시 후 다시 시도하세요.');
+}
+
+function hashRoomPassword(password) {
+  const value = String(password || '').trim();
+  if (!value) return '';
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function verifyRoomPassword(meta, password) {
+  if (!meta?.passwordHash) return true;
+  return hashRoomPassword(password) === meta.passwordHash;
 }
 
 function pickRandomJob(meta) {
@@ -311,7 +329,9 @@ function metaForSnapshot(room) {
   return {
     ...meta,
     timer: publicTimer(meta.timer),
-    ready: { ...(meta.ready || {}) }
+    ready: { ...(meta.ready || {}) },
+    hasPassword: !!meta.passwordHash,
+    passwordHash: undefined
   };
 }
 
@@ -447,7 +467,10 @@ export async function createRoom({
   cpuThink = false,
   chainMode = 'end',
   duEum = true,
-  rated = true
+  rated = true,
+  roomName = '',
+  roomPassword = '',
+  isGuest = false
 }) {
   const room = code();
   const cleanMode = sanitizeMode(mode);
@@ -455,8 +478,11 @@ export async function createRoom({
   const cleanCpuJob = cleanDisabledJobs.includes(cpuJob) ? '' : String(cpuJob || '').trim();
   const owner = String(nickname || '').trim() || 'player';
   const resolvedGameMode = combat ? 'combat' : String(gameMode || 'guerule');
+  const passwordHash = hashRoomPassword(roomPassword);
   roomMeta.set(room, {
     createdAt: Date.now(),
+    name: String(roomName || '').trim().slice(0, 32),
+    passwordHash: passwordHash || '',
     mode: cleanMode,
     practice,
     cpuJob: cleanCpuJob,
@@ -473,7 +499,7 @@ export async function createRoom({
     cpuThink: !!cpuThink,
     chainMode: chainMode === 'start' ? 'start' : 'end',
     duEum: duEum !== false,
-    rated: rated !== false,
+    rated: isGuest ? false : rated !== false,
     ready: { [owner]: true },
     timer: normalizeTimer(timer)
   });
@@ -490,9 +516,11 @@ export async function createRoom({
   return await getRoomSnapshot(room);
 }
 
-export async function joinRoom({ room, nickname }) {
+export async function joinRoom({ room, nickname, password = '' }) {
   await restoreRoom(room);
-  const meta = roomMeta.get(room) || { createdAt: Date.now(), mode: 1, practice: false, owner: String(nickname || '').trim() || 'player', practiceGuest: null, ready: {} };
+  const meta = roomMeta.get(room);
+  if (!meta) throw new Error('방을 찾을 수 없습니다.');
+  if (!verifyRoomPassword(meta, password)) throw new Error('비밀번호가 틀렸습니다.');
   const sender = String(nickname || '').trim() || 'player';
   if (meta.practice && meta.owner && meta.owner !== sender) {
     meta.practiceGuest = sender;
@@ -735,6 +763,8 @@ export async function listRooms() {
     rooms.push({
       room,
       meta: metaForSnapshot(room),
+      name: meta?.name || '',
+      hasPassword: !!meta?.passwordHash,
       phase: game?.phase || 'waiting',
       players: game?.players || [],
       currentPlayer: game?.currentPlayer || '',
@@ -748,6 +778,8 @@ export async function listRooms() {
     rooms.push({
       room,
       meta: metaForSnapshot(room),
+      name: meta?.name || '',
+      hasPassword: !!meta?.passwordHash,
       phase: game?.phase || 'waiting',
       players: game?.players || [],
       currentPlayer: game?.currentPlayer || '',

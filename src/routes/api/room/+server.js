@@ -2,13 +2,18 @@ import { json } from '@sveltejs/kit';
 import { createRoom, getRoomSnapshot, joinRoom, leaveRoom, listRooms, setRoomReady, startRoomGame } from '$lib/server/gameService.js';
 import { rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
-const ROOM_RE = /^[A-F0-9]{6}$/;
+const ROOM_RE = /^[A-Z]{2}$/;
 const CPU_JOB_MAX = 24;
 
+function requireUser(locals) {
+  if (!locals.user?.nickname) return json({ message: 'unauthenticated' }, { status: 401 });
+  return null;
+}
+
 export async function POST({ request, locals }) {
-  if (!locals.user?.nickname) {
-    return json({ message: 'unauthenticated' }, { status: 401 });
-  }
+  const denied = requireUser(locals);
+  if (denied) return denied;
+
   const limit = rateLimit(`room:${locals.user.id}`, { limit: 20, windowMs: 60_000 });
   if (!limit.ok) return rateLimitResponse(limit.retryAfter);
 
@@ -21,12 +26,13 @@ export async function POST({ request, locals }) {
 
   const action = body?.action || 'create';
   const nickname = locals.user.nickname;
+  const isGuest = !!locals.user.isGuest;
 
   try {
     if (action === 'join') {
       const room = String(body?.room || '').toUpperCase();
       if (!ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
-      return json(await joinRoom({ room, nickname }));
+      return json(await joinRoom({ room, nickname, password: body?.password }));
     }
     if (action === 'ready') {
       const room = String(body?.room || '').toUpperCase();
@@ -62,9 +68,12 @@ export async function POST({ request, locals }) {
       cpuThink: !!body?.cpuThink,
       chainMode: body?.chainMode === 'start' ? 'start' : 'end',
       duEum: body?.duEum !== false,
-      rated: body?.rated !== false,
+      rated: isGuest ? false : body?.rated !== false,
+      roomName: String(body?.roomName || ''),
+      roomPassword: String(body?.roomPassword || ''),
       pyohanLives: Number(body?.pyohanLives) || 3,
-      geonmatRounds: Number(body?.geonmatRounds) || 5
+      geonmatRounds: Number(body?.geonmatRounds) || 5,
+      isGuest
     }));
   } catch (error) {
     console.error('room POST failed', error);

@@ -64,10 +64,12 @@ server.on('upgrade', (request, socket, head) => {
     }
 
     let nickname = '';
+    let isGuest = false;
     if (typeof lookupSession === 'function') {
       try {
         const sessionUser = await lookupSession(request.headers.cookie || '');
         nickname = sessionUser?.nickname || '';
+        isGuest = !!sessionUser?.isGuest;
       } catch {}
     }
 
@@ -104,8 +106,10 @@ server.on('upgrade', (request, socket, head) => {
         if (buf.length > 2048) return;
         const payload = JSON.parse(buf);
         if (payload.type === 'chat' && payload.text) {
+          if (isGuest) return;
           await addChatMessage({ room, nickname, text: String(payload.text).slice(0, 500) });
         } else if (payload.type === 'dm' && payload.to && payload.text) {
+          if (isGuest) return;
           await addDirectMessage({
             from: nickname,
             to: String(payload.to).slice(0, 32),

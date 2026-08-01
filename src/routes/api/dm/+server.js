@@ -7,6 +7,7 @@ const TARGET_MAX = 32;
 
 export async function GET({ url, locals }) {
   if (!locals.user) return json({ error: 'unauthenticated' }, { status: 401 });
+  if (locals.user.isGuest) return json({ error: 'guest_forbidden' }, { status: 403 });
 
   const withUser = url.searchParams.get('with');
   if (withUser) {
@@ -20,6 +21,7 @@ export async function GET({ url, locals }) {
 
 export async function POST({ request, locals }) {
   if (!locals.user) return json({ error: 'unauthenticated' }, { status: 401 });
+  if (locals.user.isGuest) return json({ error: 'guest_forbidden' }, { status: 403 });
 
   const limit = rateLimit(`dm:${locals.user.id}`, { limit: 30, windowMs: 60_000 });
   if (!limit.ok) return rateLimitResponse(limit.retryAfter);
