@@ -2010,7 +2010,7 @@
   }
 
   function jobImageSrc(name) {
-    return `/job-images/${encodeURIComponent(encodeURIComponent(name))}.jpg`;
+    return `/job-images/${encodeURIComponent(encodeURIComponent(name))}.png`;
   }
 
   function jobInfoCards(text) {
