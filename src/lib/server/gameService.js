@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
-import { botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
+import { botAddCpuToLobby, botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { isAllowedWebCommand } from './webCommands.js';
 import { publishRoom } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
@@ -584,6 +584,26 @@ export async function startRoomGame({ room, nickname }) {
   }
   await botStartWebLobby(room, meta);
   append(room, 'system', '', ['[시스템]: 게임을 시작합니다.']);
+  const state = await getRoomSnapshot(room);
+  await persistRoom(room, state);
+  publishRoom(room, state);
+  return state;
+}
+
+export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '' }) {
+  await restoreRoom(room);
+  const meta = roomMeta.get(room);
+  if (!meta) throw new Error('방을 찾을 수 없습니다.');
+  const sender = String(nickname || '').trim();
+  if (meta.owner !== sender) throw new Error('방장만 봇을 추가할 수 있습니다.');
+  const game = await botRoomState(room);
+  if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
+
+  const { cpuName } = await botAddCpuToLobby(room, { cpuLevel, cpuThink, cpuJob });
+  meta.ready = meta.ready || {};
+  meta.ready[cpuName] = true;
+  roomMeta.set(room, meta);
+  append(room, 'system', '', [`[시스템]: ${cpuName}이(가) 참가했습니다.`]);
   const state = await getRoomSnapshot(room);
   await persistRoom(room, state);
   publishRoom(room, state);
