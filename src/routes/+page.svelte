@@ -193,6 +193,7 @@
   let roomInput = $state('');
   let room = $state('');
   let mode = $state(1);
+  let playerCount = $state(2);
   let practice = $state(false);
   // 조합: draft abilities from an open pool instead of picking a job.
   let combat = $state(false);
@@ -793,14 +794,18 @@
     steps.push('dict');
     if (supportsDuEum) steps.push('dueum');
     steps.push('options');
-    if (ruleMode === 'guerule' || ruleMode === 'combat') steps.push('jobs');
+    if (ruleMode === 'guerule') steps.push('jobs');
     return steps;
   });
   const isGuest = $derived(!!user?.isGuest);
   const isGueruleRoom = $derived(['guerule', 'combat'].includes(snapshot?.meta?.gameMode || 'guerule'));
   const isRoomHost = $derived(snapshot?.meta?.owner === nickname);
   const roomReadyMap = $derived(snapshot?.meta?.ready || {});
-  const requiredPlayers = $derived(Number(snapshot?.meta?.mode || game?.teamMode || mode || 1) * 2);
+  const requiredPlayers = $derived(
+    Number(snapshot?.meta?.geonmatPlayerCap) >= 1
+      ? Number(snapshot.meta.geonmatPlayerCap)
+      : Number(snapshot?.meta?.mode || game?.teamMode || mode || 1) * 2
+  );
   const maxBanCount = 6;
 
   $effect(() => {
@@ -1005,7 +1010,20 @@
     return map[value] || value;
   }
 
+  function resolveCreatePlayerSettings() {
+    const count = Math.floor(Number(playerCount) || 2);
+    if (isGeonmatMode) {
+      const cap = Math.min(20, Math.max(1, count));
+      return { mode: 1, playerCount: cap, geonmatPlayerCap: cap };
+    }
+    const even = Math.min(6, Math.max(2, count % 2 === 0 ? count : count - 1));
+    return { mode: even / 2, playerCount: even, geonmatPlayerCap: 0 };
+  }
+
   async function finishCreateWizard() {
+    const players = resolveCreatePlayerSettings();
+    mode = players.mode;
+    playerCount = players.playerCount;
     combat = ruleMode === 'combat';
     gameMode = ruleMode === 'combat' ? 'guerule' : ruleMode;
     await create();
@@ -1081,11 +1099,15 @@
   async function create() {
     requireLogin();
     nickname = user.nickname;
+    const players = resolveCreatePlayerSettings();
+    mode = players.mode;
     const data = await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        mode: Number(mode),
+        mode: players.mode,
+        playerCount: players.playerCount,
+        geonmatPlayerCap: players.geonmatPlayerCap,
         practice,
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
@@ -1932,12 +1954,11 @@
                     <span>비밀번호 (선택)</span>
                     <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
                   </label>
-                  <div class="mode-row">
-                    <span class="extras-label">인원</span>
-                    {#each [1,2,3] as m}
-                      <button class="mode-btn" class:mode-active={mode == m} onclick={() => (mode = m)}>{m}대{m}</button>
-                    {/each}
-                  </div>
+                  <label class="wizard-field">
+                    <span>인원</span>
+                    <input class="lobby-input wizard-num-input" type="number" min="1" max="20" step="1" bind:value={playerCount} />
+                    <span class="wizard-field-hint">일반 모드: 짝수(2·4·6) · 미니게임: 홀수 가능(1~20)</span>
+                  </label>
                 </div>
               {:else if wizardStepKey === 'mode'}
                 <p class="wizard-hint">미니게임은 끝말잇기만 지원합니다.</p>
@@ -6708,6 +6729,8 @@
   .wizard-card-sm { width: min(360px, 100%); }
   .wizard-field { display: grid; gap: 6px; }
   .wizard-field span { font-size: 12px; font-weight: 700; color: var(--text3); }
+  .wizard-field-hint { font-size: 12px; color: var(--text2); line-height: 1.4; }
+  .wizard-num-input { height: 48px; font-size: 18px; font-weight: 800; text-align: center; }
 
   /* Simple in-game */
   .ingame-simple {
