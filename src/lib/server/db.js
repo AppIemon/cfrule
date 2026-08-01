@@ -46,7 +46,11 @@ export async function ensureIndexes() {
     db.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection('rating').createIndex({ name: 1 }, { unique: true }),
     db.collection('rooms').createIndex({ room: 1 }, { unique: true }),
-    db.collection('rooms').createIndex({ updatedAt: 1 }, { expireAfterSeconds: 60 * 60 * 6 })
+    db.collection('rooms').createIndex({ updatedAt: 1 }, { expireAfterSeconds: 60 * 60 * 6 }),
+    db.collection('friend_requests').createIndex({ fromUserId: 1, toUserId: 1 }, { unique: true }),
+    db.collection('friend_requests').createIndex({ toUserId: 1, status: 1 }),
+    db.collection('friends').createIndex({ userId: 1, friendUserId: 1 }, { unique: true }),
+    db.collection('friends').createIndex({ friendUserId: 1 })
   ]);
 }
 
