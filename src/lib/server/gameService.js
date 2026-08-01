@@ -173,9 +173,10 @@ async function performRestore(room) {
   }
 
   // Web lobbies are created without a 1채린/1연습 command, so command replay cannot
-  // rebuild them after a serverless cold start. Rehydrate waiting rooms from the
+  // rebuild them after a serverless cold start. Rehydrate active web games from the
   // persisted game snapshot instead.
-  if (!(await botRoomState(room)) && lastPhase === 'waiting' && persisted.meta && !persisted.meta.practice) {
+  const webRestorePhases = new Set(['waiting', 'job_selection', 'combat_draft', 'playing']);
+  if (!(await botRoomState(room)) && webRestorePhases.has(lastPhase) && persisted.meta && !persisted.meta.practice) {
     await botRestoreWebLobby(room, { game: lastGame, meta: persisted.meta });
     await applyRoomOptions(room);
   }
@@ -621,6 +622,7 @@ export async function joinRoom({ room, nickname, password = '' }) {
 
 export async function setRoomReady({ room, nickname, ready = true }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -639,6 +641,7 @@ export async function setRoomReady({ room, nickname, ready = true }) {
 
 export async function startRoomGame({ room, nickname }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -663,6 +666,7 @@ export async function startRoomGame({ room, nickname }) {
 
 export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '' }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -718,6 +722,7 @@ export async function leaveRoom({ room, nickname }) {
 
 export async function updateRoomSettings({ room, nickname, patch = {} }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -792,8 +797,22 @@ export async function updateRoomSettings({ room, nickname, patch = {} }) {
   return state;
 }
 
+async function ensureWebGameRoom(room) {
+  if (await botRoomState(room)) return;
+  const meta = roomMeta.get(room);
+  if (!meta || meta.practice) return;
+  const persisted = await loadPersistedRoom(room);
+  const lastGame = persisted?.lastGame || persisted?.snapshot?.game || null;
+  const phases = new Set(['waiting', 'job_selection', 'combat_draft', 'playing']);
+  if (!lastGame?.phase || !phases.has(lastGame.phase)) return;
+  if (lastGame.phase === 'waiting' && lastGame.started) return;
+  await botRestoreWebLobby(room, { game: lastGame, meta: persisted?.meta || meta });
+  await applyRoomOptions(room);
+}
+
 export async function sendCommand({ room, nickname, command, internal = false }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
   const msg = String(command || '').trim();
