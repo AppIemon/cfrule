@@ -30,6 +30,7 @@ export async function handle({ event, resolve }) {
 
   const token = event.cookies.get(getSessionCookieName());
   event.locals.user = token ? await getUserByToken(token).catch(() => null) : null;
+  if (event.locals.user?.isGuest) event.locals.user = null;
 
   if (isApi && STATE_CHANGING.has(event.request.method) && origin && !isAppOrigin) {
     try {

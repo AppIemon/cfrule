@@ -1,7 +1,6 @@
 import { json } from '@sveltejs/kit';
 import {
   clearSessionCookie,
-  createGuest,
   getSessionCookieName,
   getUserByToken,
   login,
@@ -13,6 +12,7 @@ import { clientIp, rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js
 
 export async function GET({ cookies }) {
   const user = await getUserByToken(cookies.get(getSessionCookieName()));
+  if (user?.isGuest) return json({ user: null });
   return json({ user });
 }
 
@@ -37,11 +37,7 @@ export async function POST(event) {
     if (!ipLimit.ok) return rateLimitResponse(ipLimit.retryAfter);
 
     if (body?.action === 'guest') {
-      const guestLimit = rateLimit(`auth:guest:${ip}`, { limit: 12, windowMs: 60 * 60_000 });
-      if (!guestLimit.ok) return rateLimitResponse(guestLimit.retryAfter);
-      const result = await createGuest({ nickname: body?.nickname });
-      setSessionCookie(cookies, result.token, request);
-      return json({ user: result.user });
+      return json({ error: 'guest_disabled' }, { status: 403 });
     }
 
     const usernameKey = String(body?.username || '').toLowerCase().slice(0, 64);
