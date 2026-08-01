@@ -169,6 +169,15 @@
   let username = $state('');
   let password = $state('');
   let authMode = $state('login');
+  let showAuthPanel = $state(false);
+  let showCreateWizard = $state(false);
+  let wizardStep = $state(0);
+  let chainMode = $state('end');
+  let ruleMode = $state('guerule');
+  let duEum = $state(true);
+  let rated = $state(true);
+  let pyohanLives = $state(3);
+  let geonmatRounds = $state(5);
   let user = $state(null);
   let roomInput = $state('');
   let room = $state('');
@@ -764,6 +773,15 @@
   const activeDictSource = $derived(
     game?.gueruleSettings?.dictSource || snapshot?.meta?.dictSource || dictSource || 'default'
   );
+  const wizardSteps = $derived.by(() => {
+    const steps = ['chain', 'mode', 'dict', 'dueum', 'extras'];
+    if (ruleMode === 'guerule' || ruleMode === 'combat') steps.push('jobs');
+    return steps;
+  });
+  const wizardStepKey = $derived(wizardSteps[wizardStep] || 'chain');
+  const isRoomHost = $derived(snapshot?.meta?.owner === nickname);
+  const roomReadyMap = $derived(snapshot?.meta?.ready || {});
+  const requiredPlayers = $derived(Number(snapshot?.meta?.mode || game?.teamMode || mode || 1) * 2);
   const maxBanCount = 6;
 
   $effect(() => {
@@ -867,6 +885,115 @@
     user = data.user;
     if (user?.nickname) nickname = user.nickname;
     password = '';
+    showAuthPanel = false;
+  }
+
+  function openAuthPanel(mode = 'login') {
+    authMode = mode;
+    showAuthPanel = true;
+  }
+
+  function openCreateWizard() {
+    if (!user?.nickname) {
+      openAuthPanel('login');
+      return;
+    }
+    wizardStep = 0;
+    showCreateWizard = true;
+  }
+
+  function closeCreateWizard() {
+    showCreateWizard = false;
+    wizardStep = 0;
+  }
+
+  function wizardNext() {
+    if (wizardStep < wizardSteps.length - 1) wizardStep += 1;
+    else finishCreateWizard();
+  }
+
+  function wizardBack() {
+    if (wizardStep > 0) wizardStep -= 1;
+  }
+
+  function dictLabel(value) {
+    const map = { default: '구엜룰', urimalsam: '우리말샘', roble: '로블', jime: '지메', kkutu: '끄투' };
+    return map[value] || value;
+  }
+
+  function ruleModeLabel(value) {
+    const map = {
+      guerule: '채린룰',
+      combat: '조합',
+      card: '카드',
+      pyohan: '표한룰',
+      kkutu: '끄투',
+      'geonmat:geonmat': '미니 · 검맞',
+      'geonmat:rare': '미니 · 희귀맞',
+      'geonmat:bingo': '미니 · 빙고맞',
+      'geonmat:relay': '미니 · 이어달리기'
+    };
+    return map[value] || value;
+  }
+
+  async function finishCreateWizard() {
+    combat = ruleMode === 'combat';
+    gameMode = ruleMode === 'combat' ? 'guerule' : ruleMode;
+    await create();
+    closeCreateWizard();
+  }
+
+  async function toggleReady() {
+    if (!room || !nickname) return;
+    const next = !roomReadyMap[nickname];
+    snapshot = await request('/api/room', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'ready', room, ready: next })
+    });
+    hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
+  }
+
+  async function startGameRoom() {
+    if (!room || !isRoomHost) return;
+    busy = true;
+    try {
+      snapshot = await request('/api/room', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'start', room })
+      });
+      hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function leaveCurrentRoom() {
+    if (!room) return;
+    busy = true;
+    try {
+      const data = await request('/api/room', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'leave', room })
+      });
+      if (data?.left) {
+        room = '';
+        snapshot = null;
+        hasMatched = false;
+        if (socket) socket.close();
+        socket = null;
+        clearInterval(poller);
+        poller = null;
+      } else {
+        snapshot = data;
+        hasMatched = !!data?.game && data.game.phase !== 'waiting';
+      }
+      fetchRoomList();
+    } finally {
+      busy = false;
+    }
   }
 
   async function signout() {
@@ -897,12 +1024,17 @@
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
         disabledJobs,
-        combat,
+        combat: ruleMode === 'combat',
         dictSource,
-        gameMode: combat ? 'combat' : gameMode,
+        gameMode: ruleMode === 'combat' ? 'guerule' : ruleMode,
         searchAllowed,
         cpuLevel,
-        cpuThink
+        cpuThink,
+        chainMode,
+        duEum,
+        rated,
+        pyohanLives: Number(pyohanLives),
+        geonmatRounds: Number(geonmatRounds)
       })
     });
     room = data.room;
@@ -1519,10 +1651,10 @@
 <div class="app">
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
-    <div class="brand">
+    <button class="brand" onclick={() => (tab = 'game')} type="button">
       <span class="brand-gem">◆</span>채린룰
-    </div>
-    <nav class="top-nav">
+    </button>
+    <nav class="top-nav top-nav-primary">
       <button class="nav-btn" class:nav-active={tab === 'game'} onclick={() => (tab = 'game')}>
         <Swords size={15} />게임
       </button>
@@ -1535,11 +1667,13 @@
       <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
         <BarChart3 size={15} />랭킹
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'settings'} onclick={() => (tab = 'settings')}>
-        <Settings size={15} />설정
+    </nav>
+    <nav class="top-nav top-nav-secondary">
+      <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'help'} onclick={() => (tab = 'help')}>
+        <BookOpen size={15} /><span class="nav-label">도움말</span>
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'help'} onclick={() => (tab = 'help')}>
-        <BookOpen size={15} />도움말
+      <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'settings'} onclick={() => (tab = 'settings')}>
+        <Settings size={15} /><span class="nav-label">설정</span>
       </button>
     </nav>
     <div class="top-auth">
@@ -1551,18 +1685,28 @@
         <span class="auth-name">{user.nickname}</span>
         <button class="icon-btn" onclick={signout} title="로그아웃"><LogOut size={16} /></button>
       {:else}
-        <select class="auth-select" bind:value={authMode}>
-          <option value="login">로그인</option>
-          <option value="signup">회원가입</option>
-        </select>
-        <input class="auth-input" bind:value={username} placeholder="아이디" autocomplete="username" />
-        <input class="auth-input" bind:value={password} placeholder="비밀번호" type="password" autocomplete="current-password" />
-        <button class="icon-btn accent" onclick={auth} disabled={!username.trim() || !password.trim()}>
-          <LogIn size={16} />
-        </button>
+        <button class="auth-tab-btn" class:auth-tab-active={authMode === 'login' && showAuthPanel} onclick={() => openAuthPanel('login')}>로그인</button>
+        <button class="auth-tab-btn auth-tab-signup" class:auth-tab-active={authMode === 'signup' && showAuthPanel} onclick={() => openAuthPanel('signup')}>회원가입</button>
       {/if}
     </div>
   </header>
+
+  {#if showAuthPanel && !user}
+    <div class="auth-panel" role="dialog" aria-label="로그인">
+      <div class="auth-panel-tabs">
+        <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'login'} onclick={() => (authMode = 'login')}>로그인</button>
+        <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'signup'} onclick={() => (authMode = 'signup')}>회원가입</button>
+        <button class="auth-panel-close" onclick={() => (showAuthPanel = false)} aria-label="닫기"><X size={16} /></button>
+      </div>
+      <form class="auth-panel-form" onsubmit={(e) => { e.preventDefault(); auth(); }}>
+        <input class="auth-panel-input" bind:value={username} placeholder="아이디" autocomplete="username" />
+        <input class="auth-panel-input" bind:value={password} placeholder="비밀번호" type="password" autocomplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
+        <button class="auth-panel-submit" type="submit" disabled={!username.trim() || !password.trim()}>
+          {authMode === 'signup' ? '회원가입' : '로그인'}
+        </button>
+      </form>
+    </div>
+  {/if}
 
   {#if error}
     <div class="toast-error" role="alert">
@@ -1575,74 +1719,229 @@
 
     {#if !room}
       <!-- ─── LOBBY ─── -->
-      <div class="lobby">
-        <div class="lobby-card">
-          <div class="lobby-title">
-            <span class="lobby-gem">◆</span>
-            <h1>채린룰</h1>
-            <p>끝말잇기 배틀</p>
-          </div>
-          <div class="lobby-fields">
+      <div class="lobby lobby-kkutu">
+        <div class="lobby-layout">
+          <section class="lobby-main-card">
+            <div class="lobby-title">
+              <span class="lobby-gem">◆</span>
+              <div>
+                <h1>채린룰 로비</h1>
+                <p>방을 만들거나 코드로 입장하세요</p>
+              </div>
+            </div>
+
             {#if !user}
               <div class="login-required">
                 <LogIn size={18} />
                 <strong>로그인이 필요합니다</strong>
-                <span>상단에서 로그인하거나 회원가입 후 게임을 시작하세요.</span>
+                <span>상단의 로그인 / 회원가입 버튼을 눌러 시작하세요.</span>
+                <div class="login-required-actions">
+                  <button class="accent-btn" onclick={() => openAuthPanel('login')}>로그인</button>
+                  <button class="ghost-btn" onclick={() => openAuthPanel('signup')}>회원가입</button>
+                </div>
               </div>
             {:else}
               <div class="player-badge">
                 <UserRoundPlus size={16} />
                 <span>{user.nickname}</span>
               </div>
-              <div class="mode-row">
-                {#each [1,2,3] as m}
-                  <button
-                    class="mode-btn"
-                    class:mode-active={mode == m}
-                    onclick={() => (mode = m)}
-                  >{m}대{m}</button>
-                {/each}
+
+              <div class="lobby-actions">
+                <button class="lobby-cta" onclick={openCreateWizard} disabled={busy}>
+                  <Plus size={18} />방 만들기
+                </button>
+                <div class="join-row">
+                  <input class="join-input" bind:value={roomInput} placeholder="방 코드 6자리" />
+                  <button class="join-btn" onclick={join} disabled={busy || !roomInput.trim()}>입장</button>
+                </div>
               </div>
-              <div class="create-settings">
-                <div class="setting-row">
-                  <label>게임 모드</label>
-                  <select class="lobby-input" bind:value={gameMode} disabled={combat}>
-                    <option value="guerule">채린룰 (기본)</option>
-                    <option value="pyohan">표한룰</option>
-                    <option value="geonmat:geonmat">미니게임 · 검맞</option>
-                    <option value="geonmat:rare">미니게임 · 희귀맞</option>
-                    <option value="geonmat:bingo">미니게임 · 빙고맞</option>
-                    <option value="geonmat:relay">미니게임 · 이어달리기</option>
-                    <option value="card">카드 모드</option>
-                    <option value="kkutu">끄투</option>
-                  </select>
+
+              <details class="practice-details">
+                <summary><Bot size={14} />연습 모드 설정</summary>
+                <div class="practice-details-body">
+                  <label class="practice-toggle">
+                    <input type="checkbox" bind:checked={practice} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    연습 모드로 방 만들기
+                  </label>
+                  {#if practice}
+                    <div class="mode-row">
+                      {#each [1,2,3] as m}
+                        <button class="mode-btn" class:mode-active={mode == m} onclick={() => (mode = m)}>{m}대{m}</button>
+                      {/each}
+                    </div>
+                    <select class="lobby-input" bind:value={cpuJob}>
+                      <option value="">CPU 직업 (랜덤)</option>
+                      {#each availableJobs as j}
+                        <option value={j}>{j}</option>
+                      {/each}
+                    </select>
+                    <select class="lobby-input" bind:value={cpuLevel}>
+                      <option value="">CPU 난이도 (기본)</option>
+                      <option value="입문">입문</option>
+                      <option value="초급">초급</option>
+                      <option value="중급">중급</option>
+                      <option value="고급">고급</option>
+                      <option value="지옥">지옥</option>
+                    </select>
+                    <button class="accent-btn practice-start-btn" onclick={create} disabled={busy}>연습 시작</button>
+                  {/if}
                 </div>
-                <div class="setting-row">
-                  <label>사전</label>
-                  <select class="lobby-input" bind:value={dictSource}>
-                    <option value="default">구엜룰 (기본)</option>
-                    <option value="urimalsam">우리말샘</option>
-                    <option value="roble">로블</option>
-                    <option value="jime">지메</option>
-                    <option value="kkutu">끄투</option>
-                  </select>
+              </details>
+            {/if}
+          </section>
+
+          <aside class="lobby-side">
+            {#if ongoingGames.length > 0}
+              <div class="ongoing-section">
+                <div class="ongoing-title">진행 중인 게임</div>
+                <div class="ongoing-list">
+                  {#each ongoingGames as g}
+                    <button class="ongoing-card" onclick={() => openExistingRoom(g.room)}>
+                      <div class="og-room">{g.room}</div>
+                      <div class="og-meta">
+                        {g.phase === 'playing' ? `${g.turnCount}턴 · ${g.currentPlayer} 차례` : '준비 중'}
+                      </div>
+                    </button>
+                  {/each}
                 </div>
-                <label class="practice-toggle">
-                  <input type="checkbox" bind:checked={searchAllowed} />
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                  <Search size={14} />게임 중 검색 허용
-                </label>
-                <label class="practice-toggle">
-                  <input type="checkbox" bind:checked={timerEnabled} />
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                  <Clock size={14} />체스식 타이머
-                </label>
-                {#if timerEnabled}
-                  <div class="timer-row">
-                    <label><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
-                    <label><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
-                  </div>
+              </div>
+            {/if}
+            <div class="ongoing-section">
+              <div class="ongoing-title">열린 방</div>
+              <div class="ongoing-list room-scroll">
+                {#if roomList.length}
+                  {#each roomList as r}
+                    <button class="ongoing-card room-list-card" onclick={() => openListedRoom(r.room)} disabled={busy}>
+                      <div class="og-room">{r.room}</div>
+                      <div class="og-meta">
+                        {roomPhaseLabel(r.phase)} · {(r.players || []).length}/{r.requiredPlayers || 2}명
+                      </div>
+                      <div class="og-sub">
+                        {ruleModeLabel(r.meta?.gameMode || 'guerule')} · {dictLabel(r.meta?.dictSource || 'default')}
+                      </div>
+                    </button>
+                  {/each}
+                {:else}
+                  <div class="room-empty">열려 있는 방이 없습니다</div>
                 {/if}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {#if showCreateWizard}
+        <div class="wizard-overlay" role="dialog" aria-label="방 만들기">
+          <div class="wizard-card">
+            <div class="wizard-head">
+              <div>
+                <span class="panel-kicker">STEP {wizardStep + 1} / {wizardSteps.length}</span>
+                <h2>
+                  {#if wizardStepKey === 'chain'}잇기 방향
+                  {:else if wizardStepKey === 'mode'}게임 모드
+                  {:else if wizardStepKey === 'dict'}사전
+                  {:else if wizardStepKey === 'dueum'}두음법칙
+                  {:else if wizardStepKey === 'extras'}세부 설정
+                  {:else}직업 제한{/if}
+                </h2>
+              </div>
+              <button class="wizard-close" onclick={closeCreateWizard}><X size={18} /></button>
+            </div>
+
+            <div class="wizard-body">
+              {#if wizardStepKey === 'chain'}
+                <div class="wizard-choice-grid">
+                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'end'} onclick={() => (chainMode = 'end')}>
+                    <strong>끝말잇기</strong>
+                    <span>마지막 글자로 이어 말합니다</span>
+                  </button>
+                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'start'} onclick={() => (chainMode = 'start')}>
+                    <strong>앞말잇기</strong>
+                    <span>첫 글자로 끝나는 단어를 냅니다</span>
+                  </button>
+                </div>
+              {:else if wizardStepKey === 'mode'}
+                <div class="wizard-choice-grid wizard-choice-grid-3">
+                  {#each [
+                    ['guerule', '채린룰', '직업·능력'],
+                    ['combat', '조합', '능력 드래프트'],
+                    ['card', '카드', '세트 드래프트'],
+                    ['pyohan', '표한룰', '목숨제'],
+                    ['kkutu', '끄투', '끄투 사전'],
+                    ['geonmat:geonmat', '검맞', '개수 맞추기'],
+                    ['geonmat:rare', '희귀맞', '희귀 단어'],
+                    ['geonmat:bingo', '빙고맞', '3×3 빙고'],
+                    ['geonmat:relay', '이어달리기', '다단 경로']
+                  ] as [value, title, desc]}
+                    <button class="wizard-choice" class:wizard-choice-active={ruleMode === value} onclick={() => (ruleMode = value)}>
+                      <strong>{title}</strong>
+                      <span>{desc}</span>
+                    </button>
+                  {/each}
+                </div>
+              {:else if wizardStepKey === 'dict'}
+                <div class="wizard-choice-grid wizard-choice-grid-3">
+                  {#each [
+                    ['default', '구엜룰'],
+                    ['urimalsam', '우리말샘'],
+                    ['roble', '로블'],
+                    ['jime', '지메'],
+                    ['kkutu', '끄투']
+                  ] as [value, title]}
+                    <button class="wizard-choice" class:wizard-choice-active={dictSource === value} onclick={() => (dictSource = value)}>
+                      <strong>{title}</strong>
+                    </button>
+                  {/each}
+                </div>
+              {:else if wizardStepKey === 'dueum'}
+                <div class="wizard-choice-grid">
+                  <button class="wizard-choice" class:wizard-choice-active={duEum} onclick={() => (duEum = true)}>
+                    <strong>두음법칙 켬</strong>
+                    <span>라→나, 로→노 등 허용</span>
+                  </button>
+                  <button class="wizard-choice" class:wizard-choice-active={!duEum} onclick={() => (duEum = false)}>
+                    <strong>두음법칙 끔</strong>
+                    <span>표기 그대로만 이어갑니다</span>
+                  </button>
+                </div>
+              {:else if wizardStepKey === 'extras'}
+                <div class="wizard-extras">
+                  <div class="mode-row">
+                    <span class="extras-label">인원</span>
+                    {#each [1,2,3] as m}
+                      <button class="mode-btn" class:mode-active={mode == m} onclick={() => (mode = m)}>{m}대{m}</button>
+                    {/each}
+                  </div>
+                  <label class="practice-toggle">
+                    <input type="checkbox" bind:checked={searchAllowed} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    게임 중 검색 허용
+                  </label>
+                  <label class="practice-toggle">
+                    <input type="checkbox" bind:checked={rated} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    레이팅 반영
+                  </label>
+                  <label class="practice-toggle">
+                    <input type="checkbox" bind:checked={timerEnabled} />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    체스식 타이머
+                  </label>
+                  {#if timerEnabled}
+                    <div class="timer-row">
+                      <label><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
+                      <label><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+                    </div>
+                  {/if}
+                  {#if ruleMode === 'pyohan'}
+                    <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
+                  {/if}
+                  {#if String(ruleMode).startsWith('geonmat:')}
+                    <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
+                  {/if}
+                </div>
+              {:else}
                 <div class="disabled-job-box">
                   <div class="disabled-job-head">
                     <span><Ban size={14} />선택 불가 직업</span>
@@ -1656,143 +1955,97 @@
                     {/each}
                   </div>
                 </div>
-              </div>
-              <button class="lobby-cta" onclick={create} disabled={busy}>
-                <Plus size={18} />방 만들기
+              {/if}
+            </div>
+
+            <div class="wizard-foot">
+              <button class="ghost-btn" onclick={wizardBack} disabled={wizardStep === 0}>이전</button>
+              <button class="accent-btn" onclick={wizardNext}>
+                {wizardStep >= wizardSteps.length - 1 ? '방 만들기' : '다음'}
               </button>
-              <div class="lobby-sep"><span>또는</span></div>
-              <div class="join-row">
-                <input class="join-input" bind:value={roomInput} placeholder="방 코드" />
-                <button class="join-btn" onclick={join} disabled={busy || !roomInput.trim()}>
-                  입장
-                </button>
-              </div>
-              <label class="practice-toggle">
-                <input type="checkbox" bind:checked={practice} />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                <Bot size={14} />연습 모드
-              </label>
-              <label class="practice-toggle">
-                <input type="checkbox" bind:checked={combat} />
-                <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                <Swords size={14} />조합 모드
-              </label>
-              {#if combat}
-                <p class="combat-hint">직업 대신 공개된 능력 풀에서 번갈아 뽑고, 10턴마다 추가 드래프트가 열립니다.</p>
-              {/if}
-              {#if practice && !combat}
-                <select class="lobby-input" bind:value={cpuJob}>
-                  <option value="">CPU 직업 (랜덤)</option>
-                  {#each availableJobs as j}
-                    <option value={j} disabled={disabledJobs.includes(j)}>{j}{disabledJobs.includes(j) ? ' - 선택 불가능' : ''}</option>
-                  {/each}
-                </select>
-                <select class="lobby-input" bind:value={cpuLevel}>
-                  <option value="">CPU 난이도 (기본)</option>
-                  <option value="입문">입문</option>
-                  <option value="초급">초급</option>
-                  <option value="중급">중급</option>
-                  <option value="고급">고급</option>
-                  <option value="지옥">지옥</option>
-                </select>
-                <label class="practice-toggle">
-                  <input type="checkbox" bind:checked={cpuThink} />
-                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                  <Sparkles size={14} />CPU 사고 과정 표시
-                </label>
-              {/if}
-
-              {#if ongoingGames.length > 0}
-                <div class="ongoing-section">
-                  <div class="ongoing-title">진행 중인 게임</div>
-                  <div class="ongoing-list">
-                    {#each ongoingGames as g}
-                      <button class="ongoing-card" onclick={() => openExistingRoom(g.room)}>
-                        <div class="og-room">{g.room}</div>
-                        <div class="og-meta">
-                          {g.phase === 'playing' ? `${g.turnCount}턴 · ${g.currentPlayer} 차례` : '준비 중'}
-                        </div>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-              <div class="ongoing-section">
-                <div class="ongoing-title">현재 방 목록</div>
-                <div class="ongoing-list">
-                  {#if roomList.length}
-                    {#each roomList as r}
-                      <button class="ongoing-card room-list-card" onclick={() => openListedRoom(r.room)} disabled={busy}>
-                        <div class="og-room">{r.room}</div>
-                        <div class="og-meta">
-                          {roomPhaseLabel(r.phase)} · {(r.players || []).length}/{r.requiredPlayers || 2}명 · {r.meta?.timer?.enabled ? `${formatClock(r.meta.timer.initialSeconds)} + ${r.meta.timer.incrementSeconds}초` : '타이머 없음'}
-                        </div>
-                        {#if r.meta?.disabledJobs?.length}
-                          <div class="og-disabled">선택 불가: {r.meta.disabledJobs.slice(0, 5).join(', ')}{r.meta.disabledJobs.length > 5 ? ` 외 ${r.meta.disabledJobs.length - 5}` : ''}</div>
-                        {/if}
-                      </button>
-                    {/each}
-                  {:else}
-                    <div class="room-empty">열려 있는 방이 없습니다.</div>
-                  {/if}
-                </div>
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-
-    {:else if !practice && !hasMatched && (!game || game.phase === 'waiting')}
-      <!-- ─── WAITING ROOM ─── -->
-      <div class="matching-screen room-wait-screen">
-        <div class="room-wait-card">
-          <div class="room-wait-head">
-            <span class="panel-kicker">WAITING ROOM</span>
-            <h2>방이 열려 있습니다</h2>
-            <div class="room-code-pill">방 코드 <strong>{room}</strong></div>
-          </div>
-          <div class="room-rule-row">
-            <span>{mode}대{mode}</span>
-            <span>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '타이머 없음'}</span>
-            <span>{roomDisabledJobs.length ? `${roomDisabledJobs.length}개 직업 선택 불가` : '전체 직업 선택 가능'}</span>
-          </div>
-        </div>
-        {#if (game?.players || []).length}
-          <div class="players-found">
-            {#each game.players as p}
-              <div class="found-chip">{p}</div>
-            {/each}
-          </div>
-        {/if}
-        {#if roomList.length}
-          <div class="wait-room-list">
-            <div class="ongoing-title">현재 방 목록</div>
-            <div class="ongoing-list">
-              {#each roomList as r}
-                <button class="ongoing-card room-list-card" onclick={() => openListedRoom(r.room)} disabled={busy || r.room === room}>
-                  <div class="og-room">{r.room}{r.room === room ? ' · 현재 방' : ''}</div>
-                  <div class="og-meta">{roomPhaseLabel(r.phase)} · {(r.players || []).length}/{r.requiredPlayers || 2}명</div>
-                </button>
-              {/each}
             </div>
           </div>
-        {/if}
-        {#if !showPracticeBar}
-          <button class="ghost-btn" onclick={() => (showPracticeBar = true)}>
-            <Bot size={15} />연습으로 전환
-          </button>
-        {:else}
-          <div class="practice-setup">
-            <select class="prac-select" bind:value={cpuJob}>
-              <option value="">CPU 직업 (랜덤)</option>
-              {#each availableJobs as j}<option value={j} disabled={roomDisabledJobs.includes(j)}>{j}{roomDisabledJobs.includes(j) ? ' - 선택 불가능' : ''}</option>{/each}
-            </select>
-            <button class="accent-btn" onclick={startPractice} disabled={busy}>
-              <Bot size={15} />연습 시작
-            </button>
-            <button class="ghost-btn" onclick={() => (showPracticeBar = false)}>취소</button>
+        </div>
+      {/if}
+
+    {:else if !practice && !hasMatched && (!game || game.phase === 'waiting')}
+      <!-- ─── WAITING ROOM (끄투 스타일) ─── -->
+      <div class="kkutu-wait">
+        <aside class="kkutu-wait-side">
+          <div class="kkutu-room-no">
+            <span class="kkutu-room-label">ROOM</span>
+            <strong>{room}</strong>
           </div>
-        {/if}
+          <div class="kkutu-rules">
+            <h3>방 설정</h3>
+            <ul>
+              <li><span>모드</span><strong>{ruleModeLabel(snapshot?.meta?.gameMode || 'guerule')}</strong></li>
+              <li><span>잇기</span><strong>{snapshot?.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</strong></li>
+              <li><span>사전</span><strong>{dictLabel(snapshot?.meta?.dictSource || 'default')}</strong></li>
+              <li><span>두음</span><strong>{snapshot?.meta?.duEum === false ? '끔' : '켬'}</strong></li>
+              <li><span>인원</span><strong>{snapshot?.meta?.mode || 1}대{snapshot?.meta?.mode || 1}</strong></li>
+              <li><span>검색</span><strong>{snapshot?.meta?.searchAllowed ? '허용' : '불가'}</strong></li>
+              <li><span>레이팅</span><strong>{snapshot?.meta?.rated === false ? '미반영' : '반영'}</strong></li>
+              <li><span>타이머</span><strong>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '없음'}</strong></li>
+            </ul>
+          </div>
+          <button class="ghost-btn kkutu-leave" onclick={leaveCurrentRoom}>방 나가기</button>
+        </aside>
+
+        <main class="kkutu-wait-main">
+          <div class="kkutu-wait-head">
+            <h2>게임 대기실</h2>
+            <p>플레이어 {(game?.players || []).length}/{requiredPlayers} · 모두 준비되면 방장이 시작할 수 있습니다</p>
+          </div>
+
+          <div class="kkutu-player-grid">
+            {#each Array(requiredPlayers) as _, slotIndex}
+              {@const player = (game?.players || [])[slotIndex]}
+              <div class="kkutu-player-slot" class:kkutu-slot-filled={!!player} class:kkutu-slot-me={player === nickname}>
+                {#if player}
+                  <div class="kkutu-player-top">
+                    <span class="kkutu-player-name">{player}</span>
+                    {#if snapshot?.meta?.owner === player}<span class="kkutu-badge host">방장</span>{/if}
+                  </div>
+                  <div class="kkutu-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player}>
+                    {snapshot?.meta?.owner === player ? '방장' : roomReadyMap[player] ? '준비' : '대기'}
+                  </div>
+                {:else}
+                  <div class="kkutu-empty-slot">빈 자리</div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+
+          <div class="kkutu-wait-actions">
+            {#if isRoomHost}
+              <button class="accent-btn kkutu-start" onclick={startGameRoom} disabled={busy || (game?.players || []).length < requiredPlayers}>
+                게임 시작
+              </button>
+            {:else if (game?.players || []).includes(nickname)}
+              <button class="accent-btn" onclick={toggleReady} disabled={busy}>
+                {roomReadyMap[nickname] ? '준비 취소' : '준비'}
+              </button>
+            {/if}
+            <button class="ghost-btn" onclick={() => (showChat = !showChat)}>
+              <MessageSquare size={15} />{showChat ? '채팅 닫기' : '채팅'}
+            </button>
+          </div>
+
+          {#if showChat}
+            <div class="kkutu-chat">
+              <div class="kkutu-chat-log" bind:this={chatEl}>
+                {#each chats as c (c.id)}
+                  <div class="kkutu-chat-line"><strong>{c.sender}</strong> {c.text}</div>
+                {/each}
+              </div>
+              <form class="kkutu-chat-form" onsubmit={sendChat}>
+                <input bind:value={chatInput} placeholder="대기실 채팅..." />
+                <button type="submit"><Send size={14} /></button>
+              </form>
+            </div>
+          {/if}
+        </main>
       </div>
 
     {:else if !game}
@@ -3134,6 +3387,65 @@
     gap: 6px;
     color: var(--text);
     white-space: nowrap;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .top-nav-primary { flex: 1; }
+  .top-nav-secondary { gap: 2px; }
+  .nav-btn-ghost { color: var(--text3); }
+  .nav-label { margin-left: 2px; }
+  .auth-tab-btn {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+  }
+  .auth-tab-btn.auth-tab-active,
+  .auth-tab-btn:hover { color: var(--text); background: #fff; }
+  .auth-tab-signup.auth-tab-active,
+  .auth-tab-signup:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .auth-panel {
+    margin: 0 20px 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+    animation: slideDown .25s ease both;
+  }
+  .auth-panel-tabs { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .auth-panel-tab {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    background: var(--bg3);
+  }
+  .auth-panel-tab-active { background: var(--accent); color: #fff; }
+  .auth-panel-close { margin-left: auto; color: var(--text3); }
+  .auth-panel-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+  .auth-panel-input {
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 12px;
+    background: #fff;
+  }
+  .auth-panel-submit {
+    height: 40px;
+    padding: 0 18px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
   }
   .brand-gem { color: var(--accent); font-size: 14px; }
   .top-nav { display: flex; gap: 4px; flex: 1; }
@@ -5433,6 +5745,13 @@
     .auth-input { width: 90px; height: 38px; font-size: 16px; padding: 0 8px; }
     .auth-select { width: 80px; height: 38px; font-size: 14px; padding: 0 6px; }
     .icon-btn { width: 32px; height: 32px; }
+    .auth-panel { margin: 0 12px 10px; }
+    .auth-panel-form { grid-template-columns: 1fr; }
+    .nav-label { display: none; }
+    .lobby-layout { grid-template-columns: 1fr; }
+    .kkutu-wait { grid-template-columns: 1fr; }
+    .kkutu-wait-side { border-radius: 0; }
+    .wizard-choice-grid, .wizard-choice-grid-3 { grid-template-columns: 1fr; }
     .lobby { align-items: flex-start; padding: 16px 12px; }
     .lobby-card { padding: 22px 18px; gap: 16px; }
     .lobby-title h1 { font-size: 30px; }
@@ -6278,9 +6597,116 @@
     color: #fff; font-size: 12px; font-weight: 700;
   }
 
+  /* Lobby / wizard / kkutu wait */
+  .lobby-kkutu { padding: 20px; overflow: auto; flex: 1; }
+  .lobby-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 16px; max-width: 1100px; margin: 0 auto; width: 100%; }
+  .lobby-main-card, .lobby-side .ongoing-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .lobby-actions { display: grid; gap: 12px; margin-top: 16px; }
+  .login-required-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .practice-details { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .practice-details summary { cursor: pointer; font-weight: 700; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+  .practice-details-body { margin-top: 12px; display: grid; gap: 10px; }
+  .practice-start-btn { margin-top: 4px; }
+  .room-scroll { max-height: 420px; overflow: auto; }
+  .og-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  .wizard-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(10, 12, 18, .55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .wizard-card {
+    width: min(720px, 100%);
+    max-height: min(86vh, 900px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.28);
+    display: flex; flex-direction: column;
+  }
+  .wizard-head, .wizard-foot { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
+  .wizard-body { padding: 18px; overflow: auto; flex: 1; }
+  .wizard-close { color: var(--text3); }
+  .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wizard-choice {
+    text-align: left; padding: 14px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg2);
+    display: grid; gap: 4px;
+  }
+  .wizard-choice strong { font-size: 15px; }
+  .wizard-choice span { font-size: 12px; color: var(--text2); }
+  .wizard-choice-active { border-color: var(--accent); background: rgba(37, 99, 235, .08); }
+  .wizard-extras { display: grid; gap: 12px; }
+  .extras-label { font-size: 12px; font-weight: 700; color: var(--text3); margin-right: 8px; }
+  .setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  .kkutu-wait {
+    flex: 1; min-height: 0; display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 0;
+    background: linear-gradient(180deg, #edf3ff 0%, #f7f8fb 28%);
+  }
+  .kkutu-wait-side {
+    background: #2f3440;
+    color: #eef2ff;
+    padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .kkutu-room-no { text-align: center; padding: 18px 12px; background: rgba(255,255,255,.06); border-radius: 12px; }
+  .kkutu-room-label { display: block; font-size: 11px; letter-spacing: .12em; opacity: .7; }
+  .kkutu-room-no strong { font-size: 34px; letter-spacing: .18em; }
+  .kkutu-rules h3 { font-size: 13px; margin-bottom: 10px; opacity: .85; }
+  .kkutu-rules ul { list-style: none; display: grid; gap: 8px; }
+  .kkutu-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .kkutu-rules span { opacity: .7; }
+  .kkutu-leave { margin-top: auto; }
+  .kkutu-wait-main { padding: 20px 24px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
+  .kkutu-wait-head h2 { font-size: 24px; margin-bottom: 4px; }
+  .kkutu-wait-head p { color: var(--text2); }
+  .kkutu-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .kkutu-player-slot {
+    min-height: 110px;
+    border: 2px dashed #c9d2e3;
+    border-radius: 14px;
+    background: #fff;
+    padding: 14px;
+    display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  }
+  .kkutu-slot-filled { border-style: solid; border-color: #b8c7ef; }
+  .kkutu-slot-me { box-shadow: inset 0 0 0 2px var(--accent); }
+  .kkutu-player-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .kkutu-player-name { font-size: 18px; font-weight: 800; }
+  .kkutu-badge.host { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 800; }
+  .kkutu-player-status { font-size: 13px; font-weight: 700; color: #94a3b8; }
+  .kkutu-player-status.ready { color: #16a34a; }
+  .kkutu-empty-slot { text-align: center; color: #94a3b8; font-weight: 700; }
+  .kkutu-wait-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .kkutu-start { min-width: 140px; }
+  .kkutu-chat { border: 1px solid var(--border); border-radius: 12px; background: #fff; overflow: hidden; }
+  .kkutu-chat-log { max-height: 180px; overflow: auto; padding: 12px; font-size: 13px; }
+  .kkutu-chat-line { margin-bottom: 6px; }
+  .kkutu-chat-form { display: flex; border-top: 1px solid var(--border); }
+  .kkutu-chat-form input { flex: 1; border: 0; padding: 12px; background: transparent; }
+  .kkutu-chat-form button { width: 44px; color: var(--accent); }
+
   /* ═══════════════════════════════════════════
      DARK MODE — job tooltip (hardcoded dark bg)
   ═══════════════════════════════════════════ */
+  :global([data-theme="dark"]) .kkutu-wait { background: linear-gradient(180deg, #111318 0%, #0d0f14 28%); }
+  :global([data-theme="dark"]) .kkutu-player-slot { background: #171a22; border-color: #2a3140; }
+  :global([data-theme="dark"]) .kkutu-chat { background: #171a22; }
+  :global([data-theme="dark"]) .auth-panel-input { background: var(--bg2); }
   :global([data-theme="dark"]) .job-tooltip { background: #0d0f14; border-color: var(--border2); }
   :global([data-theme="dark"]) .job-tooltip-text { color: #b8c4e0; }
 </style>

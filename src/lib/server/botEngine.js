@@ -498,6 +498,11 @@ export async function configureBotRoom(room, options = {}) {
   if (options.cpuLevel) gs.cpuLevel = String(options.cpuLevel);
   if (options.cpuThink === true) gs.cpuThink = true;
   if (options.cpuThink === false) gs.cpuThink = false;
+  if (options.chainMode) gs.chainMode = String(options.chainMode);
+  if (options.duEum === true) gs.duEum = true;
+  if (options.duEum === false) gs.duEum = false;
+  if (options.rated === false) raw.isPractice = true;
+  if (options.rated === true) raw.isPractice = false;
   if (options.gameMode) {
     const mode = String(options.gameMode);
     if (mode === 'pyohan') {
@@ -594,6 +599,19 @@ function serializeGame(game) {
     firstPicker: game.firstPicker || null,
     banPhase: !!game.banPhase,
     isPractice: !!game.isPractice,
+    hostPlayer: game.hostPlayer || '',
+    gueruleSettings: game.gueruleSettings
+      ? {
+          chainMode: game.gueruleSettings.chainMode || 'end',
+          dictSource: game.gueruleSettings.dictSource || 'default',
+          duEum: game.gueruleSettings.duEum !== false,
+          searchAllowed: !!game.gueruleSettings.searchAllowed,
+          pyohanLives: game.gueruleSettings.pyohanLives || 0,
+          geonmatRounds: game.gueruleSettings.geonmatRounds || 0,
+          cardsMode: !!game.gueruleSettings.cardsMode,
+          combat: !!game.gueruleSettings.combat
+        }
+      : null,
     combat: !!(game.gueruleSettings && game.gueruleSettings.combat),
     combatDraft: serializeCombatDraft(game),
     kits: serializeKits(game, players),
@@ -638,4 +656,123 @@ function serializeKits(game, players) {
     }));
   }
   return any ? out : null;
+}
+
+function scopeApi(context) {
+  return context.__Bot?.scope || context;
+}
+
+function silentReplier() {
+  return { reply() {} };
+}
+
+export async function botCreateWebLobby(room, { owner, mode = 1, combat = false }) {
+  const bot = await getBotEngine();
+  const scope = scopeApi(bot.context);
+  const games = getGames(bot.context);
+  const createBaseGameState = scope.createBaseGameState;
+  if (typeof createBaseGameState !== 'function') {
+    throw new Error('createBaseGameState is not available.');
+  }
+  const cleanMode = Math.min(3, Math.max(1, Math.floor(Number(mode) || 1)));
+  const game = createBaseGameState(cleanMode);
+  game.players = [String(owner || '').trim() || 'player'];
+  game.hostPlayer = game.players[0];
+  game.webManualStart = true;
+  game.hostRoom = room;
+  game.gueruleSettings = game.gueruleSettings || {};
+  games[room] = game;
+  if (combat) {
+    const combatApi = bot.context.__Bot?.combat || bot.context.Bot?.combat;
+    combatApi?.setRoomDefault?.(room, true);
+  }
+  return serializeGame(game);
+}
+
+export async function botJoinWebLobby(room, nickname) {
+  const bot = await getBotEngine();
+  const raw = resolveMutableRoomGame(bot.context, room);
+  if (!raw) throw new Error('방을 찾을 수 없습니다.');
+  if (raw.phase !== 'waiting' || raw.started) throw new Error('이미 시작된 방입니다.');
+  const sender = String(nickname || '').trim() || 'player';
+  const required = (raw.teamMode || 1) * 2;
+  if (!raw.players.includes(sender)) {
+    if (raw.players.length >= required) throw new Error('방이 가득 찼습니다.');
+    raw.players.push(sender);
+  }
+  return serializeGame(raw);
+}
+
+export async function botStartWebLobby(room, meta = {}) {
+  const bot = await getBotEngine();
+  const scope = scopeApi(bot.context);
+  const raw = resolveMutableRoomGame(bot.context, room);
+  if (!raw || raw.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
+  const required = (raw.teamMode || meta.mode || 1) * 2;
+  if ((raw.players || []).length < required) throw new Error('인원이 부족합니다.');
+
+  raw.webManualStart = false;
+  raw.started = true;
+  raw.isPractice = meta.rated === false || !!meta.practice;
+  raw.playerStates = raw.playerStates || {};
+  raw.mapApplied = false;
+  raw.selectedMap = null;
+
+  const combatApi = bot.context.__Bot?.combat || bot.context.Bot?.combat;
+  combatApi?.applyRoomDefault?.(room, raw);
+
+  const replier = silentReplier();
+  const gameType = raw.gameType || raw.ruleType || 'charynn';
+  const gs = raw.gueruleSettings || {};
+
+  if (gameType === 'pyohan' || meta.gameMode === 'pyohan') {
+    raw.phase = 'playing';
+    raw.history = [];
+    raw.used = raw.used || new Set();
+    return serializeGame(raw);
+  }
+
+  if (gs.combat || meta.combat) {
+    const combatMode = scope.__combatMode;
+    if (combatMode?.combatModeOn?.(raw) && combatMode.startCombatDraft) {
+      combatMode.startCombatDraft(raw, room, replier);
+      return serializeGame(raw);
+    }
+  }
+
+  if (gameType === 'geonmat' || String(meta.gameMode || '').startsWith('geonmat:')) {
+    raw.phase = 'playing';
+    return serializeGame(raw);
+  }
+
+  if (gameType === 'kkutu' || meta.gameMode === 'kkutu' || gs.dictSource === 'kkutu') {
+    if (typeof scope.__bootKkutuLobby === 'function') {
+      scope.__bootKkutuLobby(raw, replier);
+      return serializeGame(raw);
+    }
+  }
+
+  raw.phase = 'job_selection';
+  raw.firstPicker = null;
+  raw.banPhase = false;
+  if (Array.isArray(meta.disabledJobs) && meta.disabledJobs.length) {
+    raw.bannedJobs = Array.from(new Set([...(raw.bannedJobs || []), ...meta.disabledJobs]));
+  } else {
+    raw.bannedJobs = raw.bannedJobs || [];
+  }
+  return serializeGame(raw);
+}
+
+export async function botLeaveWebLobby(room, nickname) {
+  const bot = await getBotEngine();
+  const raw = resolveMutableRoomGame(bot.context, room);
+  if (!raw || raw.phase !== 'waiting') return null;
+  const sender = String(nickname || '').trim();
+  raw.players = (raw.players || []).filter((p) => p !== sender);
+  if (!raw.players.length) {
+    await botDeleteRoom(room);
+    return null;
+  }
+  if (raw.hostPlayer === sender) raw.hostPlayer = raw.players[0];
+  return serializeGame(raw);
 }

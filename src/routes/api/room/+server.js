@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { createRoom, getRoomSnapshot, joinRoom, listRooms } from '$lib/server/gameService.js';
+import { createRoom, getRoomSnapshot, joinRoom, leaveRoom, listRooms, setRoomReady, startRoomGame } from '$lib/server/gameService.js';
 import { rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
 const ROOM_RE = /^[A-F0-9]{6}$/;
@@ -28,6 +28,24 @@ export async function POST({ request, locals }) {
       if (!ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
       return json(await joinRoom({ room, nickname }));
     }
+    if (action === 'ready') {
+      const room = String(body?.room || '').toUpperCase();
+      if (!ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
+      return json(await setRoomReady({ room, nickname, ready: body?.ready !== false }));
+    }
+    if (action === 'start') {
+      const room = String(body?.room || '').toUpperCase();
+      if (!ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
+      return json(await startRoomGame({ room, nickname }));
+    }
+    if (action === 'leave') {
+      const room = String(body?.room || '').toUpperCase();
+      if (!ROOM_RE.test(room)) return json({ message: 'invalid_room' }, { status: 400 });
+      const result = await leaveRoom({ room, nickname });
+      if (result?.left) return json({ left: true, room: '' });
+      return json(result);
+    }
+
     const mode = Number(body?.mode);
     return json(await createRoom({
       nickname,
@@ -41,7 +59,12 @@ export async function POST({ request, locals }) {
       gameMode: String(body?.gameMode || 'guerule'),
       searchAllowed: !!body?.searchAllowed,
       cpuLevel: String(body?.cpuLevel || ''),
-      cpuThink: !!body?.cpuThink
+      cpuThink: !!body?.cpuThink,
+      chainMode: body?.chainMode === 'start' ? 'start' : 'end',
+      duEum: body?.duEum !== false,
+      rated: body?.rated !== false,
+      pyohanLives: Number(body?.pyohanLives) || 3,
+      geonmatRounds: Number(body?.geonmatRounds) || 5
     }));
   } catch (error) {
     console.error('room POST failed', error);
