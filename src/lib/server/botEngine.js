@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import bundledBotSource from '../../../bot.js?raw';
-import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir } from './runtime.js';
+import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir, bundledDataDir } from './runtime.js';
 import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
 import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
@@ -113,7 +113,10 @@ function bootSync(initialRatings = {}) {
     .replace(/if \(!fastMode\) buildCpuJobSyllableKnowledge\(\);/g, 'if (!fastMode) { /* skipped in web runtime */ }')
     .replace(/buildCpuJobSyllableKnowledge\(\);/g, '/* skipped in web runtime */');
   const context = createContext(initialRatings);
+  context.__WEB_RUNTIME = true;
+  context.globalThis.__WEB_RUNTIME = true;
   vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
+  configureWebRuntime(context);
   installCpuStrategyPatch(context);
 
   const response = context.__response;
@@ -123,7 +126,39 @@ function bootSync(initialRatings = {}) {
 
   const out = [];
   response('admin_room', '1t listload', 'admin', true, { reply: (text) => out.push(normalizeLine(text)) });
+  loadExternalDictionaries(context);
   return { context, response, bootLog: out.filter(Boolean) };
+}
+
+function configureWebRuntime(context) {
+  const scope = context.__Bot?.scope;
+  if (!scope) return;
+  const dataDir = bundledDataDir.replace(/\\/g, '/');
+  scope.JSON_BASE_PATH = dataDir;
+  scope.FILE_PATH = `${dataDir}/wordlist.json`;
+  scope.KILL_FILE_PATH = `${dataDir}/killword.json`;
+  scope.DIESYL_FILE_PATH = `${dataDir}/diesyl.json`;
+  scope.KKUTU_WORDLIST_PATH = `${dataDir}/kkutu_wordlist.json`;
+  scope.KKUTU_DIESYL_PATH = `${dataDir}/kkutu_diesyl.json`;
+  scope.KKUTU_RULES_PATH = `${dataDir}/kkutu_rules.txt`;
+}
+
+function loadExternalDictionaries(context) {
+  const scope = context.__Bot?.scope;
+  if (!scope) return;
+  const loaders = [
+    ['loadUrimalsamWords', 'URIMALSAM_WORD_SET'],
+    ['loadRobleWords', 'ROBLE_WORD_SET'],
+    ['loadJimeWords', 'JIME_WORD_SET'],
+    ['loadKkutuWords', 'KKUTU_WORD_SET']
+  ];
+  for (const [fn, key] of loaders) {
+    try {
+      if (typeof scope[fn] === 'function' && !scope[key]) scope[fn]();
+    } catch (err) {
+      console.warn(`[botEngine] ${fn} failed:`, err?.message || err);
+    }
+  }
 }
 
 export async function getBotEngine() {

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { botAllRoomStates, botBootStatus, botRankings, botRoomState, botSetRoomCombat, configureBotRoom, dispatchBotMessage } from './botEngine.js';
+import { isAllowedWebCommand } from './webCommands.js';
 import { publishRoom } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
 
@@ -462,7 +463,7 @@ export async function createRoom({
   // Must land before the first command: that dispatch both creates the game and
   // decides between job selection and the ability draft.
   await botSetRoomCombat(room, !!combat);
-  const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)) });
+  const state = await sendCommand({ room, nickname, command: startCommand(roomMeta.get(room)), internal: true });
   await applyRoomOptions(room);
   return await getRoomSnapshot(room);
 }
@@ -482,14 +483,17 @@ export async function joinRoom({ room, nickname }) {
     return state;
   }
   roomMeta.set(room, meta);
-  return sendCommand({ room, nickname, command: startCommand(meta) });
+  return sendCommand({ room, nickname, command: startCommand(meta), internal: true });
 }
 
-export async function sendCommand({ room, nickname, command }) {
+export async function sendCommand({ room, nickname, command, internal = false }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
   const msg = String(command || '').trim();
+  if (!internal && msg && !isAllowedWebCommand(msg)) {
+    throw new Error('사이트 버튼으로만 조작할 수 있습니다.');
+  }
   // Starting a fresh match clears the finished marker and the previous game's replay log.
   if (isGameStartCommand(msg)) {
     finishedRooms.delete(room);

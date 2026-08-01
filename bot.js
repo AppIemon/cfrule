@@ -26484,7 +26484,7 @@ Alt-F4 콤보를 준비합니다.`;
       }
     } catch (eSolveCmd0) {}
     try {
-      if (S.normalizeChosungCommand) {
+      if (!globalThis.__WEB_RUNTIME && S.normalizeChosungCommand) {
         var __cho = S.normalizeChosungCommand(String(msg == null ? "" : msg));
         if (__cho !== msg) msg = __cho;
       }
@@ -26505,10 +26505,10 @@ Alt-F4 콤보를 준비합니다.`;
       }
     } catch (eSearch) {}
     try {
-      if (S.__crossMode && S.__crossMode.relayChat) S.__crossMode.relayChat(String(room), String(msg == null ? "" : msg), String(sender));
+      if (!globalThis.__WEB_RUNTIME && S.__crossMode && S.__crossMode.relayChat) S.__crossMode.relayChat(String(room), String(msg == null ? "" : msg), String(sender));
     } catch (e0) {}
     try {
-      if (S.__crossMode && S.__crossMode.handle(String(room), String(msg == null ? "" : msg), String(sender), replier)) return;
+      if (!globalThis.__WEB_RUNTIME && S.__crossMode && S.__crossMode.handle(String(room), String(msg == null ? "" : msg), String(sender), replier)) return;
     } catch (e1) {
       try { if (replier && replier.reply) replier.reply("구엜룰 오류: " + String(e1 && e1.message ? e1.message : e1)); } catch (e2) {}
       return;

@@ -9,6 +9,10 @@ data/runtime
 .claude/
 artifacts/
 verification-*.png
+src/lib/server/data/urimalsam_wordlist.txt
+src/lib/server/data/roble_wordlist.txt
+src/lib/server/data/jime_wordlist.txt
+src/lib/server/data/kkutu_wordlist.json
 image.txt
 hanbang_lines.txt
 finalizeMatch_calls.txt

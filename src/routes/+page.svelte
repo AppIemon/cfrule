@@ -761,6 +761,9 @@
   const unavailableJobs = $derived(Array.from(new Set([...(bannedJobs || []), ...(roomDisabledJobs || [])])));
   const selectableJobs = $derived(availableJobs.filter((job) => !unavailableJobs.includes(job)));
   const timerState = $derived(snapshot?.meta?.timer || null);
+  const activeDictSource = $derived(
+    game?.gueruleSettings?.dictSource || snapshot?.meta?.dictSource || dictSource || 'default'
+  );
   const maxBanCount = 6;
 
   $effect(() => {
@@ -1117,7 +1120,7 @@
     const queryStarts = starts.length ? starts : [clean[0] || ''];
     const used = encodeURIComponent((game.history || []).join(','));
     for (const start of queryStarts) {
-      const data = await fetch(apiUrl(`/api/word-search?start=${encodeURIComponent(start)}&q=${encodeURIComponent(clean)}&limit=20&used=${used}`), {
+      const data = await fetch(apiUrl(`/api/word-search?start=${encodeURIComponent(start)}&q=${encodeURIComponent(clean)}&limit=20&used=${used}&dict=${encodeURIComponent(activeDictSource)}`), {
         credentials: 'include',
         cache: 'no-store'
       }).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -1242,7 +1245,7 @@
   }
 
   async function searchWords() {
-    const data = await request(`/api/search?q=${encodeURIComponent(searchText)}`);
+    const data = await request(`/api/search?q=${encodeURIComponent(searchText)}&dict=${encodeURIComponent(activeDictSource)}`);
     searchResults = data.results || [];
     searchTotal = data.total || 0;
   }
@@ -1250,7 +1253,7 @@
   async function searchInGame() {
     const tabObj = activeInGameTab;
     if (!tabObj || !tabObj.query.trim()) return;
-    const data = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(tabObj.query)}`), { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
+    const data = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(tabObj.query)}&dict=${encodeURIComponent(activeDictSource)}`), { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
     tabObj.results = data.results || [];
   }
 
@@ -2810,7 +2813,7 @@
       <div class="help-header help-subheader">
         <span class="panel-kicker">SITE GUIDE</span>
         <h2>사이트 조작 도움말</h2>
-        <p>카카오봇 명령 흐름을 웹 조작에 맞춰 정리했습니다.</p>
+        <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며 게임 명령은 사이트 UI로만 실행됩니다.</p>
       </div>
       <div class="tutorial-grid">
         {#each SITE_HELP_STEPS as step, index}
@@ -2821,21 +2824,6 @@
           </section>
         {/each}
       </div>
-      <section class="command-card">
-        <div class="job-section-title">봇 명령 대응표</div>
-        <div class="command-grid">
-          <span>1ㅊㄹ / 1채린</span><strong>일반 게임 참가</strong>
-          <span>1ㅇㅅ / 1연습</span><strong>연습 게임 참가</strong>
-          <span>1ㅈㅅ 직업명</span><strong>직업 선택</strong>
-          <span>1밴 / 1ㅂ</span><strong>직업 밴</strong>
-          <span>0단어</span><strong>단어 입력</strong>
-          <span>2능력명</span><strong>능력 사용</strong>
-          <span>1ㄱㅅ 검색식</span><strong>단어 검색</strong>
-          <span>1상태</span><strong>현재 상태 확인</strong>
-          <span>1무효 / 1무르기</span><strong>투표 요청</strong>
-          <span>ㅈㅈ / 항복</span><strong>기권</strong>
-        </div>
-      </section>
     </div>
 
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->

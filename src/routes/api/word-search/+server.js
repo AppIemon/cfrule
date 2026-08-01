@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getBotEngine } from '$lib/server/botEngine.js';
+import { getWordPool } from '$lib/server/dictPools.js';
 import { clientIp, rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
 const QUERY_MAX = 32;
@@ -20,24 +21,6 @@ function wordKind(context, word) {
   try { if (typeof context.isHanbang === 'function' && context.isHanbang(word)) kinds.push('한방'); } catch {}
   try { if (typeof context.isYudo === 'function' && context.isYudo(word)) kinds.push('유도'); } catch {}
   return kinds.length ? kinds.join(' · ') : '일반';
-}
-
-function getWordPool(context, start, dict = 'default') {
-  const scope = context.__Bot?.scope || context;
-  const dictKey = String(dict || 'default').toLowerCase();
-  const dictMap = {
-    urimalsam: ['URIMALSAM_WORDS_BY_START', 'URIMALSAM_WORD_SET'],
-    roble: ['ROBLE_WORDS_BY_START', 'ROBLE_WORD_SET'],
-    jime: ['JIME_WORDS_BY_START', 'JIME_WORD_SET'],
-    kkutu: ['KKUTU_WORDS_BY_START', 'KKUTU_WORD_SET']
-  };
-  const keys = dictMap[dictKey] || ['WORDS_BY_START', 'WORD_SET'];
-  const byStart = scope[keys[0]] || context[keys[0]];
-  if (start && byStart) {
-    if (typeof byStart.get === 'function') return setToArray(byStart.get(start));
-    if (byStart[start]) return setToArray(byStart[start]);
-  }
-  return setToArray(scope[keys[1]] || context[keys[1]]);
 }
 
 function replyCount(context, word) {
