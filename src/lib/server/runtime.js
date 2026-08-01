@@ -36,7 +36,19 @@ export function writeJsonFile(filePath, value) {
 
 export function resolveBotDataPath(inputPath) {
   const name = path.basename(String(inputPath || ''));
-  if (name === 'wordlist.json' || name === 'killword.json' || name === 'diesyl.json' || name === 'loot.json') {
+  const bundledNames = new Set([
+    'wordlist.json',
+    'killword.json',
+    'diesyl.json',
+    'loot.json',
+    'kkutu_wordlist.json',
+    'kkutu_diesyl.json',
+    'kkutu_rules.txt',
+    'urimalsam_wordlist.txt',
+    'roble_wordlist.txt',
+    'jime_wordlist.txt'
+  ]);
+  if (bundledNames.has(name)) {
     return path.join(bundledDataDir, name);
   }
   if (name) return path.join(runtimeDir, name);

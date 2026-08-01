@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "node scripts/prepare-dicts.js && vite build",
     "build:web": "vite build",
     "build:app": "cross-env BUILD_TARGET=app VITE_APP_BUILD=1 vite build",
     "preview": "vite preview --host 0.0.0.0",

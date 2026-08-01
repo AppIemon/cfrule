@@ -36,7 +36,12 @@ export async function POST({ request, locals }) {
       cpuJob: String(body?.cpuJob || '').slice(0, CPU_JOB_MAX),
       timer: body?.timer,
       disabledJobs: body?.disabledJobs,
-      combat: !!body?.combat
+      combat: !!body?.combat,
+      dictSource: String(body?.dictSource || 'default'),
+      gameMode: String(body?.gameMode || 'guerule'),
+      searchAllowed: !!body?.searchAllowed,
+      cpuLevel: String(body?.cpuLevel || ''),
+      cpuThink: !!body?.cpuThink
     }));
   } catch (error) {
     console.error('room POST failed', error);

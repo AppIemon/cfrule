@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getBotEngine } from '$lib/server/botEngine.js';
+import { getWordPool } from '$lib/server/dictPools.js';
 import { clientIp, rateLimit, rateLimitResponse } from '$lib/server/rateLimit.js';
 
 const QUERY_MAX = 32;
@@ -20,15 +21,6 @@ function wordKind(context, word) {
   try { if (typeof context.isHanbang === 'function' && context.isHanbang(word)) kinds.push('한방'); } catch {}
   try { if (typeof context.isYudo === 'function' && context.isYudo(word)) kinds.push('유도'); } catch {}
   return kinds.length ? kinds.join(' · ') : '일반';
-}
-
-function getWordPool(context, start) {
-  const byStart = context.WORDS_BY_START || context.__Bot?.scope?.WORDS_BY_START;
-  if (start && byStart) {
-    if (typeof byStart.get === 'function') return setToArray(byStart.get(start));
-    if (byStart[start]) return setToArray(byStart[start]);
-  }
-  return setToArray(context.WORD_SET || context.__Bot?.scope?.WORD_SET);
 }
 
 function replyCount(context, word) {
@@ -52,6 +44,7 @@ export async function GET(event) {
 
   const q = String(url.searchParams.get('q') || '').trim().slice(0, QUERY_MAX);
   const start = String(url.searchParams.get('start') || '').trim().slice(0, 1);
+  const dict = String(url.searchParams.get('dict') || 'default').trim().slice(0, 16);
   const limit = Math.min(100, Math.max(10, Number(url.searchParams.get('limit') || 50)));
   const bot = await getBotEngine();
   const context = bot.context;
@@ -62,7 +55,7 @@ export async function GET(event) {
       .map((v) => v.trim())
       .filter(Boolean)
   );
-  let pool = getWordPool(context, start);
+  let pool = getWordPool(context, start, dict);
 
   if (q) pool = pool.filter((word) => String(word || '').includes(q));
   if (start) pool = pool.filter((word) => String(word || '').startsWith(start));
@@ -87,5 +80,5 @@ export async function GET(event) {
     })
     .slice(0, limit);
 
-  return json({ q, start, total: pool.length, results });
+  return json({ q, start, dict, total: pool.length, results });
 }

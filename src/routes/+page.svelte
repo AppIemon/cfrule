@@ -181,6 +181,11 @@
   let timerMinutes = $state(10);
   let timerIncrement = $state(3);
   let disabledJobs = $state([]);
+  let dictSource = $state('default');
+  let gameMode = $state('guerule');
+  let searchAllowed = $state(false);
+  let cpuLevel = $state('');
+  let cpuThink = $state(false);
   let word = $state('');
   let premoveWord = $state('');
   let premoveStatus = $state('');
@@ -756,6 +761,9 @@
   const unavailableJobs = $derived(Array.from(new Set([...(bannedJobs || []), ...(roomDisabledJobs || [])])));
   const selectableJobs = $derived(availableJobs.filter((job) => !unavailableJobs.includes(job)));
   const timerState = $derived(snapshot?.meta?.timer || null);
+  const activeDictSource = $derived(
+    game?.gueruleSettings?.dictSource || snapshot?.meta?.dictSource || dictSource || 'default'
+  );
   const maxBanCount = 6;
 
   $effect(() => {
@@ -889,7 +897,12 @@
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
         disabledJobs,
-        combat
+        combat,
+        dictSource,
+        gameMode: combat ? 'combat' : gameMode,
+        searchAllowed,
+        cpuLevel,
+        cpuThink
       })
     });
     room = data.room;
@@ -1107,7 +1120,7 @@
     const queryStarts = starts.length ? starts : [clean[0] || ''];
     const used = encodeURIComponent((game.history || []).join(','));
     for (const start of queryStarts) {
-      const data = await fetch(apiUrl(`/api/word-search?start=${encodeURIComponent(start)}&q=${encodeURIComponent(clean)}&limit=20&used=${used}`), {
+      const data = await fetch(apiUrl(`/api/word-search?start=${encodeURIComponent(start)}&q=${encodeURIComponent(clean)}&limit=20&used=${used}&dict=${encodeURIComponent(activeDictSource)}`), {
         credentials: 'include',
         cache: 'no-store'
       }).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -1232,7 +1245,7 @@
   }
 
   async function searchWords() {
-    const data = await request(`/api/search?q=${encodeURIComponent(searchText)}`);
+    const data = await request(`/api/search?q=${encodeURIComponent(searchText)}&dict=${encodeURIComponent(activeDictSource)}`);
     searchResults = data.results || [];
     searchTotal = data.total || 0;
   }
@@ -1240,7 +1253,7 @@
   async function searchInGame() {
     const tabObj = activeInGameTab;
     if (!tabObj || !tabObj.query.trim()) return;
-    const data = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(tabObj.query)}`), { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
+    const data = await fetch(apiUrl(`/api/search?q=${encodeURIComponent(tabObj.query)}&dict=${encodeURIComponent(activeDictSource)}`), { credentials: 'include' }).then(r => r.json()).catch(() => ({}));
     tabObj.results = data.results || [];
   }
 
@@ -1591,6 +1604,34 @@
                 {/each}
               </div>
               <div class="create-settings">
+                <div class="setting-row">
+                  <label>게임 모드</label>
+                  <select class="lobby-input" bind:value={gameMode} disabled={combat}>
+                    <option value="guerule">채린룰 (기본)</option>
+                    <option value="pyohan">표한룰</option>
+                    <option value="geonmat:geonmat">미니게임 · 검맞</option>
+                    <option value="geonmat:rare">미니게임 · 희귀맞</option>
+                    <option value="geonmat:bingo">미니게임 · 빙고맞</option>
+                    <option value="geonmat:relay">미니게임 · 이어달리기</option>
+                    <option value="card">카드 모드</option>
+                    <option value="kkutu">끄투</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <label>사전</label>
+                  <select class="lobby-input" bind:value={dictSource}>
+                    <option value="default">구엜룰 (기본)</option>
+                    <option value="urimalsam">우리말샘</option>
+                    <option value="roble">로블</option>
+                    <option value="jime">지메</option>
+                    <option value="kkutu">끄투</option>
+                  </select>
+                </div>
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={searchAllowed} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <Search size={14} />게임 중 검색 허용
+                </label>
                 <label class="practice-toggle">
                   <input type="checkbox" bind:checked={timerEnabled} />
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -1646,6 +1687,19 @@
                     <option value={j} disabled={disabledJobs.includes(j)}>{j}{disabledJobs.includes(j) ? ' - 선택 불가능' : ''}</option>
                   {/each}
                 </select>
+                <select class="lobby-input" bind:value={cpuLevel}>
+                  <option value="">CPU 난이도 (기본)</option>
+                  <option value="입문">입문</option>
+                  <option value="초급">초급</option>
+                  <option value="중급">중급</option>
+                  <option value="고급">고급</option>
+                  <option value="지옥">지옥</option>
+                </select>
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={cpuThink} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <Sparkles size={14} />CPU 사고 과정 표시
+                </label>
               {/if}
 
               {#if ongoingGames.length > 0}
@@ -2759,7 +2813,7 @@
       <div class="help-header help-subheader">
         <span class="panel-kicker">SITE GUIDE</span>
         <h2>사이트 조작 도움말</h2>
-        <p>카카오봇 명령 흐름을 웹 조작에 맞춰 정리했습니다.</p>
+        <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며 게임 명령은 사이트 UI로만 실행됩니다.</p>
       </div>
       <div class="tutorial-grid">
         {#each SITE_HELP_STEPS as step, index}
@@ -2770,21 +2824,6 @@
           </section>
         {/each}
       </div>
-      <section class="command-card">
-        <div class="job-section-title">봇 명령 대응표</div>
-        <div class="command-grid">
-          <span>1ㅊㄹ / 1채린</span><strong>일반 게임 참가</strong>
-          <span>1ㅇㅅ / 1연습</span><strong>연습 게임 참가</strong>
-          <span>1ㅈㅅ 직업명</span><strong>직업 선택</strong>
-          <span>1밴 / 1ㅂ</span><strong>직업 밴</strong>
-          <span>0단어</span><strong>단어 입력</strong>
-          <span>2능력명</span><strong>능력 사용</strong>
-          <span>1ㄱㅅ 검색식</span><strong>단어 검색</strong>
-          <span>1상태</span><strong>현재 상태 확인</strong>
-          <span>1무효 / 1무르기</span><strong>투표 요청</strong>
-          <span>ㅈㅈ / 항복</span><strong>기권</strong>
-        </div>
-      </section>
     </div>
 
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
@@ -3322,6 +3361,8 @@
     border-radius: var(--radius-sm);
     background: var(--bg3);
   }
+  .setting-row { display: grid; gap: 6px; }
+  .setting-row label { font-size: 12px; color: var(--muted); }
   .timer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .timer-row label {
     min-height: 38px;
