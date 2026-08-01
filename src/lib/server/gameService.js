@@ -216,7 +216,11 @@ function startCommand(meta) {
   if (!meta.practice) return `1채린${modeText}`;
   const job = pickRandomJob(meta);
   meta.currentCpuJob = job;
-  return `1연습${modeText}${job ? ` ${job}` : ''}`;
+  const extras = [];
+  if (meta.cpuLevel) extras.push(`난이도 ${meta.cpuLevel}`);
+  if (meta.cpuThink) extras.push('과정 켬');
+  const suffix = extras.length ? ` ${extras.join(' ')}` : '';
+  return `1연습${modeText}${job ? ` ${job}` : ''}${suffix}`;
 }
 
 function scheduleAutoRestart(room, sender, ended) {
@@ -390,8 +394,17 @@ async function applyRoomOptions(room) {
   const meta = roomMeta.get(room);
   if (!meta) return;
   const disabled = sanitizeJobs(meta.disabledJobs);
-  if (disabled.length) {
-    await configureBotRoom(room, { disabledJobs: disabled });
+  const options = {};
+  if (disabled.length) options.disabledJobs = disabled;
+  if (meta.dictSource) options.dictSource = meta.dictSource;
+  if (meta.gameMode) options.gameMode = meta.gameMode;
+  if (meta.pyohanLives) options.pyohanLives = meta.pyohanLives;
+  if (meta.geonmatRounds) options.geonmatRounds = meta.geonmatRounds;
+  if (meta.searchAllowed !== undefined) options.searchAllowed = !!meta.searchAllowed;
+  if (meta.cpuLevel) options.cpuLevel = meta.cpuLevel;
+  if (meta.cpuThink !== undefined) options.cpuThink = !!meta.cpuThink;
+  if (Object.keys(options).length) {
+    await configureBotRoom(room, options);
   }
   if (meta.timer?.enabled) ensureClockLoop(room);
 }
@@ -406,7 +419,22 @@ function selectionBlocked(room, command) {
   return disabled.find((job) => job === requested || job.replace(/\s+/g, '') === requested.replace(/\s+/g, '')) || '';
 }
 
-export async function createRoom({ nickname, mode = 1, practice = false, cpuJob = '', timer = {}, disabledJobs = [], combat = false }) {
+export async function createRoom({
+  nickname,
+  mode = 1,
+  practice = false,
+  cpuJob = '',
+  timer = {},
+  disabledJobs = [],
+  combat = false,
+  dictSource = 'default',
+  gameMode = 'guerule',
+  pyohanLives = 3,
+  geonmatRounds = 5,
+  searchAllowed = false,
+  cpuLevel = '',
+  cpuThink = false
+}) {
   const room = code();
   const cleanMode = sanitizeMode(mode);
   const cleanDisabledJobs = sanitizeJobs(disabledJobs);
@@ -420,6 +448,13 @@ export async function createRoom({ nickname, mode = 1, practice = false, cpuJob 
     practiceGuest: null,
     disabledJobs: cleanDisabledJobs,
     combat: !!combat,
+    dictSource: String(dictSource || 'default'),
+    gameMode: combat ? 'combat' : String(gameMode || 'guerule'),
+    pyohanLives: Number(pyohanLives) || 3,
+    geonmatRounds: Number(geonmatRounds) || 5,
+    searchAllowed: !!searchAllowed,
+    cpuLevel: String(cpuLevel || ''),
+    cpuThink: !!cpuThink,
     timer: normalizeTimer(timer)
   });
   logs.set(room, []);

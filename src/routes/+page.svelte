@@ -181,6 +181,11 @@
   let timerMinutes = $state(10);
   let timerIncrement = $state(3);
   let disabledJobs = $state([]);
+  let dictSource = $state('default');
+  let gameMode = $state('guerule');
+  let searchAllowed = $state(false);
+  let cpuLevel = $state('');
+  let cpuThink = $state(false);
   let word = $state('');
   let premoveWord = $state('');
   let premoveStatus = $state('');
@@ -889,7 +894,12 @@
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
         disabledJobs,
-        combat
+        combat,
+        dictSource,
+        gameMode: combat ? 'combat' : gameMode,
+        searchAllowed,
+        cpuLevel,
+        cpuThink
       })
     });
     room = data.room;
@@ -1591,6 +1601,34 @@
                 {/each}
               </div>
               <div class="create-settings">
+                <div class="setting-row">
+                  <label>게임 모드</label>
+                  <select class="lobby-input" bind:value={gameMode} disabled={combat}>
+                    <option value="guerule">채린룰 (기본)</option>
+                    <option value="pyohan">표한룰</option>
+                    <option value="geonmat:geonmat">미니게임 · 검맞</option>
+                    <option value="geonmat:rare">미니게임 · 희귀맞</option>
+                    <option value="geonmat:bingo">미니게임 · 빙고맞</option>
+                    <option value="geonmat:relay">미니게임 · 이어달리기</option>
+                    <option value="card">카드 모드</option>
+                    <option value="kkutu">끄투</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <label>사전</label>
+                  <select class="lobby-input" bind:value={dictSource}>
+                    <option value="default">구엜룰 (기본)</option>
+                    <option value="urimalsam">우리말샘</option>
+                    <option value="roble">로블</option>
+                    <option value="jime">지메</option>
+                    <option value="kkutu">끄투</option>
+                  </select>
+                </div>
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={searchAllowed} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <Search size={14} />게임 중 검색 허용
+                </label>
                 <label class="practice-toggle">
                   <input type="checkbox" bind:checked={timerEnabled} />
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -1646,6 +1684,19 @@
                     <option value={j} disabled={disabledJobs.includes(j)}>{j}{disabledJobs.includes(j) ? ' - 선택 불가능' : ''}</option>
                   {/each}
                 </select>
+                <select class="lobby-input" bind:value={cpuLevel}>
+                  <option value="">CPU 난이도 (기본)</option>
+                  <option value="입문">입문</option>
+                  <option value="초급">초급</option>
+                  <option value="중급">중급</option>
+                  <option value="고급">고급</option>
+                  <option value="지옥">지옥</option>
+                </select>
+                <label class="practice-toggle">
+                  <input type="checkbox" bind:checked={cpuThink} />
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <Sparkles size={14} />CPU 사고 과정 표시
+                </label>
               {/if}
 
               {#if ongoingGames.length > 0}
@@ -3322,6 +3373,8 @@
     border-radius: var(--radius-sm);
     background: var(--bg3);
   }
+  .setting-row { display: grid; gap: 6px; }
+  .setting-row label { font-size: 12px; color: var(--muted); }
   .timer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .timer-row label {
     min-height: 38px;

@@ -1,5 +1,4 @@
 import { readFileSync, existsSync } from 'node:fs';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import bundledBotSource from '../../../bot.js?raw';
@@ -52,6 +51,13 @@ function createContext(initialRatings = {}) {
     Date,
     JSON,
     FileStream: {
+      read(inputPath) {
+        const resolved = resolveBotDataPath(inputPath);
+        try {
+          if (existsSync(resolved)) return readFileSync(resolved, 'utf8');
+        } catch {}
+        return null;
+      },
       readJson(inputPath) {
         return readJsonFile(resolveBotDataPath(inputPath), null);
       },
@@ -104,7 +110,8 @@ function normalizeLine(text) {
 function bootSync(initialRatings = {}) {
   ensureRuntimeDir();
   const source = (bundledBotSource || readFileSync(fileURLToPath(new URL('../../../bot.js', import.meta.url)), 'utf8'))
-    .replace('buildCpuJobSyllableKnowledge();', '/* skipped in web runtime: buildCpuJobSyllableKnowledge(); */');
+    .replace(/if \(!fastMode\) buildCpuJobSyllableKnowledge\(\);/g, 'if (!fastMode) { /* skipped in web runtime */ }')
+    .replace(/buildCpuJobSyllableKnowledge\(\);/g, '/* skipped in web runtime */');
   const context = createContext(initialRatings);
   vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
   installCpuStrategyPatch(context);
@@ -147,6 +154,55 @@ function getTierPlayers(context) {
 
 function getGames(context) {
   return context.__Bot?.scope?.games || context.games || {};
+}
+
+function isLegacyRoomGame(val) {
+  return val && typeof val === 'object' && val.phase !== undefined && !val.__multiSlotContainer;
+}
+
+function isMultiSlotContainer(val) {
+  return val && typeof val === 'object' && !!val.__multiSlotContainer;
+}
+
+function listSlotIds(entry) {
+  if (!entry || typeof entry !== 'object') return [];
+  return Object.keys(entry).filter((key) => key.length === 1 && key >= 'A' && key <= 'Z' && entry[key]?.phase !== undefined);
+}
+
+/** Resolve a room entry to the active game object (legacy single-game or first slot). */
+function resolveRoomEntry(entry) {
+  if (!entry) return null;
+  if (isLegacyRoomGame(entry)) return entry;
+  if (isMultiSlotContainer(entry)) {
+    const slots = listSlotIds(entry);
+    for (const slot of slots) {
+      const game = entry[slot];
+      if (game && game.phase !== 'ended' && game.phase !== 'finished') return game;
+    }
+    if (slots.length) return entry[slots[0]];
+  }
+  return null;
+}
+
+function resolveRoomGame(context, room) {
+  const games = getGames(context);
+  return resolveRoomEntry(games[room]);
+}
+
+function resolveMutableRoomGame(context, room) {
+  const games = getGames(context);
+  const entry = games[room];
+  if (!entry) return null;
+  if (isLegacyRoomGame(entry)) return entry;
+  if (isMultiSlotContainer(entry)) {
+    const slots = listSlotIds(entry);
+    for (const slot of slots) {
+      const game = entry[slot];
+      if (game && game.phase !== 'ended' && game.phase !== 'finished') return game;
+    }
+    if (slots.length) return entry[slots[0]];
+  }
+  return null;
 }
 
 function bestJobWins(player) {
@@ -275,7 +331,7 @@ function snapshotPlayerStats(players) {
 
 function buildCpuThoughtLines(bot, room, msg, sender) {
   const context = bot.context;
-  const game = getGames(context)?.[room];
+  const game = resolveRoomGame(context, room);
   if (!game?.isPractice || game.phase !== 'playing') return [];
   if (game.currentTurnIndex !== -1 && game.players?.[game.currentTurnIndex] !== String(sender)) return [];
   if (!/^0/.test(String(msg || ''))) return [];
@@ -365,7 +421,7 @@ export async function botBootStatus() {
 
 export async function botRoomState(room) {
   const bot = await getBotEngine();
-  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  const raw = resolveRoomGame(bot.context, room);
   if (!raw) return null;
   return serializeGame(raw);
 }
@@ -390,21 +446,55 @@ export async function botDeleteRoom(room) {
 
 export async function configureBotRoom(room, options = {}) {
   const bot = await getBotEngine();
-  const raw = bot.context.__Bot?.scope?.games?.[room] || bot.context.games?.[room];
+  const raw = resolveMutableRoomGame(bot.context, room);
   if (!raw) return null;
   if (Array.isArray(options.disabledJobs) && options.disabledJobs.length) {
     const current = Array.isArray(raw.bannedJobs) ? raw.bannedJobs : [];
     raw.bannedJobs = Array.from(new Set([...current, ...options.disabledJobs]));
+  }
+  raw.gueruleSettings = raw.gueruleSettings || {};
+  const gs = raw.gueruleSettings;
+  if (options.dictSource) {
+    const map = { default: 'default', guerule: 'default', urimalsam: 'urimalsam', roble: 'roble', jime: 'jime', kkutu: 'kkutu' };
+    gs.dictSource = map[String(options.dictSource).toLowerCase()] || options.dictSource;
+  }
+  if (options.searchAllowed === true) gs.searchAllowed = true;
+  if (options.searchAllowed === false) gs.searchAllowed = false;
+  if (options.cpuLevel) gs.cpuLevel = String(options.cpuLevel);
+  if (options.cpuThink === true) gs.cpuThink = true;
+  if (options.cpuThink === false) gs.cpuThink = false;
+  if (options.gameMode) {
+    const mode = String(options.gameMode);
+    if (mode === 'pyohan') {
+      gs.pyohanLives = Number(options.pyohanLives) || 3;
+      raw.gameType = 'pyohan';
+      raw.ruleType = 'pyohan';
+    } else if (mode === 'card') {
+      gs.cardsMode = true;
+      raw.gameType = 'cross';
+    } else if (mode === 'kkutu') {
+      gs.dictSource = 'kkutu';
+      raw.gameType = 'kkutu';
+    } else if (mode === 'combat' || mode === '조합') {
+      gs.combat = true;
+      gs.jobsMode = 'charynn';
+    } else if (mode.startsWith('geonmat:')) {
+      const variant = mode.split(':')[1] || 'geonmat';
+      gs.dictMiniVariant = variant;
+      gs.geonmatRounds = Number(options.geonmatRounds) || 5;
+      raw.gameType = 'geonmat';
+    }
   }
   return serializeGame(raw);
 }
 
 export async function botAllRoomStates() {
   const bot = await getBotEngine();
-  const games = bot.context.__Bot?.scope?.games || bot.context.games || {};
+  const games = getGames(bot.context);
   const out = {};
-  for (const [room, raw] of Object.entries(games)) {
-    out[room] = serializeGame(raw);
+  for (const [room, entry] of Object.entries(games)) {
+    const raw = resolveRoomEntry(entry);
+    if (raw) out[room] = serializeGame(raw);
   }
   return out;
 }
