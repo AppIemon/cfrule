@@ -42,6 +42,8 @@ const clockFinalizing = new Set();
 const presence = new Map(); // room -> { nickname -> { online: boolean, lastSeen: timestamp } }
 const roomChats = new Map(); // room -> [{ id, sender, text, at }]
 const directMessages = new Map(); // conversationKey -> [{ id, from, to, text, at }]
+const roomInvites = new Map(); // nickname -> [{ from, room, roomName, at }]
+const INVITE_TTL_MS = 15 * 60 * 1000;
 
 function dmKey(a, b) {
   return [a, b].sort().join('\x00');
@@ -880,4 +882,50 @@ export function getDMInbox(nickname) {
   }
   convos.sort((a, b) => (b.last?.at || 0) - (a.last?.at || 0));
   return convos;
+}
+
+function pruneRoomInvites(nickname) {
+  const user = String(nickname || '').trim();
+  if (!user) return [];
+  const now = Date.now();
+  const list = (roomInvites.get(user) || []).filter((item) => now - item.at < INVITE_TTL_MS);
+  if (list.length) roomInvites.set(user, list);
+  else roomInvites.delete(user);
+  return list;
+}
+
+export function sendRoomInvite({ from, to, room, roomName = '' }) {
+  const target = String(to || '').trim();
+  const sender = String(from || '').trim();
+  const code = String(room || '').toUpperCase();
+  if (!target || !sender || !code) throw new Error('invalid');
+  const list = pruneRoomInvites(target);
+  const filtered = list.filter((item) => item.room !== code);
+  const invite = {
+    from: sender,
+    room: code,
+    roomName: String(roomName || '').trim(),
+    at: Date.now()
+  };
+  filtered.unshift(invite);
+  roomInvites.set(target, filtered.slice(0, 10));
+  const label = invite.roomName || code;
+  addDirectMessage({
+    from: sender,
+    to: target,
+    text: `🎮 "${label}" 방에 초대합니다. 로비 방 목록에서 참가하세요.`
+  });
+  return { ok: true, invite };
+}
+
+export function getRoomInvites(nickname) {
+  return pruneRoomInvites(nickname);
+}
+
+export function dismissRoomInvite(nickname, room) {
+  const user = String(nickname || '').trim();
+  const code = String(room || '').toUpperCase();
+  const list = pruneRoomInvites(user).filter((item) => item.room !== code);
+  if (list.length) roomInvites.set(user, list);
+  else roomInvites.delete(user);
 }

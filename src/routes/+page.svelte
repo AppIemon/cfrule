@@ -3,7 +3,7 @@
   import { onDestroy, tick } from 'svelte';
   import {
     Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
-    Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Vote, X
+    Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
 
@@ -185,6 +185,13 @@
   let pendingJoinRoom = $state('');
   let joinPasswordInput = $state('');
   let showBotSetup = $state(false);
+  let showInviteModal = $state(false);
+  let friends = $state([]);
+  let friendIncoming = $state([]);
+  let friendOutgoing = $state([]);
+  let roomInvites = $state([]);
+  let friendAddInput = $state('');
+  let friendsBusy = $state(false);
   let botCpuLevel = $state('보통');
   let botCpuThink = $state(false);
   let botCpuJobMode = $state('random');
@@ -1170,6 +1177,158 @@
     await join(joinPasswordInput);
   }
 
+  async function fetchFriends() {
+    if (!user || isGuest) return;
+    try {
+      const res = await fetch(apiUrl('/api/friends'), { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      friends = data.friends || [];
+      friendIncoming = data.incoming || [];
+      friendOutgoing = data.outgoing || [];
+      roomInvites = data.invites || [];
+    } catch {}
+  }
+
+  async function addFriend() {
+    const nickname = friendAddInput.trim();
+    if (!nickname || friendsBusy) return;
+    friendsBusy = true;
+    try {
+      const res = await fetch(apiUrl('/api/friends'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'add', nickname })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError(friendErrorLabel(data.error));
+        return;
+      }
+      friendAddInput = '';
+      await fetchFriends();
+    } finally {
+      friendsBusy = false;
+    }
+  }
+
+  async function acceptFriendRequest(fromNickname) {
+    if (friendsBusy) return;
+    friendsBusy = true;
+    try {
+      await fetch(apiUrl('/api/friends'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'accept', nickname: fromNickname })
+      });
+      await fetchFriends();
+    } finally {
+      friendsBusy = false;
+    }
+  }
+
+  async function rejectFriendRequest(fromNickname) {
+    if (friendsBusy) return;
+    friendsBusy = true;
+    try {
+      await fetch(apiUrl('/api/friends'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'reject', nickname: fromNickname })
+      });
+      await fetchFriends();
+    } finally {
+      friendsBusy = false;
+    }
+  }
+
+  async function removeFriend(fromNickname) {
+    if (friendsBusy) return;
+    friendsBusy = true;
+    try {
+      await fetch(apiUrl('/api/friends'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', nickname: fromNickname })
+      });
+      await fetchFriends();
+    } finally {
+      friendsBusy = false;
+    }
+  }
+
+  async function inviteFriendToRoom(friendNickname) {
+    if (!room || friendsBusy) return;
+    friendsBusy = true;
+    try {
+      const res = await fetch(apiUrl('/api/friends'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'invite',
+          nickname: friendNickname,
+          room,
+          roomName: snapshot?.meta?.name || ''
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showError(friendErrorLabel(data.error));
+        return;
+      }
+      showInviteModal = false;
+    } finally {
+      friendsBusy = false;
+    }
+  }
+
+  async function dismissRoomInvite(invite) {
+    if (!invite?.room) return;
+    await fetch(apiUrl('/api/friends'), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'dismissInvite', room: invite.room })
+    });
+    await fetchFriends();
+  }
+
+  async function joinFromInvite(invite) {
+    if (!invite?.room || busy) return;
+    pendingJoinRoom = invite.room;
+    await dismissRoomInvite(invite);
+    const entry = roomList.find((r) => r.room === invite.room);
+    if (entry?.hasPassword) {
+      joinPasswordInput = '';
+      showJoinPassword = true;
+      return;
+    }
+    await join();
+  }
+
+  function friendErrorLabel(code) {
+    const map = {
+      user_not_found: '해당 닉네임의 사용자를 찾을 수 없습니다.',
+      cannot_friend_self: '자기 자신은 친구로 추가할 수 없습니다.',
+      already_friends: '이미 친구입니다.',
+      request_pending: '이미 요청을 보냈거나 받은 상태입니다.',
+      not_friend: '친구만 초대할 수 있습니다.'
+    };
+    return map[code] || '친구 요청에 실패했습니다.';
+  }
+
+  function openInviteModal() {
+    if (!isRoomHost) return;
+    friendAddInput = '';
+    fetchFriends();
+    showInviteModal = true;
+  }
+
   function openBotSetup() {
     if (!isRoomHost) return;
     botCpuLevel = '보통';
@@ -1295,6 +1454,14 @@
       const intv = setInterval(fetchOngoingGames, 10000);
       const nowIntv = setInterval(() => { now = Date.now(); }, 1000);
       return () => { clearInterval(intv); clearInterval(nowIntv); };
+    }
+  });
+
+  $effect(() => {
+    if (browser && user && !user.isGuest) {
+      fetchFriends();
+      const intv = setInterval(fetchFriends, 8000);
+      return () => clearInterval(intv);
     }
   });
 
@@ -1862,7 +2029,7 @@
       <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'help'} onclick={() => (tab = 'help')}>
         <BookOpen size={15} /><span class="nav-label">도움말</span>
       </button>
-      <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'settings'} onclick={() => (tab = 'settings')}>
+      <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'settings'} onclick={() => { tab = 'settings'; fetchFriends(); }}>
         <Settings size={15} /><span class="nav-label">설정</span>
       </button>
     </nav>
@@ -1895,6 +2062,29 @@
             <span>새 방 만들기</span>
           </button>
         </header>
+
+        {#if roomInvites.length > 0}
+          <section class="lobby-section">
+            <div class="lobby-section-head">
+              <h2>초대</h2>
+              <span class="lobby-section-meta">{roomInvites.length}건</span>
+            </div>
+            <div class="invite-banner-row">
+              {#each roomInvites as inv}
+                <div class="invite-banner">
+                  <div class="invite-banner-copy">
+                    <strong>{inv.from}</strong>
+                    <span>님이 {inv.roomName || '방'}에 초대했습니다</span>
+                  </div>
+                  <div class="invite-banner-actions">
+                    <button class="accent-btn invite-join-btn" onclick={() => joinFromInvite(inv)} disabled={busy}>참가</button>
+                    <button class="ghost-btn" onclick={() => dismissRoomInvite(inv)} disabled={busy}>닫기</button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </section>
+        {/if}
 
         {#if ongoingGames.length > 0}
           <section class="lobby-section">
@@ -2142,18 +2332,17 @@
       {/if}
 
     {:else if !practice && !hasMatched && (!game || game.phase === 'waiting')}
-      <!-- ─── WAITING ROOM (끄투 스타일) ─── -->
-      <div class="kkutu-wait">
-        <aside class="kkutu-wait-side">
-          <div class="kkutu-room-no">
-            <span class="kkutu-room-label">ROOM</span>
-            <strong>{snapshot?.meta?.name || room}</strong>
-            <span class="kkutu-room-code">{room}</span>
+      <!-- ─── WAITING ROOM ─── -->
+      <div class="wait-room">
+        <aside class="wait-room-side">
+          <div class="wait-room-card">
+            <span class="wait-room-kicker">대기실</span>
+            <h2 class="wait-room-title">{snapshot?.meta?.name || '게임 방'}</h2>
+            <span class="wait-room-mode">{ruleModeLabel(snapshot?.meta?.gameMode || 'guerule')}</span>
           </div>
-          <div class="kkutu-rules">
+          <div class="wait-room-rules">
             <h3>방 설정</h3>
             <ul>
-              <li><span>모드</span><strong>{ruleModeLabel(snapshot?.meta?.gameMode || 'guerule')}</strong></li>
               <li><span>잇기</span><strong>{snapshot?.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</strong></li>
               <li><span>사전</span><strong>{dictLabel(snapshot?.meta?.dictSource || 'default')}</strong></li>
               <li><span>두음</span><strong>{snapshot?.meta?.duEum === false ? '끔' : '켬'}</strong></li>
@@ -2163,42 +2352,59 @@
               <li><span>타이머</span><strong>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '없음'}</strong></li>
             </ul>
           </div>
-          <button class="ghost-btn kkutu-leave" onclick={leaveCurrentRoom}>방 나가기</button>
+          {#if isRoomHost}
+            <button class="accent-btn wait-invite-side" onclick={openInviteModal} disabled={busy}>
+              <UserRoundPlus size={16} />친구 초대
+            </button>
+          {/if}
+          <button class="ghost-btn wait-leave" onclick={leaveCurrentRoom}>방 나가기</button>
         </aside>
 
-        <main class="kkutu-wait-main">
-          <div class="kkutu-wait-head">
-            <h2>게임 대기실</h2>
-            <p>플레이어 {(game?.players || []).length}/{requiredPlayers} · 모두 준비되면 방장이 시작할 수 있습니다</p>
+        <main class="wait-room-main">
+          <div class="wait-room-head">
+            <h2>플레이어</h2>
+            <p>{(game?.players || []).length}/{requiredPlayers}명 · 모두 모이면 방장이 시작할 수 있습니다</p>
           </div>
 
-          <div class="kkutu-player-grid">
+          <div class="wait-player-grid">
             {#each Array(requiredPlayers) as _, slotIndex}
               {@const player = (game?.players || [])[slotIndex]}
-              <div class="kkutu-player-slot" class:kkutu-slot-filled={!!player} class:kkutu-slot-me={player === nickname}>
+              <div class="wait-player-slot" class:wait-slot-filled={!!player} class:wait-slot-me={player === nickname}>
                 {#if player}
-                  <div class="kkutu-player-top">
-                    <span class="kkutu-player-name">{player}</span>
-                    {#if snapshot?.meta?.owner === player}<span class="kkutu-badge host">방장</span>{/if}
+                  <div class="wait-player-top">
+                    <span class="wait-player-avatar">{player[0]}</span>
+                    <div class="wait-player-meta">
+                      <span class="wait-player-name">{player}</span>
+                      {#if snapshot?.meta?.owner === player}<span class="wait-badge host">방장</span>{/if}
+                    </div>
                   </div>
-                  <div class="kkutu-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player}>
-                    {snapshot?.meta?.owner === player ? '방장' : roomReadyMap[player] ? '준비' : '대기'}
+                  <div class="wait-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player}>
+                    {snapshot?.meta?.owner === player ? '방장' : roomReadyMap[player] ? '준비 완료' : '대기 중'}
                   </div>
                 {:else if isRoomHost}
-                  <button class="kkutu-add-bot" onclick={openBotSetup} disabled={busy}>
-                    <Plus size={28} />
-                    <span>봇 추가</span>
-                  </button>
+                  <div class="wait-slot-actions">
+                    <button class="wait-slot-primary" onclick={openInviteModal} disabled={busy}>
+                      <UserRoundPlus size={20} />
+                      <span>플레이어 초대</span>
+                    </button>
+                    <button class="wait-slot-secondary" onclick={openBotSetup} disabled={busy}>
+                      <Bot size={16} />
+                      <span>봇 추가</span>
+                    </button>
+                  </div>
                 {:else}
-                  <div class="kkutu-empty-slot">빈 자리</div>
+                  <div class="wait-slot-waiting">
+                    <span>빈 자리</span>
+                    <small>방장이 초대 중</small>
+                  </div>
                 {/if}
               </div>
             {/each}
           </div>
 
-          <div class="kkutu-wait-actions">
+          <div class="wait-room-actions">
             {#if isRoomHost}
-              <button class="accent-btn kkutu-start" onclick={startGameRoom} disabled={busy || (game?.players || []).length < requiredPlayers}>
+              <button class="accent-btn wait-start" onclick={startGameRoom} disabled={busy || (game?.players || []).length < requiredPlayers}>
                 게임 시작
               </button>
             {:else if (game?.players || []).includes(nickname)}
@@ -2212,13 +2418,13 @@
           </div>
 
           {#if showChat && !isGuest}
-            <div class="kkutu-chat">
-              <div class="kkutu-chat-log" bind:this={chatEl}>
+            <div class="wait-chat">
+              <div class="wait-chat-log" bind:this={chatEl}>
                 {#each chats as c (c.id)}
-                  <div class="kkutu-chat-line"><strong>{c.sender}</strong> {c.text}</div>
+                  <div class="wait-chat-line"><strong>{c.sender}</strong> {c.text}</div>
                 {/each}
               </div>
-              <form class="kkutu-chat-form" onsubmit={sendChat}>
+              <form class="wait-chat-form" onsubmit={sendChat}>
                 <input bind:value={chatInput} placeholder="대기실 채팅..." />
                 <button type="submit"><Send size={14} /></button>
               </form>
@@ -2226,6 +2432,64 @@
           {/if}
         </main>
       </div>
+
+      {#if showInviteModal}
+        <div class="wizard-overlay" role="dialog" aria-label="플레이어 초대">
+          <div class="wizard-card wizard-card-sm invite-modal">
+            <div class="wizard-head">
+              <div class="wizard-head-main">
+                <span class="panel-kicker">초대</span>
+                <h2>플레이어 초대</h2>
+                <p class="wizard-join-hint">친구에게 초대를 보내거나 새 친구를 추가하세요.</p>
+              </div>
+              <button class="wizard-close" onclick={() => (showInviteModal = false)}><X size={18} /></button>
+            </div>
+            <div class="wizard-body invite-modal-body">
+              <form class="friend-add-row" onsubmit={(e) => { e.preventDefault(); addFriend(); }}>
+                <input class="lobby-input" bind:value={friendAddInput} placeholder="닉네임으로 친구 추가" maxlength="24" />
+                <button class="accent-btn" type="submit" disabled={friendsBusy || !friendAddInput.trim()}>추가</button>
+              </form>
+
+              {#if friendIncoming.length}
+                <div class="friend-section">
+                  <span class="friend-section-label">받은 요청</span>
+                  {#each friendIncoming as req}
+                    <div class="friend-row">
+                      <span>{req.nickname}</span>
+                      <div class="friend-row-actions">
+                        <button class="accent-btn tiny-action" onclick={() => acceptFriendRequest(req.nickname)} disabled={friendsBusy}>수락</button>
+                        <button class="ghost-btn tiny-action" onclick={() => rejectFriendRequest(req.nickname)} disabled={friendsBusy}>거절</button>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              <div class="friend-section">
+                <span class="friend-section-label">친구 목록</span>
+                {#if friends.length}
+                  {#each friends as friend}
+                    <div class="friend-row">
+                      <div class="friend-row-user">
+                        <span class="friend-avatar">{friend.nickname[0]}</span>
+                        <span>{friend.nickname}</span>
+                      </div>
+                      <button class="accent-btn tiny-action" onclick={() => inviteFriendToRoom(friend.nickname)} disabled={friendsBusy}>
+                        초대
+                      </button>
+                    </div>
+                  {/each}
+                {:else}
+                  <p class="friend-empty">친구가 없습니다. 닉네임으로 친구를 추가해 보세요.</p>
+                {/if}
+              </div>
+            </div>
+            <div class="wizard-foot">
+              <button class="ghost-btn" onclick={() => (showInviteModal = false)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      {/if}
 
       {#if showBotSetup}
         <div class="wizard-overlay" role="dialog" aria-label="봇 설정">
@@ -3153,6 +3417,49 @@
           <span class="scp-btn" style="background: {lineColor}">버튼 예시</span>
         </div>
       </div>
+
+      {#if !isGuest}
+        <div class="settings-section">
+          <div class="settings-section-label"><Users size={15} />친구</div>
+          <p class="settings-section-desc">닉네임으로 친구를 추가하고 대기실에서 초대할 수 있습니다.</p>
+          <form class="friend-add-row" onsubmit={(e) => { e.preventDefault(); addFriend(); }}>
+            <input class="lobby-input" bind:value={friendAddInput} placeholder="닉네임" maxlength="24" />
+            <button class="accent-btn" type="submit" disabled={friendsBusy || !friendAddInput.trim()}>친구 추가</button>
+          </form>
+
+          {#if friendIncoming.length}
+            <div class="settings-friend-block">
+              <span class="friend-section-label">받은 요청</span>
+              {#each friendIncoming as req}
+                <div class="friend-row">
+                  <span>{req.nickname}</span>
+                  <div class="friend-row-actions">
+                    <button class="accent-btn tiny-action" onclick={() => acceptFriendRequest(req.nickname)} disabled={friendsBusy}>수락</button>
+                    <button class="ghost-btn tiny-action" onclick={() => rejectFriendRequest(req.nickname)} disabled={friendsBusy}>거절</button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          <div class="settings-friend-block">
+            <span class="friend-section-label">내 친구 ({friends.length})</span>
+            {#if friends.length}
+              {#each friends as friend}
+                <div class="friend-row">
+                  <div class="friend-row-user">
+                    <span class="friend-avatar">{friend.nickname[0]}</span>
+                    <span>{friend.nickname}</span>
+                  </div>
+                  <button class="ghost-btn tiny-action" onclick={() => removeFriend(friend.nickname)} disabled={friendsBusy}>삭제</button>
+                </div>
+              {/each}
+            {:else}
+              <p class="friend-empty">아직 친구가 없습니다.</p>
+            {/if}
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -5743,8 +6050,8 @@
     .auth-panel-form { grid-template-columns: 1fr; }
     .nav-label { display: none; }
     .lobby-layout { grid-template-columns: 1fr; }
-    .kkutu-wait { grid-template-columns: 1fr; }
-    .kkutu-wait-side { border-radius: 0; }
+    .wait-room { grid-template-columns: 1fr; }
+    .wait-room-side { order: 2; }
     .wizard-choice-grid, .wizard-choice-grid-3 { grid-template-columns: 1fr; }
     .lobby { align-items: flex-start; padding: 16px 12px; }
     .lobby-card { padding: 22px 18px; gap: 16px; }
@@ -6671,69 +6978,134 @@
   .extras-label { font-size: 12px; font-weight: 700; color: var(--text3); margin-right: 8px; }
   .setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
-  .kkutu-wait {
+  .wait-room {
     flex: 1; min-height: 0; display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 0;
-    background: linear-gradient(180deg, #edf3ff 0%, #f7f8fb 28%);
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 16px; padding: 16px 20px 20px;
+    background:
+      radial-gradient(ellipse 70% 45% at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+      var(--bg);
   }
-  .kkutu-wait-side {
-    background: #2f3440;
-    color: #eef2ff;
-    padding: 18px 16px;
-    display: flex; flex-direction: column; gap: 16px;
+  .wait-room-side {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 16px; border-radius: 18px;
+    background: var(--card); border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
   }
-  .kkutu-room-no { text-align: center; padding: 18px 12px; background: rgba(255,255,255,.06); border-radius: 12px; }
-  .kkutu-room-label { display: block; font-size: 11px; letter-spacing: .12em; opacity: .7; }
-  .kkutu-room-no strong { font-size: 22px; font-weight: 800; display: block; margin-top: 4px; }
-  .kkutu-room-code { display: block; margin-top: 6px; font-size: 28px; letter-spacing: .18em; font-weight: 900; opacity: .9; }
-  .kkutu-rules h3 { font-size: 13px; margin-bottom: 10px; opacity: .85; }
-  .kkutu-rules ul { list-style: none; display: grid; gap: 8px; }
-  .kkutu-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
-  .kkutu-rules span { opacity: .7; }
-  .kkutu-leave { margin-top: auto; }
-  .kkutu-wait-main { padding: 20px 24px; overflow: auto; display: flex; flex-direction: column; gap: 16px; }
-  .kkutu-wait-head h2 { font-size: 24px; margin-bottom: 4px; }
-  .kkutu-wait-head p { color: var(--text2); }
-  .kkutu-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-  .kkutu-player-slot {
-    min-height: 110px;
-    border: 2px dashed #c9d2e3;
-    border-radius: 14px;
-    background: #fff;
-    padding: 14px;
-    display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  .wait-room-card { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .wait-room-kicker { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .wait-room-title { font-size: 22px; font-weight: 900; line-height: 1.25; }
+  .wait-room-mode {
+    display: inline-flex; align-self: flex-start;
+    font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg3)); color: var(--accent);
   }
-  .kkutu-slot-filled { border-style: solid; border-color: #b8c7ef; }
-  .kkutu-slot-me { box-shadow: inset 0 0 0 2px var(--accent); }
-  .kkutu-player-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .kkutu-player-name { font-size: 18px; font-weight: 800; }
-  .kkutu-badge.host { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 800; }
-  .kkutu-player-status { font-size: 13px; font-weight: 700; color: #94a3b8; }
-  .kkutu-player-status.ready { color: #16a34a; }
-  .kkutu-empty-slot { text-align: center; color: #94a3b8; font-weight: 700; }
-  .kkutu-add-bot {
-    width: 100%; min-height: 110px;
-    border: 2px dashed #93c5fd;
-    border-radius: 14px;
-    background: #eff6ff;
-    color: #2563eb;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-    font-weight: 800; font-size: 14px;
+  .wait-room-rules h3 { font-size: 13px; font-weight: 800; color: var(--text2); margin-bottom: 10px; }
+  .wait-room-rules ul { list-style: none; display: grid; gap: 8px; }
+  .wait-room-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .wait-room-rules span { color: var(--text3); }
+  .wait-room-rules strong { font-weight: 800; }
+  .wait-invite-side { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+  .wait-leave { margin-top: auto; }
+  .wait-room-main {
+    padding: 18px 20px; border-radius: 18px;
+    background: var(--card); border: 1px solid var(--border);
+    overflow: auto; display: flex; flex-direction: column; gap: 16px;
   }
-  .kkutu-add-bot:hover:not(:disabled) { background: #dbeafe; border-color: #60a5fa; }
+  .wait-room-head h2 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+  .wait-room-head p { color: var(--text2); font-size: 14px; }
+  .wait-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .wait-player-slot {
+    min-height: 128px; border-radius: 16px;
+    border: 1px solid var(--border2);
+    background: var(--bg2);
+    padding: 14px; display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  }
+  .wait-slot-filled { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); background: var(--card); }
+  .wait-slot-me { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .wait-player-top { display: flex; align-items: center; gap: 10px; }
+  .wait-player-avatar {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg3));
+    color: var(--accent); font-weight: 900; font-size: 16px;
+  }
+  .wait-player-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .wait-player-name { font-size: 17px; font-weight: 800; }
+  .wait-badge.host {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg3));
+    color: var(--accent); font-weight: 800;
+  }
+  .wait-player-status { font-size: 13px; font-weight: 700; color: var(--text3); }
+  .wait-player-status.ready { color: #16a34a; }
+  .wait-slot-actions { display: grid; gap: 8px; }
+  .wait-slot-primary, .wait-slot-secondary {
+    width: 100%; min-height: 44px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-weight: 800; font-size: 13px;
+  }
+  .wait-slot-primary {
+    background: color-mix(in srgb, var(--accent) 12%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+    color: var(--accent);
+  }
+  .wait-slot-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
+  .wait-slot-secondary {
+    background: transparent; border: 1px dashed var(--border2); color: var(--text2);
+  }
+  .wait-slot-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .wait-slot-waiting { text-align: center; color: var(--text3); display: grid; gap: 4px; }
+  .wait-slot-waiting span { font-weight: 800; }
+  .wait-slot-waiting small { font-size: 12px; }
+  .wait-room-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .wait-start { min-width: 140px; }
+  .wait-chat { border: 1px solid var(--border); border-radius: 14px; background: var(--bg2); overflow: hidden; }
+  .wait-chat-log { max-height: 180px; overflow: auto; padding: 12px; font-size: 13px; }
+  .wait-chat-line { margin-bottom: 6px; }
+  .wait-chat-form { display: flex; border-top: 1px solid var(--border); }
+  .wait-chat-form input { flex: 1; border: 0; padding: 12px; background: transparent; color: var(--text); }
+  .wait-chat-form button { width: 44px; color: var(--accent); }
+
+  .invite-banner-row { display: grid; gap: 10px; }
+  .invite-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 14px 16px; border-radius: 14px;
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  }
+  .invite-banner-copy { display: grid; gap: 2px; font-size: 14px; }
+  .invite-banner-copy strong { color: var(--accent); }
+  .invite-banner-actions { display: flex; gap: 8px; }
+  .invite-join-btn { min-width: 72px; }
+
+  .invite-modal { width: min(420px, 100%); }
+  .invite-modal-body { display: grid; gap: 14px; }
+  .friend-add-row { display: flex; gap: 8px; }
+  .friend-add-row .lobby-input { flex: 1; }
+  .friend-section { display: grid; gap: 8px; }
+  .friend-section-label, .settings-friend-block .friend-section-label {
+    font-size: 12px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .06em;
+  }
+  .settings-friend-block { display: grid; gap: 8px; margin-top: 12px; }
+  .friend-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--bg2); border: 1px solid var(--border);
+  }
+  .friend-row-user { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .friend-avatar {
+    width: 30px; height: 30px; border-radius: 10px;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg3));
+    color: var(--accent); font-weight: 900; font-size: 13px;
+  }
+  .friend-row-actions { display: flex; gap: 6px; }
+  .tiny-action { height: 32px; padding: 0 10px; font-size: 12px; }
+  .friend-empty { font-size: 13px; color: var(--text3); padding: 8px 2px; }
   .bot-setup-body { display: grid; gap: 14px; }
   .bot-setup-field { display: grid; gap: 8px; }
   .bot-setup-label { font-size: 12px; font-weight: 800; color: var(--text3); }
-  .kkutu-wait-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-  .kkutu-start { min-width: 140px; }
-  .kkutu-chat { border: 1px solid var(--border); border-radius: 12px; background: #fff; overflow: hidden; }
-  .kkutu-chat-log { max-height: 180px; overflow: auto; padding: 12px; font-size: 13px; }
-  .kkutu-chat-line { margin-bottom: 6px; }
-  .kkutu-chat-form { display: flex; border-top: 1px solid var(--border); }
-  .kkutu-chat-form input { flex: 1; border: 0; padding: 12px; background: transparent; }
-  .kkutu-chat-form button { width: 44px; color: var(--accent); }
-
   /* Lobby hub */
   .lobby-hub {
     flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -6965,11 +7337,9 @@
   :global([data-theme="dark"]) .room-mode-badge.tone-pyohan { background: #7c2d12; color: #fdba74; }
   :global([data-theme="dark"]) .room-mode-badge.tone-kkutu { background: #831843; color: #f9a8d4; }
   :global([data-theme="dark"]) .room-mode-badge.tone-geonmat { background: #0c4a6e; color: #7dd3fc; }
-  :global([data-theme="dark"]) .kkutu-wait { background: linear-gradient(180deg, #111318 0%, #0d0f14 28%); }
-  :global([data-theme="dark"]) .kkutu-player-slot { background: #171a22; border-color: #2a3140; }
-  :global([data-theme="dark"]) .kkutu-add-bot { background: #1a2332; border-color: #3b82f6; color: #93c5fd; }
-  :global([data-theme="dark"]) .kkutu-add-bot:hover:not(:disabled) { background: #1e293b; }
-  :global([data-theme="dark"]) .kkutu-chat { background: #171a22; }
+  :global([data-theme="dark"]) .wait-room-side,
+  :global([data-theme="dark"]) .wait-room-main { box-shadow: none; }
+  :global([data-theme="dark"]) .wait-player-slot { background: var(--bg3); }
   :global([data-theme="dark"]) .auth-panel-input { background: var(--bg2); }
   :global([data-theme="dark"]) .job-tooltip { background: #0d0f14; border-color: var(--border2); }
   :global([data-theme="dark"]) .job-tooltip-text { color: #b8c4e0; }
