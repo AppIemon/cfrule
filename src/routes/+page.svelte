@@ -2014,7 +2014,8 @@
         <aside class="kkutu-wait-side">
           <div class="kkutu-room-no">
             <span class="kkutu-room-label">ROOM</span>
-            <strong>{room}</strong>
+            <strong>{snapshot?.meta?.name || room}</strong>
+            <span class="kkutu-room-code">{room}</span>
           </div>
           <div class="kkutu-rules">
             <h3>방 설정</h3>
@@ -6461,7 +6462,8 @@
   }
   .kkutu-room-no { text-align: center; padding: 18px 12px; background: rgba(255,255,255,.06); border-radius: 12px; }
   .kkutu-room-label { display: block; font-size: 11px; letter-spacing: .12em; opacity: .7; }
-  .kkutu-room-no strong { font-size: 34px; letter-spacing: .18em; }
+  .kkutu-room-no strong { font-size: 22px; font-weight: 800; display: block; margin-top: 4px; }
+  .kkutu-room-code { display: block; margin-top: 6px; font-size: 28px; letter-spacing: .18em; font-weight: 900; opacity: .9; }
   .kkutu-rules h3 { font-size: 13px; margin-bottom: 10px; opacity: .85; }
   .kkutu-rules ul { list-style: none; display: grid; gap: 8px; }
   .kkutu-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
