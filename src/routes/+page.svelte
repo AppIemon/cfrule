@@ -784,8 +784,15 @@
   const activeDictSource = $derived(
     game?.gueruleSettings?.dictSource || snapshot?.meta?.dictSource || dictSource || 'default'
   );
+  const isGeonmatMode = $derived(String(ruleMode).startsWith('geonmat:'));
+  const supportsChainPick = $derived(!isGeonmatMode && ['guerule', 'combat', 'card', 'pyohan', 'kkutu'].includes(ruleMode));
+  const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
   const wizardSteps = $derived.by(() => {
-    const steps = ['chain', 'mode', 'dict', 'dueum', 'extras'];
+    const steps = ['room', 'mode'];
+    if (supportsChainPick) steps.push('chain');
+    steps.push('dict');
+    if (supportsDuEum) steps.push('dueum');
+    steps.push('options');
     if (ruleMode === 'guerule' || ruleMode === 'combat') steps.push('jobs');
     return steps;
   });
@@ -837,6 +844,12 @@
 
   $effect(() => {
     if (!isBanPhase && selectedBans.length) selectedBans = [];
+  });
+
+  $effect(() => {
+    if (showCreateWizard && wizardStep >= wizardSteps.length) {
+      wizardStep = Math.max(0, wizardSteps.length - 1);
+    }
   });
 
   $effect(() => {
@@ -945,6 +958,31 @@
 
   function wizardBack() {
     if (wizardStep > 0) wizardStep -= 1;
+  }
+
+  function selectRuleMode(value) {
+    ruleMode = value;
+    if (String(value).startsWith('geonmat:')) chainMode = 'end';
+    if (value === 'kkutu') dictSource = 'kkutu';
+    if (value === 'pyohan') dictSource = 'default';
+  }
+
+  function selectChainMode(value) {
+    chainMode = value;
+    if (value === 'start' && isGeonmatMode) ruleMode = 'guerule';
+  }
+
+  function wizardStepTitle(key) {
+    const map = {
+      room: '방 설정',
+      mode: '게임 모드',
+      chain: '잇기 방향',
+      dict: '사전',
+      dueum: '두음법칙',
+      options: '게임 옵션',
+      jobs: '직업 제한'
+    };
+    return map[key] || '';
   }
 
   function dictLabel(value) {
@@ -1878,31 +1916,31 @@
             <div class="wizard-head">
               <div>
                 <span class="panel-kicker">STEP {wizardStep + 1} / {wizardSteps.length}</span>
-                <h2>
-                  {#if wizardStepKey === 'chain'}잇기 방향
-                  {:else if wizardStepKey === 'mode'}게임 모드
-                  {:else if wizardStepKey === 'dict'}사전
-                  {:else if wizardStepKey === 'dueum'}두음법칙
-                  {:else if wizardStepKey === 'extras'}세부 설정
-                  {:else}직업 제한{/if}
-                </h2>
+                <h2>{wizardStepTitle(wizardStepKey)}</h2>
               </div>
               <button class="wizard-close" onclick={closeCreateWizard}><X size={18} /></button>
             </div>
 
             <div class="wizard-body">
-              {#if wizardStepKey === 'chain'}
-                <div class="wizard-choice-grid">
-                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'end'} onclick={() => (chainMode = 'end')}>
-                    <strong>끝말잇기</strong>
-                    <span>마지막 글자로 이어 말합니다</span>
-                  </button>
-                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'start'} onclick={() => (chainMode = 'start')}>
-                    <strong>앞말잇기</strong>
-                    <span>첫 글자로 끝나는 단어를 냅니다</span>
-                  </button>
+              {#if wizardStepKey === 'room'}
+                <div class="wizard-extras">
+                  <label class="wizard-field">
+                    <span>방 이름</span>
+                    <input class="lobby-input" bind:value={roomName} placeholder="예: 친선전, 연습방" maxlength="32" />
+                  </label>
+                  <label class="wizard-field">
+                    <span>비밀번호 (선택)</span>
+                    <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
+                  </label>
+                  <div class="mode-row">
+                    <span class="extras-label">인원</span>
+                    {#each [1,2,3] as m}
+                      <button class="mode-btn" class:mode-active={mode == m} onclick={() => (mode = m)}>{m}대{m}</button>
+                    {/each}
+                  </div>
                 </div>
               {:else if wizardStepKey === 'mode'}
+                <p class="wizard-hint">미니게임은 끝말잇기만 지원합니다.</p>
                 <div class="wizard-choice-grid wizard-choice-grid-3">
                   {#each [
                     ['guerule', '채린룰', '직업·능력'],
@@ -1915,11 +1953,22 @@
                     ['geonmat:bingo', '빙고맞', '3×3 빙고'],
                     ['geonmat:relay', '이어달리기', '다단 경로']
                   ] as [value, title, desc]}
-                    <button class="wizard-choice" class:wizard-choice-active={ruleMode === value} onclick={() => (ruleMode = value)}>
+                    <button class="wizard-choice" class:wizard-choice-active={ruleMode === value} onclick={() => selectRuleMode(value)}>
                       <strong>{title}</strong>
                       <span>{desc}</span>
                     </button>
                   {/each}
+                </div>
+              {:else if wizardStepKey === 'chain'}
+                <div class="wizard-choice-grid">
+                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'end'} onclick={() => selectChainMode('end')}>
+                    <strong>끝말잇기</strong>
+                    <span>마지막 글자로 이어 말합니다</span>
+                  </button>
+                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'start'} onclick={() => selectChainMode('start')}>
+                    <strong>앞말잇기</strong>
+                    <span>첫 글자로 끝나는 단어를 냅니다</span>
+                  </button>
                 </div>
               {:else if wizardStepKey === 'dict'}
                 <div class="wizard-choice-grid wizard-choice-grid-3">
@@ -1930,8 +1979,16 @@
                     ['jime', '지메'],
                     ['kkutu', '끄투']
                   ] as [value, title]}
-                    <button class="wizard-choice" class:wizard-choice-active={dictSource === value} onclick={() => (dictSource = value)}>
+                    {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
+                    <button
+                      class="wizard-choice"
+                      class:wizard-choice-active={dictSource === value}
+                      class:wizard-choice-disabled={locked}
+                      onclick={() => { if (!locked) dictSource = value; }}
+                      disabled={locked}
+                    >
                       <strong>{title}</strong>
+                      {#if locked}<span>끄투 모드 전용</span>{/if}
                     </button>
                   {/each}
                 </div>
@@ -1946,22 +2003,8 @@
                     <span>표기 그대로만 이어갑니다</span>
                   </button>
                 </div>
-              {:else if wizardStepKey === 'extras'}
+              {:else if wizardStepKey === 'options'}
                 <div class="wizard-extras">
-                  <label class="wizard-field">
-                    <span>방 이름</span>
-                    <input class="lobby-input" bind:value={roomName} placeholder="예: 친선전" maxlength="32" />
-                  </label>
-                  <label class="wizard-field">
-                    <span>비밀번호 (선택)</span>
-                    <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
-                  </label>
-                  <div class="mode-row">
-                    <span class="extras-label">인원</span>
-                    {#each [1,2,3] as m}
-                      <button class="mode-btn" class:mode-active={mode == m} onclick={() => (mode = m)}>{m}대{m}</button>
-                    {/each}
-                  </div>
                   <label class="practice-toggle">
                     <input type="checkbox" bind:checked={searchAllowed} />
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -1988,7 +2031,7 @@
                   {#if ruleMode === 'pyohan'}
                     <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
                   {/if}
-                  {#if String(ruleMode).startsWith('geonmat:')}
+                  {#if isGeonmatMode}
                     <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
                   {/if}
                 </div>
@@ -6535,6 +6578,8 @@
   }
   .wizard-choice-active strong { color: var(--accent); }
   .wizard-choice-active span { color: var(--text2); }
+  .wizard-choice-disabled { opacity: .45; cursor: not-allowed; }
+  .wizard-hint { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
   .wizard-extras { display: grid; gap: 12px; }
   .extras-label { font-size: 12px; font-weight: 700; color: var(--text3); margin-right: 8px; }
   .setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
