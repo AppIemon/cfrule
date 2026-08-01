@@ -291,6 +291,17 @@ function sanitizeJobs(value) {
   return out;
 }
 
+function requiredPlayersFromMeta(meta, game = null) {
+  if (!meta && !game) return 2;
+  const gameMode = String(meta?.gameMode || '');
+  const gs = game?.gueruleSettings;
+  if (gameMode.startsWith('geonmat:') || gs?.geonmatRounds > 0 || Number(meta?.geonmatPlayerCap) >= 1) {
+    const cap = Number(meta?.geonmatPlayerCap) || Number(gs?.geonmatPlayerCap) || 0;
+    return cap >= 1 ? cap : 4;
+  }
+  return Number(meta?.mode || game?.teamMode || 1) * 2;
+}
+
 function normalizeTimer(value = {}) {
   const enabled = !!value.enabled;
   const minutes = Math.min(60, Math.max(1, Math.floor(Number(value.minutes) || 10)));
@@ -344,6 +355,7 @@ function roomOptionsFromMeta(meta) {
   if (meta.gameMode) options.gameMode = meta.gameMode;
   if (meta.pyohanLives) options.pyohanLives = meta.pyohanLives;
   if (meta.geonmatRounds) options.geonmatRounds = meta.geonmatRounds;
+  if (meta.geonmatPlayerCap >= 1) options.geonmatPlayerCap = meta.geonmatPlayerCap;
   if (meta.searchAllowed !== undefined) options.searchAllowed = !!meta.searchAllowed;
   if (meta.cpuLevel) options.cpuLevel = meta.cpuLevel;
   if (meta.cpuThink !== undefined) options.cpuThink = !!meta.cpuThink;
@@ -462,6 +474,8 @@ export async function createRoom({
   gameMode = 'guerule',
   pyohanLives = 3,
   geonmatRounds = 5,
+  geonmatPlayerCap = 0,
+  playerCount = 0,
   searchAllowed = false,
   cpuLevel = '',
   cpuThink = false,
@@ -473,19 +487,34 @@ export async function createRoom({
   isGuest = false
 }) {
   const room = code();
-  const cleanMode = sanitizeMode(mode);
-  const cleanDisabledJobs = sanitizeJobs(disabledJobs);
-  const cleanCpuJob = cleanDisabledJobs.includes(cpuJob) ? '' : String(cpuJob || '').trim();
   const owner = String(nickname || '').trim() || 'player';
   const resolvedGameMode = combat ? 'combat' : String(gameMode || 'guerule');
+  const isGeonmat = String(resolvedGameMode).startsWith('geonmat:');
+  let cleanMode = sanitizeMode(mode);
+  let resolvedCap = 0;
+  let resolvedCount = 0;
+  if (isGeonmat) {
+    resolvedCap = Math.min(20, Math.max(1, Math.floor(Number(geonmatPlayerCap || playerCount) || 4)));
+    resolvedCount = resolvedCap;
+    cleanMode = 1;
+  } else {
+    const rawCount = Math.floor(Number(playerCount) || cleanMode * 2 || 2);
+    const even = Math.min(6, Math.max(2, rawCount % 2 === 0 ? rawCount : rawCount - 1));
+    resolvedCount = even;
+    cleanMode = even / 2;
+  }
   const passwordHash = hashRoomPassword(roomPassword);
   let resolvedChain = chainMode === 'start' ? 'start' : 'end';
-  if (String(resolvedGameMode).startsWith('geonmat:')) resolvedChain = 'end';
+  if (isGeonmat) resolvedChain = 'end';
+  const cleanDisabledJobs = sanitizeJobs(disabledJobs);
+  const cleanCpuJob = cleanDisabledJobs.includes(cpuJob) ? '' : String(cpuJob || '').trim();
   roomMeta.set(room, {
     createdAt: Date.now(),
     name: String(roomName || '').trim().slice(0, 32),
     passwordHash: passwordHash || '',
     mode: cleanMode,
+    playerCount: resolvedCount,
+    geonmatPlayerCap: resolvedCap,
     practice,
     cpuJob: cleanCpuJob,
     owner,
@@ -577,7 +606,7 @@ export async function startRoomGame({ room, nickname }) {
   const game = await botRoomState(room);
   if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
   const players = game.players || [];
-  const required = Number(meta.mode || 1) * 2;
+  const required = requiredPlayersFromMeta(meta, game);
   if (players.length < required) throw new Error(`인원이 부족합니다. (${players.length}/${required})`);
   const ready = meta.ready || {};
   for (const player of players) {
@@ -791,7 +820,7 @@ export async function listRooms() {
       players: game?.players || [],
       currentPlayer: game?.currentPlayer || '',
       turnCount: game?.turnCount || 1,
-      requiredPlayers: Number(meta?.mode || 1) * 2,
+      requiredPlayers: requiredPlayersFromMeta(meta, game),
       createdAt: meta?.createdAt || 0
     });
   }
@@ -806,7 +835,7 @@ export async function listRooms() {
       players: game?.players || [],
       currentPlayer: game?.currentPlayer || '',
       turnCount: game?.turnCount || 1,
-      requiredPlayers: Number(game?.teamMode || 1) * 2,
+      requiredPlayers: requiredPlayersFromMeta(roomMeta.get(room), game),
       createdAt: 0
     });
   }

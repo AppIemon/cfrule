@@ -84,6 +84,8 @@ export async function POST({ request, locals }) {
       roomPassword: String(body?.roomPassword || ''),
       pyohanLives: Number(body?.pyohanLives) || 3,
       geonmatRounds: Number(body?.geonmatRounds) || 5,
+      geonmatPlayerCap: Number(body?.geonmatPlayerCap) || 0,
+      playerCount: Number(body?.playerCount) || 0,
       isGuest
     }));
   } catch (error) {

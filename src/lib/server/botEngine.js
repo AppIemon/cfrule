@@ -522,6 +522,7 @@ export async function configureBotRoom(room, options = {}) {
       const variant = mode.split(':')[1] || 'geonmat';
       gs.dictMiniVariant = variant;
       gs.geonmatRounds = Number(options.geonmatRounds) || 5;
+      if (Number(options.geonmatPlayerCap) >= 1) gs.geonmatPlayerCap = Number(options.geonmatPlayerCap);
       raw.gameType = 'geonmat';
     }
   }
@@ -666,6 +667,15 @@ function silentReplier() {
   return { reply() {} };
 }
 
+function requiredPlayersForGame(game, meta = {}) {
+  const gs = game?.gueruleSettings;
+  if (gs?.geonmatRounds > 0 || String(meta?.gameMode || '').startsWith('geonmat:')) {
+    const cap = Number(gs?.geonmatPlayerCap) || Number(meta?.geonmatPlayerCap) || 0;
+    return cap >= 1 ? cap : 4;
+  }
+  return (game?.teamMode || meta?.mode || 1) * 2;
+}
+
 export async function botCreateWebLobby(room, { owner, mode = 1, combat = false }) {
   const bot = await getBotEngine();
   const scope = scopeApi(bot.context);
@@ -695,7 +705,7 @@ export async function botJoinWebLobby(room, nickname) {
   if (!raw) throw new Error('방을 찾을 수 없습니다.');
   if (raw.phase !== 'waiting' || raw.started) throw new Error('이미 시작된 방입니다.');
   const sender = String(nickname || '').trim() || 'player';
-  const required = (raw.teamMode || 1) * 2;
+  const required = requiredPlayersForGame(raw);
   if (!raw.players.includes(sender)) {
     if (raw.players.length >= required) throw new Error('방이 가득 찼습니다.');
     raw.players.push(sender);
@@ -708,7 +718,7 @@ export async function botStartWebLobby(room, meta = {}) {
   const scope = scopeApi(bot.context);
   const raw = resolveMutableRoomGame(bot.context, room);
   if (!raw || raw.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
-  const required = (raw.teamMode || meta.mode || 1) * 2;
+  const required = requiredPlayersForGame(raw, meta);
   if ((raw.players || []).length < required) throw new Error('인원이 부족합니다.');
 
   raw.webManualStart = false;
@@ -794,7 +804,7 @@ export async function botAddCpuToLobby(room, { cpuLevel = '보통', cpuThink = f
   const scope = scopeApi(bot.context);
   const raw = resolveMutableRoomGame(bot.context, room);
   if (!raw || raw.phase !== 'waiting' || raw.started) throw new Error('대기 중인 방이 아닙니다.');
-  const required = (raw.teamMode || 1) * 2;
+  const required = requiredPlayersForGame(raw);
   if ((raw.players || []).length >= required) throw new Error('방이 가득 찼습니다.');
 
   raw.gueruleSettings = raw.gueruleSettings || {};
