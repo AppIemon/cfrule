@@ -184,6 +184,11 @@
   let showJoinPassword = $state(false);
   let pendingJoinRoom = $state('');
   let joinPasswordInput = $state('');
+  let showBotSetup = $state(false);
+  let botCpuLevel = $state('보통');
+  let botCpuThink = $state(false);
+  let botCpuJobMode = $state('random');
+  let botCpuJob = $state('');
   let user = $state(null);
   let roomInput = $state('');
   let room = $state('');
@@ -785,6 +790,7 @@
     return steps;
   });
   const isGuest = $derived(!!user?.isGuest);
+  const isGueruleRoom = $derived(['guerule', 'combat'].includes(snapshot?.meta?.gameMode || 'guerule'));
   const isRoomHost = $derived(snapshot?.meta?.owner === nickname);
   const roomReadyMap = $derived(snapshot?.meta?.ready || {});
   const requiredPlayers = $derived(Number(snapshot?.meta?.mode || game?.teamMode || mode || 1) * 2);
@@ -1108,6 +1114,36 @@
   async function confirmJoinPassword() {
     if (!pendingJoinRoom) return;
     await join(joinPasswordInput);
+  }
+
+  function openBotSetup() {
+    if (!isRoomHost) return;
+    botCpuLevel = '보통';
+    botCpuThink = false;
+    botCpuJobMode = 'random';
+    botCpuJob = '';
+    showBotSetup = true;
+  }
+
+  async function confirmBotSetup() {
+    if (!room || !isRoomHost) return;
+    busy = true;
+    try {
+      snapshot = await request('/api/room', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'addBot',
+          room,
+          cpuLevel: botCpuLevel,
+          cpuThink: botCpuThink,
+          cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : ''
+        })
+      });
+      showBotSetup = false;
+    } finally {
+      busy = false;
+    }
   }
 
   async function refresh(targetRoom = room) {
@@ -1816,31 +1852,6 @@
             </div>
           {/if}
         </div>
-
-        <details class="practice-details practice-details-min">
-          <summary><Bot size={14} />연습 모드</summary>
-          <div class="practice-details-body">
-            <label class="practice-toggle">
-              <input type="checkbox" bind:checked={practice} />
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-              CPU와 연습
-            </label>
-            {#if practice}
-              <div class="mode-row">
-                {#each [1,2,3] as m}
-                  <button class="mode-btn" class:mode-active={mode == m} onclick={() => (mode = m)}>{m}대{m}</button>
-                {/each}
-              </div>
-              <select class="lobby-input" bind:value={cpuJob}>
-                <option value="">CPU 직업 (랜덤)</option>
-                {#each availableJobs as j}
-                  <option value={j}>{j}</option>
-                {/each}
-              </select>
-              <button class="accent-btn practice-start-btn" onclick={create} disabled={busy}>연습 시작</button>
-            {/if}
-          </div>
-        </details>
       </div>
 
       {#if showJoinPassword}
@@ -2051,6 +2062,11 @@
                   <div class="kkutu-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player}>
                     {snapshot?.meta?.owner === player ? '방장' : roomReadyMap[player] ? '준비' : '대기'}
                   </div>
+                {:else if isRoomHost}
+                  <button class="kkutu-add-bot" onclick={openBotSetup} disabled={busy}>
+                    <Plus size={28} />
+                    <span>봇 추가</span>
+                  </button>
                 {:else}
                   <div class="kkutu-empty-slot">빈 자리</div>
                 {/if}
@@ -2088,6 +2104,62 @@
           {/if}
         </main>
       </div>
+
+      {#if showBotSetup}
+        <div class="wizard-overlay" role="dialog" aria-label="봇 설정">
+          <div class="wizard-card wizard-card-sm">
+            <div class="wizard-head">
+              <div>
+                <h2>봇 추가</h2>
+                <p>채린컴퓨터를 빈 자리에 넣습니다</p>
+              </div>
+              <button class="wizard-close" onclick={() => (showBotSetup = false)}><X size={18} /></button>
+            </div>
+            <div class="wizard-body bot-setup-body">
+              <div class="bot-setup-field">
+                <span class="bot-setup-label">난이도</span>
+                <div class="mode-row">
+                  {#each ['쉬움', '보통', '어려움', '지옥'] as level}
+                    <button class="mode-btn" class:mode-active={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
+                  {/each}
+                </div>
+              </div>
+              <label class="practice-toggle">
+                <input type="checkbox" bind:checked={botCpuThink} />
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                생각 과정 보이기
+              </label>
+              {#if isGueruleRoom}
+                <div class="bot-setup-field">
+                  <span class="bot-setup-label">직업</span>
+                  <div class="mode-row">
+                    <button class="mode-btn" class:mode-active={botCpuJobMode === 'random'} onclick={() => (botCpuJobMode = 'random')}>랜덤</button>
+                    <button class="mode-btn" class:mode-active={botCpuJobMode === 'pick'} onclick={() => (botCpuJobMode = 'pick')}>지정</button>
+                  </div>
+                  {#if botCpuJobMode === 'pick'}
+                    <select class="lobby-input" bind:value={botCpuJob}>
+                      <option value="">직업 선택</option>
+                      {#each availableJobs as j}
+                        <option value={j}>{j}</option>
+                      {/each}
+                    </select>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+            <div class="wizard-foot">
+              <button class="ghost-btn" onclick={() => (showBotSetup = false)}>취소</button>
+              <button
+                class="accent-btn"
+                onclick={confirmBotSetup}
+                disabled={busy || (isGueruleRoom && botCpuJobMode === 'pick' && !botCpuJob)}
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
 
     {:else if !game}
       <div class="matching-screen compact-loading">
@@ -6438,12 +6510,19 @@
     text-align: left; padding: 14px;
     border: 2px solid var(--border);
     border-radius: 12px;
-    background: var(--bg2);
+    background: var(--card);
+    color: var(--text);
     display: grid; gap: 4px;
   }
-  .wizard-choice strong { font-size: 15px; }
+  .wizard-choice strong { font-size: 15px; color: var(--text); }
   .wizard-choice span { font-size: 12px; color: var(--text2); }
-  .wizard-choice-active { border-color: var(--accent); background: rgba(37, 99, 235, .08); }
+  .wizard-choice-active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, var(--card));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .wizard-choice-active strong { color: var(--text); }
+  .wizard-choice-active span { color: var(--text2); }
   .wizard-extras { display: grid; gap: 12px; }
   .extras-label { font-size: 12px; font-weight: 700; color: var(--text3); margin-right: 8px; }
   .setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -6489,6 +6568,19 @@
   .kkutu-player-status { font-size: 13px; font-weight: 700; color: #94a3b8; }
   .kkutu-player-status.ready { color: #16a34a; }
   .kkutu-empty-slot { text-align: center; color: #94a3b8; font-weight: 700; }
+  .kkutu-add-bot {
+    width: 100%; min-height: 110px;
+    border: 2px dashed #93c5fd;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    font-weight: 800; font-size: 14px;
+  }
+  .kkutu-add-bot:hover:not(:disabled) { background: #dbeafe; border-color: #60a5fa; }
+  .bot-setup-body { display: grid; gap: 14px; }
+  .bot-setup-field { display: grid; gap: 8px; }
+  .bot-setup-label { font-size: 12px; font-weight: 800; color: var(--text3); }
   .kkutu-wait-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   .kkutu-start { min-width: 140px; }
   .kkutu-chat { border: 1px solid var(--border); border-radius: 12px; background: #fff; overflow: hidden; }
@@ -6589,6 +6681,8 @@
   .simple-actions { display: flex; gap: 8px; justify-content: flex-end; }
   :global([data-theme="dark"]) .kkutu-wait { background: linear-gradient(180deg, #111318 0%, #0d0f14 28%); }
   :global([data-theme="dark"]) .kkutu-player-slot { background: #171a22; border-color: #2a3140; }
+  :global([data-theme="dark"]) .kkutu-add-bot { background: #1a2332; border-color: #3b82f6; color: #93c5fd; }
+  :global([data-theme="dark"]) .kkutu-add-bot:hover:not(:disabled) { background: #1e293b; }
   :global([data-theme="dark"]) .kkutu-chat { background: #171a22; }
   :global([data-theme="dark"]) .auth-panel-input { background: var(--bg2); }
   :global([data-theme="dark"]) .job-tooltip { background: #0d0f14; border-color: var(--border2); }

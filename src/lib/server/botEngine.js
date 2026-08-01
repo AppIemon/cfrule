@@ -776,3 +776,49 @@ export async function botLeaveWebLobby(room, nickname) {
   if (raw.hostPlayer === sender) raw.hostPlayer = raw.players[0];
   return serializeGame(raw);
 }
+
+function nextCpuName(game, scope) {
+  const base = scope?.CPU_NAME || '채린컴퓨터';
+  const players = game?.players || [];
+  let name = base;
+  let n = 2;
+  while (players.includes(name)) {
+    name = `${base}${n}`;
+    n += 1;
+  }
+  return name;
+}
+
+export async function botAddCpuToLobby(room, { cpuLevel = '보통', cpuThink = false, cpuJob = '' } = {}) {
+  const bot = await getBotEngine();
+  const scope = scopeApi(bot.context);
+  const raw = resolveMutableRoomGame(bot.context, room);
+  if (!raw || raw.phase !== 'waiting' || raw.started) throw new Error('대기 중인 방이 아닙니다.');
+  const required = (raw.teamMode || 1) * 2;
+  if ((raw.players || []).length >= required) throw new Error('방이 가득 찼습니다.');
+
+  raw.gueruleSettings = raw.gueruleSettings || {};
+  const gs = raw.gueruleSettings;
+  const levels = scope.CROSS_CPU_LEVELS || {};
+  const level = String(cpuLevel || '보통').trim();
+  if (levels[level]) gs.cpuLevel = level;
+  else throw new Error(`난이도는 ${(scope.CROSS_CPU_LEVEL_ORDER || ['쉬움', '보통', '어려움', '지옥']).join(', ')} 중에서 고르세요.`);
+
+  gs.cpuThink = !!cpuThink;
+  const job = String(cpuJob || '').trim();
+  if (job) {
+    gs.cpuJob = job;
+    raw.practiceCpuJobArg = job;
+  } else {
+    delete gs.cpuJob;
+    raw.practiceCpuJobArg = null;
+  }
+
+  const cpuName = nextCpuName(raw, scope);
+  raw.players.push(cpuName);
+  raw.playerRooms = raw.playerRooms || {};
+  raw.playerRooms[cpuName] = room;
+  raw.cpuFill = true;
+  if (!raw.webManualStart) raw.webManualStart = true;
+  return { cpuName, game: serializeGame(raw) };
+}
