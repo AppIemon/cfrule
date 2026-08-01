@@ -1225,10 +1225,10 @@
     fetchRoomList();
   }
 
-  async function join(password = '') {
+  async function join(password = '', roomCode = '') {
     requireLogin();
     nickname = user.nickname;
-    const target = String(pendingJoinRoom || '').trim().toUpperCase();
+    const target = String(roomCode || pendingJoinRoom || '').trim().toUpperCase();
     if (!target) return;
     const data = await request('/api/room', {
       method: 'POST',
@@ -1247,9 +1247,10 @@
 
   async function openListedRoom(entry) {
     const target = typeof entry === 'string' ? entry : entry?.room;
+    if (!target) return;
     const locked = typeof entry === 'object' && entry?.hasPassword;
+    pendingJoinRoom = target;
     if (locked) {
-      pendingJoinRoom = target;
       joinPasswordInput = '';
       showJoinPassword = true;
       return;
