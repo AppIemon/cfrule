@@ -479,6 +479,8 @@ export async function createRoom({
   const owner = String(nickname || '').trim() || 'player';
   const resolvedGameMode = combat ? 'combat' : String(gameMode || 'guerule');
   const passwordHash = hashRoomPassword(roomPassword);
+  let resolvedChain = chainMode === 'start' ? 'start' : 'end';
+  if (String(resolvedGameMode).startsWith('geonmat:')) resolvedChain = 'end';
   roomMeta.set(room, {
     createdAt: Date.now(),
     name: String(roomName || '').trim().slice(0, 32),
@@ -497,7 +499,7 @@ export async function createRoom({
     searchAllowed: !!searchAllowed,
     cpuLevel: String(cpuLevel || ''),
     cpuThink: !!cpuThink,
-    chainMode: chainMode === 'start' ? 'start' : 'end',
+    chainMode: resolvedChain,
     duEum: duEum !== false,
     rated: isGuest ? false : rated !== false,
     ready: { [owner]: true },
