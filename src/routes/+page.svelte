@@ -244,7 +244,6 @@
   let jobTabJob = $state('해커');
   let jobFilter = $state('');
   let busy = $state(false);
-  let cpuThinking = $state(false);
   let error = $state('');
   let errorTimer;
   let hasMatched = $state(false);
@@ -383,6 +382,12 @@
   const currentPlayer = $derived(game?.currentPlayer || '');
   const nextSyllable = $derived(formatSyllable(game));
   const canPlay = $derived(game?.phase === 'playing' && (!currentPlayer || currentPlayer === nickname));
+  const showCpuThinking = $derived(
+    game?.phase === 'playing' &&
+    !!currentPlayer &&
+    currentPlayer !== nickname &&
+    isCpuPlayerName(currentPlayer)
+  );
   const myTeamIndex = $derived(game?.players?.indexOf(nickname) ?? -1);
   const currentTeamIndex = $derived(game?.players?.indexOf(currentPlayer) ?? -1);
   const canUseAbility = $derived(
@@ -1597,14 +1602,12 @@
       word = '';
       return;
     }
-    cpuThinking = true;
     try {
       await send(`0${text}`);
-      word = '';        /* 성공했을 때만 비운다. 실패하면 다시 치지 않아도 되게 남긴다. */
+      word = '';
     } catch {
       /* 사유는 request 가 토스트로 띄운다. 입력한 단어는 그대로 둔다. */
     } finally {
-      cpuThinking = false;
       await tick();
       wordInputEl?.focus();
     }
@@ -1662,7 +1665,6 @@
       if (await isLegalPremove(queued)) {
         premoveWord = '';
         premoveStatus = '';
-        cpuThinking = true;
         await send(`0${queued}`);
         await tick();
         wordInputEl?.focus();
@@ -1670,7 +1672,6 @@
         premoveStatus = '현재 음절에 맞지 않거나 사용할 수 없는 단어입니다.';
       }
     } finally {
-      cpuThinking = false;
       premoveSending = false;
     }
   }
@@ -2917,7 +2918,7 @@
           {#each (game.history || []).slice(-12) as item}
             <div class="simple-word">{item}</div>
           {/each}
-          {#if cpuThinking}
+          {#if showCpuThinking}
             <div class="cpu-thinking-row">
               <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
               <span class="think-label">생각 중...</span>

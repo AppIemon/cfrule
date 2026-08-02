@@ -193,7 +193,12 @@ function isRestorableWebPhase(phase, started = false) {
 function webGameMatchesSnapshot(memory, saved) {
   if (!saved?.phase) return !!memory;
   if (!memory) return false;
-  return memory.phase === saved.phase && !!memory.started === !!saved.started;
+  if (memory.phase !== saved.phase || !!memory.started !== !!saved.started) return false;
+  const memHist = Array.isArray(memory.history) ? memory.history.length : 0;
+  const savedHist = Array.isArray(saved.history) ? saved.history.length : 0;
+  if (saved.phase === 'playing' && memHist !== savedHist) return false;
+  if (saved.phase === 'playing' && Number(memory.turnCount || 0) !== Number(saved.turnCount || 0)) return false;
+  return true;
 }
 
 async function syncWebGameFromPersisted(room) {
