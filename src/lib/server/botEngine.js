@@ -690,9 +690,17 @@ const WEB_RESTORE_PHASES = new Set(['waiting', 'job_selection', 'combat_draft', 
 export async function botRestoreWebLobby(room, { game: saved, meta = {} } = {}) {
   const bot = await getBotEngine();
   const existing = resolveRoomGame(bot.context, room);
-  if (existing) return serializeGame(existing);
-  if (!saved?.phase || !WEB_RESTORE_PHASES.has(saved.phase)) return null;
-  if (saved.phase === 'waiting' && saved.started) return null;
+  if (!saved?.phase || !WEB_RESTORE_PHASES.has(saved.phase)) {
+    return existing ? serializeGame(existing) : null;
+  }
+  if (saved.phase === 'waiting' && saved.started) {
+    return existing ? serializeGame(existing) : null;
+  }
+  if (existing) {
+    const matches = existing.phase === saved.phase && !!existing.started === !!saved.started;
+    if (matches) return serializeGame(existing);
+    await botDeleteRoom(room);
+  }
 
   const scope = scopeApi(bot.context);
   const createBaseGameState = scope.createBaseGameState;

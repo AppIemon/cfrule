@@ -174,16 +174,38 @@ async function performRestore(room) {
 
   // Web lobbies are created without a 1채린/1연습 command, so command replay cannot
   // rebuild them after a serverless cold start. Rehydrate active web games from the
-  // persisted game snapshot instead.
-  const webRestorePhases = new Set(['waiting', 'job_selection', 'combat_draft', 'playing']);
-  if (!(await botRoomState(room)) && webRestorePhases.has(lastPhase) && persisted.meta && !persisted.meta.practice) {
-    await botRestoreWebLobby(room, { game: lastGame, meta: persisted.meta });
-    await applyRoomOptions(room);
+  // persisted game snapshot instead (also fixes stale in-memory phase mismatches).
+  if (persisted.meta && !persisted.meta.practice && isRestorableWebPhase(lastPhase, lastGame?.started)) {
+    await syncWebGameFromPersisted(room);
   }
 }
 
 function isGameStartCommand(command) {
   return /^1(채린|연습)/.test(String(command || '').trim());
+}
+
+function isRestorableWebPhase(phase, started = false) {
+  if (!phase || phase === 'ended' || phase === 'finished') return false;
+  if (phase === 'waiting' && started) return false;
+  return phase === 'waiting' || phase === 'job_selection' || phase === 'combat_draft' || phase === 'playing';
+}
+
+function webGameMatchesSnapshot(memory, saved) {
+  if (!saved?.phase) return !!memory;
+  if (!memory) return false;
+  return memory.phase === saved.phase && !!memory.started === !!saved.started;
+}
+
+async function syncWebGameFromPersisted(room) {
+  const meta = roomMeta.get(room);
+  if (!meta || meta.practice) return;
+  const persisted = await loadPersistedRoom(room);
+  const lastGame = persisted?.lastGame || persisted?.snapshot?.game || null;
+  if (!isRestorableWebPhase(lastGame?.phase, lastGame?.started)) return;
+  const memory = await botRoomState(room);
+  if (webGameMatchesSnapshot(memory, lastGame)) return;
+  await botRestoreWebLobby(room, { game: lastGame, meta: persisted?.meta || meta });
+  await applyRoomOptions(room);
 }
 
 async function discardBotRoom(room) {
@@ -798,16 +820,7 @@ export async function updateRoomSettings({ room, nickname, patch = {} }) {
 }
 
 async function ensureWebGameRoom(room) {
-  if (await botRoomState(room)) return;
-  const meta = roomMeta.get(room);
-  if (!meta || meta.practice) return;
-  const persisted = await loadPersistedRoom(room);
-  const lastGame = persisted?.lastGame || persisted?.snapshot?.game || null;
-  const phases = new Set(['waiting', 'job_selection', 'combat_draft', 'playing']);
-  if (!lastGame?.phase || !phases.has(lastGame.phase)) return;
-  if (lastGame.phase === 'waiting' && lastGame.started) return;
-  await botRestoreWebLobby(room, { game: lastGame, meta: persisted?.meta || meta });
-  await applyRoomOptions(room);
+  await syncWebGameFromPersisted(room);
 }
 
 export async function sendCommand({ room, nickname, command, internal = false }) {
@@ -900,6 +913,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
 
 export async function getRoomSnapshot(room) {
   await restoreRoom(room);
+  await syncWebGameFromPersisted(room);
   await updateRoomClock(room, { finalize: true });
   const state = await buildRoomSnapshot(room, true);
   if (state.game || state.meta) persistRoom(room, state).catch(() => {});

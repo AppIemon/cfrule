@@ -254,9 +254,6 @@
   let wordInputEl = $state();
   let jobInfoByJob = $state({});
   let showWordSearch = $state(false);
-  let showSearchModal = $state(false);
-  let showJobsModal = $state(false);
-  let showRankModal = $state(false);
   const initialInGameTabId = Date.now();
   let inGameTabs = $state([{ id: initialInGameTabId, query: '', results: [] }]);
   let activeInGameTabId = $state(initialInGameTabId);
@@ -382,7 +379,6 @@
   const jobs = $derived(snapshot?.status?.jobs || []);
   const availableJobs = $derived(jobs.length ? jobs : Object.keys(ACTIVE_BY_JOB));
   const game = $derived(snapshot?.game || null);
-  const inMatch = $derived(!!room && !!game && ['playing', 'job_selection', 'combat_draft'].includes(game.phase));
   const myState = $derived(game?.playerStates?.[nickname] || null);
   const currentPlayer = $derived(game?.currentPlayer || '');
   const nextSyllable = $derived(formatSyllable(game));
@@ -1167,7 +1163,6 @@
     snapshot = null;
     hasMatched = false;
     waitSettingsOpen = false;
-    closeGameModals();
     tab = 'game';
     if (socket) {
       try { socket.onclose = null; socket.close(); } catch {}
@@ -1819,57 +1814,6 @@
     return `${min}:${sec}`;
   }
 
-  function closeGameModals() {
-    showSearchModal = false;
-    showJobsModal = false;
-    showRankModal = false;
-  }
-
-  function goGameNav() {
-    closeGameModals();
-    tab = 'game';
-  }
-
-  function openSearchNav() {
-    if (inMatch) {
-      tab = 'game';
-      showJobsModal = false;
-      showRankModal = false;
-      showSearchModal = true;
-      return;
-    }
-    closeGameModals();
-    tab = 'search';
-  }
-
-  function openJobsNav(job = jobTabJob) {
-    if (job) jobTabJob = job;
-    if (inMatch) {
-      tab = 'game';
-      showSearchModal = false;
-      showRankModal = false;
-      showJobsModal = true;
-      if (!ranking) loadRanking();
-      return;
-    }
-    closeGameModals();
-    openJobsTab(job);
-  }
-
-  function openRankNav() {
-    if (inMatch) {
-      tab = 'game';
-      showSearchModal = false;
-      showJobsModal = false;
-      showRankModal = true;
-      loadRanking();
-      return;
-    }
-    closeGameModals();
-    tab = 'rank';
-    loadRanking();
-  }
-
   function openJobsTab(job = jobTabJob) {
     tab = 'jobs';
     if (job) jobTabJob = job;
@@ -2133,21 +2077,21 @@
   {:else}
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
-    <button class="brand" onclick={goGameNav} type="button">
+    <button class="brand" onclick={() => (tab = 'game')} type="button">
       <span class="brand-gem">◆</span>채린룰
     </button>
     <nav class="top-nav top-nav-primary">
-      <button class="nav-btn" class:nav-active={tab === 'game' && !showSearchModal && !showJobsModal && !showRankModal} onclick={goGameNav}>
+      <button class="nav-btn" class:nav-active={tab === 'game'} onclick={() => (tab = 'game')}>
         <Swords size={15} />게임
       </button>
-      <button class="nav-btn" class:nav-active={inMatch ? showSearchModal : tab === 'search'} onclick={openSearchNav}>
+      <button class="nav-btn" class:nav-active={tab === 'search'} onclick={() => (tab = 'search')}>
         <Search size={15} />검색
       </button>
-      <button class="nav-btn" class:nav-active={inMatch ? showJobsModal : tab === 'jobs'} onclick={() => openJobsNav()}>
+      <button class="nav-btn" class:nav-active={tab === 'jobs'} onclick={() => openJobsTab()}>
         <BriefcaseBusiness size={15} />직업
       </button>
       {#if !isGuest}
-        <button class="nav-btn" class:nav-active={inMatch ? showRankModal : tab === 'rank'} onclick={openRankNav}>
+        <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
           <BarChart3 size={15} />랭킹
         </button>
       {/if}
@@ -2887,7 +2831,7 @@
             <div class="job-count">
               선택 가능 <strong>{selectableJobs.length}</strong>개
             </div>
-            <button class="action-btn" onclick={() => openJobsNav(selectedJob || selectableJobs[0])}>
+            <button class="action-btn" onclick={() => openJobsTab(selectedJob || selectableJobs[0])}>
               <BriefcaseBusiness size={16} />직업 정보
             </button>
           </div>
@@ -3653,146 +3597,6 @@
           </div>
         </div>
       {/if}
-    </div>
-  {/if}
-
-  {#if showSearchModal}
-    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="단어 검색" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
-      <div class="wizard-card game-tool-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
-        <div class="wizard-head">
-          <div>
-            <span class="panel-kicker">SEARCH</span>
-            <h2>단어 검색</h2>
-          </div>
-          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
-        </div>
-        <div class="wizard-body game-tool-body">
-          <form class="search-bar" onsubmit={submitSearch}>
-            <input class="search-input" bind:value={searchText} placeholder="기* · *차 · 기*차 · 기차" />
-            <button class="search-submit"><Search size={16} />검색</button>
-          </form>
-          {#if searchResults.length}
-            <div class="search-meta">
-              <span>총 <strong>{searchTotal}</strong>개 · 표시 <strong>{filteredSearch.length}</strong>개</span>
-              <div class="kind-pills">
-                {#each ['전체','한방','유도','루트','일반'] as f}
-                  <button class="kind-pill" class:kind-active={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
-                {/each}
-              </div>
-            </div>
-            <div class="word-grid">
-              {#each filteredSearch as r (r.word)}
-                <button class="word-card wc-{r.kind}" onclick={() => { searchText = r.last + '*'; submitSearch(); }}>
-                  <div class="wc-top">
-                    <span class="wc-word">{r.word}</span>
-                    <span class="wc-kind-badge">{r.kind}</span>
-                  </div>
-                  <div class="wc-row">
-                    <span class="wc-len">{r.len}글자</span>
-                    <span class="wc-path">{r.first} → {r.last}</span>
-                    <span class="wc-replies">↩ {r.replies}</span>
-                  </div>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  {#if showJobsModal}
-    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="직업 정보" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
-      <div class="wizard-card game-tool-modal game-tool-modal-wide" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
-        <div class="wizard-head">
-          <div>
-            <span class="panel-kicker">JOBS</span>
-            <h2>직업 정보</h2>
-          </div>
-          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
-        </div>
-        <div class="wizard-body game-tool-body jobs-page">
-          <div class="jobs-layout jobs-layout-modal">
-            <aside class="jobs-list-panel">
-              <input class="job-filter-input" bind:value={jobFilter} placeholder="직업 검색" />
-              <div class="jobs-list">
-                {#each jobCatalog as job}
-                  <button class="job-list-btn" class:jlb-active={jobTabJob === job} onclick={() => (jobTabJob = job)}>
-                    <span class="jlb-icon">
-                      <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
-                      <span>{jobInitial(job)}</span>
-                    </span>
-                    <span>{job}</span>
-                  </button>
-                {/each}
-              </div>
-            </aside>
-            <section class="job-detail-panel">
-              <div class="job-detail-head">
-                <div class="job-title-wrap">
-                  <div class="job-detail-icon">
-                    <img src={jobImageSrc(jobTabJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
-                    <span>{jobInitial(jobTabJob)}</span>
-                  </div>
-                  <div>
-                    <span class="panel-kicker">JOB INFO</span>
-                    <h2>{jobTabJob}</h2>
-                  </div>
-                </div>
-              </div>
-              <div class="job-info-gui">
-                {#each jobTabInfoCards as card}
-                  <section class="job-info-card">
-                    <div class="jic-head">
-                      <span class="jic-name">{card.name}</span>
-                    </div>
-                    <div class="jic-body">
-                      {#each card.lines as line}
-                        <p class:jic-bullet={line.startsWith('-')}>{line.replace(/^-+\s*/, '')}</p>
-                      {/each}
-                    </div>
-                  </section>
-                {/each}
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  {#if showRankModal}
-    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="랭킹" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
-      <div class="wizard-card game-tool-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
-        <div class="wizard-head">
-          <div>
-            <span class="panel-kicker">RANK</span>
-            <h2>전체 랭킹</h2>
-          </div>
-          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
-        </div>
-        <div class="wizard-body game-tool-body rank-page">
-          {#if ranking?.ranking?.length}
-            {#each ranking.ranking || [] as row, index}
-              {@const ti = getTierInfo(row.rating)}
-              <div class="rank-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
-                <div class="rank-num" class:rank-top={index < 3}>{index + 1}</div>
-                <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66)">{row.name[0]}</div>
-                <div class="rank-info">
-                  <span class="rank-name">{row.name}</span>
-                  <span class="rank-record">{row.wins || 0}승 {row.losses || 0}패</span>
-                </div>
-                <div class="rank-tier-col">
-                  <span class="rank-tier-badge" style="--tc:{ti.color}">{ti.name}</span>
-                  <span class="rank-rating">{row.rating || 1000}</span>
-                </div>
-              </div>
-            {/each}
-          {:else}
-            <div class="rank-empty">랭킹 데이터를 불러오고 있습니다.</div>
-          {/if}
-        </div>
-      </div>
     </div>
   {/if}
 
@@ -7278,12 +7082,6 @@
   .wizard-head h2 { font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px; }
   .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
   .wizard-body { padding: 18px; overflow: auto; flex: 1; }
-  .game-tool-overlay { z-index: 180; }
-  .game-tool-modal { width: min(760px, 100%); }
-  .game-tool-modal-wide { width: min(980px, 100%); }
-  .game-tool-body { padding-top: 0; }
-  .jobs-layout-modal { min-height: min(60vh, 520px); }
-  .jobs-layout-modal .jobs-list { max-height: min(52vh, 480px); overflow: auto; }
   .wizard-close { color: var(--text3); }
   .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
