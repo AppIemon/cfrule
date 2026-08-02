@@ -2,8 +2,8 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, MoreVertical, Plus,
-    Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
+    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, Loader2, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
+    RotateCcw, Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
 
@@ -253,6 +253,9 @@
   let wordInputEl = $state();
   let jobInfoByJob = $state({});
   let showWordSearch = $state(false);
+  let showSearchModal = $state(false);
+  let showJobsModal = $state(false);
+  let showRankModal = $state(false);
   const initialInGameTabId = Date.now();
   let inGameTabs = $state([{ id: initialInGameTabId, query: '', results: [] }]);
   let activeInGameTabId = $state(initialInGameTabId);
@@ -382,6 +385,8 @@
   const currentPlayer = $derived(game?.currentPlayer || '');
   const nextSyllable = $derived(formatSyllable(game));
   const canPlay = $derived(game?.phase === 'playing' && (!currentPlayer || currentPlayer === nickname));
+  const inMatch = $derived(!!room && !!game && ['playing', 'job_selection', 'combat_draft'].includes(game.phase));
+  const undoWordOptions = $derived([...new Set((game?.history || []).slice().reverse())].slice(0, 8));
   const showCpuThinking = $derived(
     game?.phase === 'playing' &&
     !!currentPlayer &&
@@ -484,7 +489,7 @@
   // --- New features ---
   let activeEffects = $state([]);
   let showTargetSelector = $state(null); // { name, type }
-  let showIngameMenu = $state(false);
+  let showUndoPicker = $state(false);
 
   const STATUS_LABELS = {
     jojak_cooldown: '조작 쿨', jojak_uses: '조작 회수',
@@ -1173,7 +1178,7 @@
     snapshot = null;
     hasMatched = false;
     waitSettingsOpen = false;
-    showIngameMenu = false;
+    showUndoPicker = false;
     closeGameModals();
     tab = 'game';
     if (socket) {
@@ -1822,6 +1827,67 @@
     return `${min}:${sec}`;
   }
 
+  function closeGameModals() {
+    showSearchModal = false;
+    showJobsModal = false;
+    showRankModal = false;
+  }
+
+  function goGameNav() {
+    closeGameModals();
+    tab = 'game';
+  }
+
+  function openSearchNav() {
+    if (inMatch) {
+      tab = 'game';
+      showJobsModal = false;
+      showRankModal = false;
+      showSearchModal = true;
+      return;
+    }
+    closeGameModals();
+    tab = 'search';
+  }
+
+  function openJobsNav(job = jobTabJob) {
+    if (job) jobTabJob = job;
+    if (inMatch) {
+      tab = 'game';
+      showSearchModal = false;
+      showRankModal = false;
+      showJobsModal = true;
+      if (!ranking) loadRanking();
+      return;
+    }
+    closeGameModals();
+    openJobsTab(job);
+  }
+
+  function openRankNav() {
+    if (inMatch) {
+      tab = 'game';
+      showSearchModal = false;
+      showJobsModal = false;
+      showRankModal = true;
+      loadRanking();
+      return;
+    }
+    closeGameModals();
+    tab = 'rank';
+    loadRanking();
+  }
+
+  function toggleUndoPicker() {
+    showUndoPicker = !showUndoPicker;
+  }
+
+  async function requestUndo(targetWord) {
+    showUndoPicker = false;
+    if (!targetWord || busy) return;
+    await send(`1무르기 ${targetWord}`);
+  }
+
   function openJobsTab(job = jobTabJob) {
     tab = 'jobs';
     if (job) jobTabJob = job;
@@ -2112,17 +2178,17 @@
       <span class="brand-gem">◆</span>채린룰
     </button>
     <nav class="top-nav top-nav-primary">
-      <button class="nav-btn" class:nav-active={tab === 'game'} onclick={() => (tab = 'game')}>
+      <button class="nav-btn" class:nav-active={tab === 'game' && !showSearchModal && !showJobsModal && !showRankModal} onclick={goGameNav}>
         <Swords size={15} />게임
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'search'} onclick={() => (tab = 'search')}>
+      <button class="nav-btn" class:nav-active={inMatch ? showSearchModal : tab === 'search'} onclick={openSearchNav}>
         <Search size={15} />검색
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'jobs'} onclick={() => openJobsTab()}>
+      <button class="nav-btn" class:nav-active={inMatch ? showJobsModal : tab === 'jobs'} onclick={() => openJobsNav()}>
         <BriefcaseBusiness size={15} />직업
       </button>
       {#if !isGuest}
-        <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
+        <button class="nav-btn" class:nav-active={inMatch ? showRankModal : tab === 'rank'} onclick={openRankNav}>
           <BarChart3 size={15} />랭킹
         </button>
       {/if}
@@ -2934,24 +3000,36 @@
             <button class="hud-icon-btn" type="button" onclick={openSearchNav} title="단어 검색">
               <Search size={16} />
             </button>
-            <button
-              class="hud-icon-btn"
-              type="button"
-              class:hud-icon-active={showIngameMenu}
-              onclick={() => (showIngameMenu = !showIngameMenu)}
-              title="메뉴"
-            >
-              <MoreVertical size={16} />
-            </button>
+            <div class="hud-action-group">
+              <div class="hud-action-wrap">
+                <button
+                  class="hud-icon-btn"
+                  type="button"
+                  class:hud-icon-active={showUndoPicker}
+                  onclick={toggleUndoPicker}
+                  disabled={busy || !undoWordOptions.length}
+                  title="무르기"
+                >
+                  <RotateCcw size={16} />
+                </button>
+                {#if showUndoPicker}
+                  <div class="undo-picker" role="menu">
+                    <span class="undo-picker-label">되돌릴 단어</span>
+                    {#each undoWordOptions as w}
+                      <button type="button" class="undo-picker-item" onclick={() => requestUndo(w)}>{w}</button>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+              <button class="hud-icon-btn" type="button" onclick={() => send('1무효')} disabled={busy} title="무효 요청">
+                <Ban size={16} />
+              </button>
+              <button class="hud-icon-btn hud-icon-danger" type="button" onclick={() => send('ㅈㅈ')} disabled={busy} title="항복">
+                <Flag size={16} />
+              </button>
+            </div>
           </div>
         </header>
-
-        {#if showIngameMenu}
-          <div class="ingame-menu">
-            <button type="button" onclick={() => { showIngameMenu = false; send('1무효'); }} disabled={busy}>무효 요청</button>
-            <button type="button" class="danger" onclick={() => { showIngameMenu = false; send('ㅈㅈ'); }} disabled={busy}>항복</button>
-          </div>
-        {/if}
 
         <div class="chain-next" class:chain-next-mine={canPlay}>
           <div class="chain-next-main">
@@ -3060,12 +3138,12 @@
             </div>
           {/if}
 
-          <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} onsubmit={sendWord}>
+          <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} class:input-busy={busy} onsubmit={sendWord}>
             <input
               class="word-input"
               bind:this={wordInputEl}
               bind:value={word}
-              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작` : '미리둘 단어 입력'}
+              placeholder={canPlay ? `${nextSyllable}(으)로 시작` : '미리둘 단어 입력'}
               disabled={busy}
               autocomplete="off"
             />
@@ -3073,11 +3151,16 @@
               class="send-btn"
               class:send-ready={word.trim() && !busy}
               class:premove-ready={!canPlay && word.trim() && !busy}
+              class:send-busy={busy}
               type="submit"
               disabled={!word.trim() || busy}
               title={canPlay ? '입력' : '미리두기 예약'}
             >
-              <Send size={17} />
+              {#if busy}
+                <Loader2 size={17} class="send-spinner" />
+              {:else}
+                <Send size={17} />
+              {/if}
             </button>
           </form>
 
@@ -3702,6 +3785,146 @@
           </div>
         </div>
       {/if}
+    </div>
+  {/if}
+
+  {#if showSearchModal}
+    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="단어 검색" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
+      <div class="wizard-card game-tool-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+        <div class="wizard-head">
+          <div>
+            <span class="panel-kicker">SEARCH</span>
+            <h2>단어 검색</h2>
+          </div>
+          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
+        </div>
+        <div class="wizard-body game-tool-body">
+          <form class="search-bar" onsubmit={submitSearch}>
+            <input class="search-input" bind:value={searchText} placeholder="기* · *차 · 기*차 · 기차" />
+            <button class="search-submit"><Search size={16} />검색</button>
+          </form>
+          {#if searchResults.length}
+            <div class="search-meta">
+              <span>총 <strong>{searchTotal}</strong>개 · 표시 <strong>{filteredSearch.length}</strong>개</span>
+              <div class="kind-pills">
+                {#each ['전체','한방','유도','루트','일반'] as f}
+                  <button class="kind-pill" class:kind-active={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
+                {/each}
+              </div>
+            </div>
+            <div class="word-grid">
+              {#each filteredSearch as r (r.word)}
+                <button class="word-card wc-{r.kind}" onclick={() => { searchText = r.last + '*'; submitSearch(); }}>
+                  <div class="wc-top">
+                    <span class="wc-word">{r.word}</span>
+                    <span class="wc-kind-badge">{r.kind}</span>
+                  </div>
+                  <div class="wc-row">
+                    <span class="wc-len">{r.len}글자</span>
+                    <span class="wc-path">{r.first} → {r.last}</span>
+                    <span class="wc-replies">↩ {r.replies}</span>
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showJobsModal}
+    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="직업 정보" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
+      <div class="wizard-card game-tool-modal game-tool-modal-wide" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+        <div class="wizard-head">
+          <div>
+            <span class="panel-kicker">JOBS</span>
+            <h2>직업 정보</h2>
+          </div>
+          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
+        </div>
+        <div class="wizard-body game-tool-body jobs-page">
+          <div class="jobs-layout jobs-layout-modal">
+            <aside class="jobs-list-panel">
+              <input class="job-filter-input" bind:value={jobFilter} placeholder="직업 검색" />
+              <div class="jobs-list">
+                {#each jobCatalog as job}
+                  <button class="job-list-btn" class:jlb-active={jobTabJob === job} onclick={() => (jobTabJob = job)}>
+                    <span class="jlb-icon">
+                      <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                      <span>{jobInitial(job)}</span>
+                    </span>
+                    <span>{job}</span>
+                  </button>
+                {/each}
+              </div>
+            </aside>
+            <section class="job-detail-panel">
+              <div class="job-detail-head">
+                <div class="job-title-wrap">
+                  <div class="job-detail-icon">
+                    <img src={jobImageSrc(jobTabJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                    <span>{jobInitial(jobTabJob)}</span>
+                  </div>
+                  <div>
+                    <span class="panel-kicker">JOB INFO</span>
+                    <h2>{jobTabJob}</h2>
+                  </div>
+                </div>
+              </div>
+              <div class="job-info-gui">
+                {#each jobTabInfoCards as card}
+                  <section class="job-info-card">
+                    <div class="jic-head">
+                      <span class="jic-name">{card.name}</span>
+                    </div>
+                    <div class="jic-body">
+                      {#each card.lines as line}
+                        <p class:jic-bullet={line.startsWith('-')}>{line.replace(/^-+\s*/, '')}</p>
+                      {/each}
+                    </div>
+                  </section>
+                {/each}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showRankModal}
+    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="랭킹" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
+      <div class="wizard-card game-tool-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+        <div class="wizard-head">
+          <div>
+            <span class="panel-kicker">RANK</span>
+            <h2>전체 랭킹</h2>
+          </div>
+          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
+        </div>
+        <div class="wizard-body game-tool-body rank-page">
+          {#if ranking?.ranking?.length}
+            {#each ranking.ranking || [] as row, index}
+              {@const ti = getTierInfo(row.rating)}
+              <div class="rank-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
+                <div class="rank-num" class:rank-top={index < 3}>{index + 1}</div>
+                <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66)">{row.name[0]}</div>
+                <div class="rank-info">
+                  <span class="rank-name">{row.name}</span>
+                  <span class="rank-record">{row.wins || 0}승 {row.losses || 0}패</span>
+                </div>
+                <div class="rank-tier-col">
+                  <span class="rank-tier-badge" style="--tc:{ti.color}">{ti.name}</span>
+                  <span class="rank-rating">{row.rating || 1000}</span>
+                </div>
+              </div>
+            {/each}
+          {:else}
+            <div class="rank-empty">랭킹 데이터를 불러오고 있습니다.</div>
+          {/if}
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -5358,7 +5581,7 @@
   .input-zone {
     display: flex;
     gap: 10px;
-    transition: opacity .2s;
+    transition: opacity .2s, border-color .2s, box-shadow .2s;
     width: 100%;
     max-width: 980px;
     margin: 0 auto;
@@ -5367,6 +5590,32 @@
     border-radius: calc(var(--radius) + 8px);
     background: var(--bg2);
     box-shadow: 0 4px 16px rgba(15,23,42,.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .input-zone.input-busy {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border2));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .input-zone.input-busy::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 10%, transparent) 45%,
+      color-mix(in srgb, var(--accent) 18%, transparent) 50%,
+      color-mix(in srgb, var(--accent) 10%, transparent) 55%,
+      transparent 100%
+    );
+    transform: translateX(-120%);
+    animation: inputShimmer 1.15s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes inputShimmer {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(120%); }
   }
   .word-input {
     flex: 1;
@@ -5412,6 +5661,17 @@
     border-color: var(--gold);
     color: #111827;
     box-shadow: 0 4px 18px rgba(245,158,11,.28);
+  }
+  .send-btn.send-busy {
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg2));
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border2));
+    color: var(--accent);
+  }
+  :global(.send-spinner) {
+    animation: sendSpin .75s linear infinite;
+  }
+  @keyframes sendSpin {
+    to { transform: rotate(360deg); }
   }
   .premove-panel {
     width: 100%;
@@ -7221,6 +7481,12 @@
   .wizard-head h2 { font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px; }
   .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
   .wizard-body { padding: 18px; overflow: auto; flex: 1; }
+  .game-tool-overlay { z-index: 180; }
+  .game-tool-modal { width: min(760px, 100%); }
+  .game-tool-modal-wide { width: min(980px, 100%); }
+  .game-tool-body { padding-top: 0; }
+  .jobs-layout-modal { min-height: min(60vh, 520px); }
+  .jobs-layout-modal .jobs-list { max-height: min(52vh, 480px); overflow: auto; }
   .wizard-close { color: var(--text3); }
   .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -7579,16 +7845,61 @@
   .hud-meta { display: grid; gap: 1px; min-width: 0; }
   .hud-meta strong { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hud-job { font-size: 10px; font-weight: 700; color: var(--text3); }
-  .hud-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .hud-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: flex-start; }
+  .hud-action-group { display: flex; gap: 6px; }
+  .hud-action-wrap { position: relative; }
   .hud-icon-btn {
     width: 36px; height: 36px; border-radius: 10px;
     border: 1px solid var(--border2); background: var(--card);
     color: var(--text2); display: grid; place-items: center;
-    transition: border-color .18s, color .18s, transform .18s;
+    transition: border-color .18s, color .18s, transform .18s, background .18s;
   }
-  .hud-icon-btn:active { transform: scale(0.96); }
-  .hud-icon-btn:hover, .hud-icon-btn.hud-icon-active {
+  .hud-icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .hud-icon-btn:active:not(:disabled) { transform: scale(0.96); }
+  .hud-icon-btn:hover:not(:disabled), .hud-icon-btn.hud-icon-active {
     border-color: var(--accent); color: var(--accent);
+  }
+  .hud-icon-btn.hud-icon-danger:hover:not(:disabled) {
+    border-color: #fca5a5; color: #dc2626; background: #fff5f5;
+  }
+  .undo-picker {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    min-width: 132px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border2);
+    background: var(--card);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .14);
+    display: grid;
+    gap: 4px;
+    animation: menuReveal .18s ease both;
+  }
+  .undo-picker-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text3);
+    letter-spacing: .4px;
+    padding: 0 6px 2px;
+  }
+  .undo-picker-item {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: var(--bg2);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: left;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .undo-picker-item:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--bg2));
+    color: var(--accent);
   }
 
   .ingame-menu {
@@ -7824,9 +8135,10 @@
   .ability-card-name { font-size: 12px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ability-card-status { font-size: 10px; font-weight: 700; color: var(--text3); }
 
-  :global([data-theme="dark"]) .ingame-menu button.danger {
+  :global([data-theme="dark"]) .hud-icon-btn.hud-icon-danger:hover:not(:disabled) {
     background: #2a1515; border-color: #7f1d1d; color: #fca5a5;
   }
+  :global([data-theme="dark"]) .undo-picker { background: var(--bg2); border-color: var(--border2); }
   :global([data-theme="dark"]) .ingame-vote { background: #2a1f12; border-color: #78350f; }
   :global([data-theme="dark"]) .wait-room-side,
   :global([data-theme="dark"]) .wait-room-main { box-shadow: none; }
