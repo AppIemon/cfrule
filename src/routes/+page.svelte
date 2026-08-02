@@ -793,8 +793,8 @@
     game?.gueruleSettings?.dictSource || snapshot?.meta?.dictSource || dictSource || 'default'
   );
   const isGeonmatMode = $derived(String(ruleMode).startsWith('geonmat:'));
-  const supportsChainPick = $derived(!isGeonmatMode && ['guerule', 'combat', 'card', 'pyohan', 'kkutu'].includes(ruleMode));
-  const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
+  const supportsChainPick = $derived(!isGeonmatMode && ['none', 'guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
+  const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['none', 'guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
   const wizardSteps = $derived.by(() => {
     const steps = ['room', 'mode'];
     if (supportsChainPick) steps.push('chain');
@@ -994,7 +994,6 @@
   function selectRuleMode(value) {
     ruleMode = value;
     if (String(value).startsWith('geonmat:')) chainMode = 'end';
-    if (value === 'kkutu') dictSource = 'kkutu';
     if (value === 'pyohan') dictSource = 'default';
   }
 
@@ -1023,11 +1022,11 @@
 
   function ruleModeLabel(value) {
     const map = {
+      none: '모드 없음',
       guerule: '채린룰',
       combat: '조합',
       card: '카드',
       pyohan: '표한룰',
-      kkutu: '끄투',
       'geonmat:geonmat': '미니 · 검맞',
       'geonmat:rare': '미니 · 희귀맞',
       'geonmat:bingo': '미니 · 빙고맞',
@@ -2244,11 +2243,11 @@
                 <p class="wizard-hint">미니게임은 끝말잇기만 지원합니다.</p>
                 <div class="wizard-choice-grid wizard-choice-grid-3">
                   {#each [
+                    ['none', '모드 없음', '직업·능력 없음'],
                     ['guerule', '채린룰', '직업·능력'],
                     ['combat', '조합', '능력 드래프트'],
                     ['card', '카드', '세트 드래프트'],
                     ['pyohan', '표한룰', '목숨제'],
-                    ['kkutu', '끄투', '끄투 사전'],
                     ['geonmat:geonmat', '검맞', '개수 맞추기'],
                     ['geonmat:rare', '희귀맞', '희귀 단어'],
                     ['geonmat:bingo', '빙고맞', '3×3 빙고'],
@@ -2280,16 +2279,12 @@
                     ['jime', '지메'],
                     ['kkutu', '끄투']
                   ] as [value, title]}
-                    {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
                     <button
                       class="wizard-choice"
                       class:wizard-choice-active={dictSource === value}
-                      class:wizard-choice-disabled={locked}
-                      onclick={() => { if (!locked) dictSource = value; }}
-                      disabled={locked}
+                      onclick={() => (dictSource = value)}
                     >
                       <strong>{title}</strong>
-                      {#if locked}<span>끄투 모드 전용</span>{/if}
                     </button>
                   {/each}
                 </div>
