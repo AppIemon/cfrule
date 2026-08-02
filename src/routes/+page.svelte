@@ -2105,6 +2105,9 @@
       </button>
     </nav>
     <div class="top-auth">
+      {#if room}
+        <button class="room-leave-btn" onclick={leaveCurrentRoom} disabled={busy} type="button">방 나가기</button>
+      {/if}
       {#if !isGuest}
         <button class="icon-btn" class:dm-unread={dmInbox.length > 0} onclick={() => (showDM = !showDM)} title="쪽지">
           <Mail size={16} />
@@ -3906,6 +3909,32 @@
     box-shadow: none;
   }
   .top-auth { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .room-leave-btn {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid #fecaca;
+    background: #fff5f5;
+    color: #dc2626;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    transition: background .18s, border-color .18s, color .18s;
+  }
+  .room-leave-btn:hover:not(:disabled) {
+    background: #fee2e2;
+    border-color: #fca5a5;
+  }
+  .room-leave-btn:disabled { opacity: .55; }
+  :global([data-theme="dark"]) .room-leave-btn {
+    background: #2a1515;
+    border-color: #7f1d1d;
+    color: #fca5a5;
+  }
+  :global([data-theme="dark"]) .room-leave-btn:hover:not(:disabled) {
+    background: #3f1d1d;
+    border-color: #991b1b;
+  }
   .auth-name { font-size: 13px; font-weight: 700; color: var(--text2); white-space: nowrap; }
   .auth-input { width: 130px; height: 34px; font-size: 13px; }
   .auth-select { height: 34px; width: 90px; font-size: 13px; }
@@ -6183,6 +6212,7 @@
     .auth-input { width: 90px; height: 38px; font-size: 16px; padding: 0 8px; }
     .auth-select { width: 80px; height: 38px; font-size: 14px; padding: 0 6px; }
     .icon-btn { width: 32px; height: 32px; }
+    .room-leave-btn { height: 32px; padding: 0 10px; font-size: 11px; }
     .auth-panel { margin: 0 12px 10px; }
     .auth-panel-form { grid-template-columns: 1fr; }
     .nav-label { display: none; }
