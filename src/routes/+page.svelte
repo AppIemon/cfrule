@@ -2,7 +2,7 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
+    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, MoreVertical, Plus,
     Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
@@ -257,6 +257,9 @@
   let wordInputEl = $state();
   let jobInfoByJob = $state({});
   let showWordSearch = $state(false);
+  let showSearchModal = $state(false);
+  let showJobsModal = $state(false);
+  let showRankModal = $state(false);
   const initialInGameTabId = Date.now();
   let inGameTabs = $state([{ id: initialInGameTabId, query: '', results: [] }]);
   let activeInGameTabId = $state(initialInGameTabId);
@@ -382,6 +385,7 @@
   const jobs = $derived(snapshot?.status?.jobs || []);
   const availableJobs = $derived(jobs.length ? jobs : Object.keys(ACTIVE_BY_JOB));
   const game = $derived(snapshot?.game || null);
+  const inMatch = $derived(!!room && !!game && ['playing', 'job_selection', 'combat_draft'].includes(game.phase));
   const myState = $derived(game?.playerStates?.[nickname] || null);
   const currentPlayer = $derived(game?.currentPlayer || '');
   const nextSyllable = $derived(formatSyllable(game));
@@ -467,7 +471,8 @@
   });
   onDestroy(() => clearTimeout(castTimer));
 
-  const notices = $derived(log.filter((item) => item.type === 'system' && !isGuiOnlyNotice(item.text)).slice(-4).reverse());
+  const notices = $derived(log.filter((item) => item.type === 'system' && !isGuiOnlyNotice(item.text)).slice(-3).reverse());
+  const wordChain = $derived(buildWordChain(game, nickname));
   const abilityButtons = $derived(ACTIVE_BY_JOB[myState?.job] || []);
   const myAbilityStatuses = $derived(getPlayerAbilitiesStatus(myState?.job, myState));
   const cpuThinkLog = $derived(
@@ -481,6 +486,7 @@
   // --- New features ---
   let activeEffects = $state([]);
   let showTargetSelector = $state(null); // { name, type }
+  let showIngameMenu = $state(false);
 
   const STATUS_LABELS = {
     jojak_cooldown: '조작 쿨', jojak_uses: '조작 회수',
@@ -872,7 +878,10 @@
 
   $effect(() => {
     if (historyEl && game?.history?.length) {
-      tick().then(() => { historyEl.scrollTop = historyEl.scrollHeight; });
+      tick().then(() => {
+        historyEl.scrollLeft = historyEl.scrollWidth;
+        historyEl.scrollTop = historyEl.scrollHeight;
+      });
     }
   });
 
@@ -1166,6 +1175,8 @@
     snapshot = null;
     hasMatched = false;
     waitSettingsOpen = false;
+    showIngameMenu = false;
+    closeGameModals();
     tab = 'game';
     if (socket) {
       try { socket.onclose = null; socket.close(); } catch {}
@@ -1817,6 +1828,57 @@
     return `${min}:${sec}`;
   }
 
+  function closeGameModals() {
+    showSearchModal = false;
+    showJobsModal = false;
+    showRankModal = false;
+  }
+
+  function goGameNav() {
+    closeGameModals();
+    tab = 'game';
+  }
+
+  function openSearchNav() {
+    if (inMatch) {
+      tab = 'game';
+      showJobsModal = false;
+      showRankModal = false;
+      showSearchModal = true;
+      return;
+    }
+    closeGameModals();
+    tab = 'search';
+  }
+
+  function openJobsNav(job = jobTabJob) {
+    if (job) jobTabJob = job;
+    if (inMatch) {
+      tab = 'game';
+      showSearchModal = false;
+      showRankModal = false;
+      showJobsModal = true;
+      if (!ranking) loadRanking();
+      return;
+    }
+    closeGameModals();
+    openJobsTab(job);
+  }
+
+  function openRankNav() {
+    if (inMatch) {
+      tab = 'game';
+      showSearchModal = false;
+      showJobsModal = false;
+      showRankModal = true;
+      loadRanking();
+      return;
+    }
+    closeGameModals();
+    tab = 'rank';
+    loadRanking();
+  }
+
   function openJobsTab(job = jobTabJob) {
     tab = 'jobs';
     if (job) jobTabJob = job;
@@ -1880,6 +1942,29 @@
     if (!state?.lastLetter || !state.history?.length) return '자유';
     const { s1, s2 } = state.lastLetter;
     return s1 && s2 && s1 !== s2 ? `${s2}(${s1})` : s2 || s1 || '자유';
+  }
+
+  function buildWordChain(state, me) {
+    const history = state?.history || [];
+    const players = state?.players || [];
+    if (!history.length || !players.length) return [];
+    const start = Number.isFinite(state.firstTurnIndex) && state.firstTurnIndex >= 0 ? state.firstTurnIndex : 0;
+    const count = players.length;
+    return history.map((word, index) => {
+      const player = players[(start + index) % count] || '';
+      return {
+        word: String(word),
+        player,
+        isMe: player === me,
+        isLast: index === history.length - 1
+      };
+    });
+  }
+
+  function splitWordDisplay(word) {
+    const value = String(word || '');
+    if (value.length <= 1) return { head: '', tail: value };
+    return { head: value.slice(0, -1), tail: value.slice(-1) };
   }
 
   function visibleEffects(state) {
@@ -2079,21 +2164,21 @@
   {:else}
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
-    <button class="brand" onclick={() => (tab = 'game')} type="button">
+    <button class="brand" onclick={goGameNav} type="button">
       <span class="brand-gem">◆</span>채린룰
     </button>
     <nav class="top-nav top-nav-primary">
-      <button class="nav-btn" class:nav-active={tab === 'game'} onclick={() => (tab = 'game')}>
+      <button class="nav-btn" class:nav-active={tab === 'game' && !showSearchModal && !showJobsModal && !showRankModal} onclick={goGameNav}>
         <Swords size={15} />게임
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'search'} onclick={() => (tab = 'search')}>
+      <button class="nav-btn" class:nav-active={inMatch ? showSearchModal : tab === 'search'} onclick={openSearchNav}>
         <Search size={15} />검색
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'jobs'} onclick={() => openJobsTab()}>
+      <button class="nav-btn" class:nav-active={inMatch ? showJobsModal : tab === 'jobs'} onclick={() => openJobsNav()}>
         <BriefcaseBusiness size={15} />직업
       </button>
       {#if !isGuest}
-        <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
+        <button class="nav-btn" class:nav-active={inMatch ? showRankModal : tab === 'rank'} onclick={openRankNav}>
           <BarChart3 size={15} />랭킹
         </button>
       {/if}
@@ -2833,7 +2918,7 @@
             <div class="job-count">
               선택 가능 <strong>{selectableJobs.length}</strong>개
             </div>
-            <button class="action-btn" onclick={() => openJobsTab(selectedJob || selectableJobs[0])}>
+            <button class="action-btn" onclick={() => openJobsNav(selectedJob || selectableJobs[0])}>
               <BriefcaseBusiness size={16} />직업 정보
             </button>
           </div>
@@ -2873,97 +2958,167 @@
         {/key}
       {/if}
 
-      <!-- ─── IN-GAME (심플) ─── -->
-      <div class="ingame ingame-simple" class:board-hit={!!castFx}>
+      <!-- ─── IN-GAME ─── -->
+      <div class="ingame ingame-board" class:board-hit={!!castFx} class:ingame-my-turn={canPlay}>
 
-        <div class="simple-hero" class:my-turn={canPlay}>
-          <div class="simple-syl">{nextSyllable}</div>
-          <div class="simple-turn">
-            {#if canPlay}
-              <strong>내 차례</strong>
-            {:else}
-              <span>{currentPlayer || '—'} 차례</span>
-            {/if}
-            {#if timerState?.enabled}
-              <span class="simple-clock">{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</span>
-            {/if}
+        <header class="ingame-hud">
+          <div class="hud-players">
+            {#each game.players || [] as player}
+              {@const pJob = game.playerStates?.[player]?.job || ''}
+              <div
+                class="hud-player"
+                class:hud-active={player === currentPlayer}
+                class:hud-me={player === nickname}
+              >
+                <span class="hud-portrait">
+                  {#if pJob}
+                    <img src={jobImageSrc(pJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                  {/if}
+                  <span>{pJob ? jobInitial(pJob) : player[0]}</span>
+                </span>
+                <span class="hud-meta">
+                  <strong>{player}</strong>
+                  {#if pJob}<span class="hud-job">{pJob}</span>{/if}
+                </span>
+              </div>
+            {/each}
           </div>
-          {#if myState?.job}
-            <div class="simple-job">{myState.job}</div>
+          <div class="hud-actions">
+            <button class="hud-icon-btn" type="button" onclick={openSearchNav} title="단어 검색">
+              <Search size={16} />
+            </button>
+            <button
+              class="hud-icon-btn"
+              type="button"
+              class:hud-icon-active={showIngameMenu}
+              onclick={() => (showIngameMenu = !showIngameMenu)}
+              title="메뉴"
+            >
+              <MoreVertical size={16} />
+            </button>
+          </div>
+        </header>
+
+        {#if showIngameMenu}
+          <div class="ingame-menu">
+            <button type="button" onclick={() => { showIngameMenu = false; send('1무효'); }} disabled={busy}>무효 요청</button>
+            <button type="button" class="danger" onclick={() => { showIngameMenu = false; send('ㅈㅈ'); }} disabled={busy}>항복</button>
+          </div>
+        {/if}
+
+        <div class="chain-next" class:chain-next-mine={canPlay}>
+          <div class="chain-next-main">
+            <span class="chain-next-label">{canPlay ? '내 차례' : `${currentPlayer || '—'} 차례`}</span>
+            <span class="chain-next-syl">{nextSyllable}</span>
+          </div>
+          {#if timerState?.enabled}
+            <span class="chain-next-clock">{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</span>
           {/if}
         </div>
 
         {#if game.isWaitingVote}
-          <div class="simple-vote">
+          <div class="ingame-vote">
             <span>{game.requester} · {game.voteType}</span>
             <button class="vote-yes" onclick={() => send('1동의')}>동의</button>
             <button class="vote-no" onclick={() => send('1거절')}>거절</button>
           </div>
         {/if}
 
-        <div class="simple-players">
-          {#each game.players || [] as player}
-            <span class="simple-player" class:active={player === currentPlayer} class:me={player === nickname}>
-              {player}{#if game.playerStates?.[player]?.job} · {game.playerStates[player].job}{/if}
-            </span>
-          {/each}
-        </div>
-
-        <div class="simple-history" bind:this={historyEl}>
-          {#if !(game.history || []).length}
-            <div class="history-empty">첫 단어를 입력하세요</div>
-          {/if}
-          {#each (game.history || []).slice(-12) as item}
-            <div class="simple-word">{item}</div>
-          {/each}
-          {#if cpuThinking}
-            <div class="cpu-thinking-row">
-              <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
-              <span class="think-label">생각 중...</span>
+        <div class="chain-board" bind:this={historyEl}>
+          {#if !wordChain.length}
+            <div class="chain-empty">
+              <span class="chain-empty-syl">{nextSyllable}</span>
+              <p>첫 단어를 입력하세요</p>
+            </div>
+          {:else}
+            <div class="chain-track">
+              {#each wordChain as entry, index (index)}
+                {@const parts = splitWordDisplay(entry.word)}
+                <div class="chain-item" class:chain-item-me={entry.isMe} class:chain-item-last={entry.isLast}>
+                  {#if index > 0}<span class="chain-link" aria-hidden="true">→</span>{/if}
+                  <div class="chain-bubble">
+                    <span class="chain-name">{entry.isMe ? '나' : entry.player}</span>
+                    <span class="chain-word">
+                      {#if parts.head}<span class="chain-head">{parts.head}</span>{/if}
+                      <span class="chain-tail">{parts.tail}</span>
+                    </span>
+                  </div>
+                </div>
+              {/each}
+              {#if cpuThinking}
+                <div class="chain-item chain-item-pending">
+                  <span class="chain-link" aria-hidden="true">→</span>
+                  <div class="chain-bubble chain-bubble-pending">
+                    <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
+                  </div>
+                </div>
+              {/if}
             </div>
           {/if}
         </div>
 
-        <div class="simple-actions">
-          <button class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={busy}>항복</button>
-          <button class="ctrl-btn" onclick={() => send('1무효')} disabled={busy}>무효</button>
-        </div>
+        <div class="ingame-dock bottom-composer" class:composer-active={canPlay}>
+          {#if notices.length}
+            <div class="ingame-toasts" aria-live="polite">
+              {#each notices as item (item.id)}
+                <div class="ingame-toast">
+                  <Info size={13} />
+                  <span>{stripFx(item.text)}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
 
-        <div class="bottom-composer" class:composer-active={canPlay}>
           {#if !canPlay && blockedReason}
             <div class="turn-hint">
-              <Info size={12} /><span>{blockedReason} 지금 입력하면 미리두기로 예약됩니다.</span>
+              <Info size={12} /><span>{blockedReason} · 미리두기로 예약됩니다</span>
             </div>
           {/if}
-          {#if abilityButtons.length}
-            <div class="ability-bar">
-              <div class="ability-grid">
-                {#each abilityButtons as ab, ai}
-                  {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
-                  <button
-                    class="ab-btn"
-                    class:ab-not-ready={abStatus && !abStatus.isReady}
-                    style="--ai:{ai}"
-                    onclick={() => useAbility(ab)}
-                    disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
-                    title={abStatus?.text || '준비됨'}
-                  >
-                    <Sparkles size={13} />
-                    <span class="ab-name">{ab}</span>
-                    {#if abStatus}
-                      <span class="ab-status-val">{abStatus.text}</span>
-                    {/if}
-                  </button>
-                {/each}
-              </div>
+
+          {#if myState?.job || abilityButtons.length}
+            <div class="dock-job-row">
+              {#if myState?.job}
+                <button class="dock-job-card" type="button" onclick={() => openJobsNav(myState.job)} title="직업 정보">
+                  <span class="dock-job-portrait">
+                    <img src={jobImageSrc(myState.job)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                    <span>{jobInitial(myState.job)}</span>
+                  </span>
+                  <span class="dock-job-name">{myState.job}</span>
+                </button>
+              {/if}
+              {#if abilityButtons.length}
+                <div class="ability-cards">
+                  {#each abilityButtons as ab, ai}
+                    {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
+                    <button
+                      class="ability-card"
+                      class:ability-card-ready={!abStatus || abStatus.isReady}
+                      class:ability-card-cooldown={abStatus && !abStatus.isReady}
+                      style="--ai:{ai}"
+                      onclick={() => useAbility(ab)}
+                      disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
+                      title={abStatus?.text || '사용 가능'}
+                    >
+                      <span class="ability-card-icon"><Sparkles size={14} /></span>
+                      <span class="ability-card-body">
+                        <span class="ability-card-name">{ab}</span>
+                        {#if abStatus}
+                          <span class="ability-card-status">{abStatus.text}</span>
+                        {/if}
+                      </span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
+
           <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} onsubmit={sendWord}>
             <input
               class="word-input"
               bind:this={wordInputEl}
               bind:value={word}
-              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작하는 단어` : '상대 차례에 미리 둘 단어 입력'}
+              placeholder={busy ? '처리 중...' : canPlay ? `${nextSyllable}(으)로 시작` : '미리둘 단어 입력'}
               disabled={busy}
               autocomplete="off"
             />
@@ -2978,6 +3133,7 @@
               <Send size={17} />
             </button>
           </form>
+
           {#if premoveWord}
             <div class="premove-panel">
               <div>
@@ -3601,6 +3757,146 @@
           </div>
         </div>
       {/if}
+    </div>
+  {/if}
+
+  {#if showSearchModal}
+    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="단어 검색" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
+      <div class="wizard-card game-tool-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+        <div class="wizard-head">
+          <div>
+            <span class="panel-kicker">SEARCH</span>
+            <h2>단어 검색</h2>
+          </div>
+          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
+        </div>
+        <div class="wizard-body game-tool-body">
+          <form class="search-bar" onsubmit={submitSearch}>
+            <input class="search-input" bind:value={searchText} placeholder="기* · *차 · 기*차 · 기차" />
+            <button class="search-submit"><Search size={16} />검색</button>
+          </form>
+          {#if searchResults.length}
+            <div class="search-meta">
+              <span>총 <strong>{searchTotal}</strong>개 · 표시 <strong>{filteredSearch.length}</strong>개</span>
+              <div class="kind-pills">
+                {#each ['전체','한방','유도','루트','일반'] as f}
+                  <button class="kind-pill" class:kind-active={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
+                {/each}
+              </div>
+            </div>
+            <div class="word-grid">
+              {#each filteredSearch as r (r.word)}
+                <button class="word-card wc-{r.kind}" onclick={() => { searchText = r.last + '*'; submitSearch(); }}>
+                  <div class="wc-top">
+                    <span class="wc-word">{r.word}</span>
+                    <span class="wc-kind-badge">{r.kind}</span>
+                  </div>
+                  <div class="wc-row">
+                    <span class="wc-len">{r.len}글자</span>
+                    <span class="wc-path">{r.first} → {r.last}</span>
+                    <span class="wc-replies">↩ {r.replies}</span>
+                  </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showJobsModal}
+    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="직업 정보" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
+      <div class="wizard-card game-tool-modal game-tool-modal-wide" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+        <div class="wizard-head">
+          <div>
+            <span class="panel-kicker">JOBS</span>
+            <h2>직업 정보</h2>
+          </div>
+          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
+        </div>
+        <div class="wizard-body game-tool-body jobs-page">
+          <div class="jobs-layout jobs-layout-modal">
+            <aside class="jobs-list-panel">
+              <input class="job-filter-input" bind:value={jobFilter} placeholder="직업 검색" />
+              <div class="jobs-list">
+                {#each jobCatalog as job}
+                  <button class="job-list-btn" class:jlb-active={jobTabJob === job} onclick={() => (jobTabJob = job)}>
+                    <span class="jlb-icon">
+                      <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                      <span>{jobInitial(job)}</span>
+                    </span>
+                    <span>{job}</span>
+                  </button>
+                {/each}
+              </div>
+            </aside>
+            <section class="job-detail-panel">
+              <div class="job-detail-head">
+                <div class="job-title-wrap">
+                  <div class="job-detail-icon">
+                    <img src={jobImageSrc(jobTabJob)} alt="" loading="lazy" onerror={hideBrokenImage} />
+                    <span>{jobInitial(jobTabJob)}</span>
+                  </div>
+                  <div>
+                    <span class="panel-kicker">JOB INFO</span>
+                    <h2>{jobTabJob}</h2>
+                  </div>
+                </div>
+              </div>
+              <div class="job-info-gui">
+                {#each jobTabInfoCards as card}
+                  <section class="job-info-card">
+                    <div class="jic-head">
+                      <span class="jic-name">{card.name}</span>
+                    </div>
+                    <div class="jic-body">
+                      {#each card.lines as line}
+                        <p class:jic-bullet={line.startsWith('-')}>{line.replace(/^-+\s*/, '')}</p>
+                      {/each}
+                    </div>
+                  </section>
+                {/each}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showRankModal}
+    <div class="wizard-overlay game-tool-overlay" role="dialog" aria-label="랭킹" onclick={closeGameModals} onkeydown={(e) => e.key === 'Escape' && closeGameModals()}>
+      <div class="wizard-card game-tool-modal" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="document">
+        <div class="wizard-head">
+          <div>
+            <span class="panel-kicker">RANK</span>
+            <h2>전체 랭킹</h2>
+          </div>
+          <button class="wizard-close" onclick={closeGameModals}><X size={18} /></button>
+        </div>
+        <div class="wizard-body game-tool-body rank-page">
+          {#if ranking?.ranking?.length}
+            {#each ranking.ranking || [] as row, index}
+              {@const ti = getTierInfo(row.rating)}
+              <div class="rank-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
+                <div class="rank-num" class:rank-top={index < 3}>{index + 1}</div>
+                <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66)">{row.name[0]}</div>
+                <div class="rank-info">
+                  <span class="rank-name">{row.name}</span>
+                  <span class="rank-record">{row.wins || 0}승 {row.losses || 0}패</span>
+                </div>
+                <div class="rank-tier-col">
+                  <span class="rank-tier-badge" style="--tc:{ti.color}">{ti.name}</span>
+                  <span class="rank-rating">{row.rating || 1000}</span>
+                </div>
+              </div>
+            {/each}
+          {:else}
+            <div class="rank-empty">랭킹 데이터를 불러오고 있습니다.</div>
+          {/if}
+        </div>
+      </div>
     </div>
   {/if}
 
@@ -6233,6 +6529,13 @@
     .ability-bar { grid-template-columns: 1fr; }
     .ability-grid { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
     .ab-btn { flex: 0 0 auto; height: 34px; font-size: 12px; }
+    .hud-player { padding: 5px 8px 5px 5px; }
+    .hud-portrait { width: 30px; height: 30px; }
+    .chain-next { padding: 10px 12px; }
+    .chain-next-syl { font-size: 28px; }
+    .chain-board { padding: 12px 10px 6px; }
+    .ability-card { min-width: 96px; padding: 7px 8px; }
+    .dock-job-card { padding: 5px 8px 5px 5px; }
     .word-search-float { width: calc(100vw - 32px); right: 16px; left: 16px; }
     .floating-chat-container { bottom: 72px; }
     .rank-row { padding: 10px; gap: 9px; }
@@ -7086,6 +7389,12 @@
   .wizard-head h2 { font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px; }
   .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
   .wizard-body { padding: 18px; overflow: auto; flex: 1; }
+  .game-tool-overlay { z-index: 180; }
+  .game-tool-modal { width: min(760px, 100%); }
+  .game-tool-modal-wide { width: min(980px, 100%); }
+  .game-tool-body { padding-top: 0; }
+  .jobs-layout-modal { min-height: min(60vh, 520px); }
+  .jobs-layout-modal .jobs-list { max-height: min(52vh, 480px); overflow: auto; }
   .wizard-close { color: var(--text3); }
   .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -7376,45 +7685,323 @@
   .wizard-field span { font-size: 12px; font-weight: 700; color: var(--text3); }
   .wizard-field-hint { font-size: 12px; color: var(--text2); line-height: 1.4; }
 
-  /* Simple in-game */
-  .ingame-simple {
-    flex: 1; min-height: 0; display: flex; flex-direction: column;
-    padding: 12px 16px 0; gap: 10px;
+  /* In-game board */
+  .ingame-board {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 92%, var(--accent) 8%) 100%);
+    animation: ingameEnter .32s ease both;
+    transition: background .45s ease;
   }
-  .simple-hero {
-    text-align: center; padding: 16px 12px;
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px;
+  .ingame-board.ingame-my-turn {
+    background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 88%, var(--accent) 12%) 100%);
   }
-  .simple-hero.my-turn { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
-  .simple-syl { font-size: clamp(42px, 10vw, 64px); font-weight: 900; line-height: 1.1; }
-  .simple-turn { margin-top: 8px; font-size: 14px; color: var(--text2); display: flex; gap: 10px; justify-content: center; align-items: center; }
-  .simple-turn strong { color: var(--accent); }
-  .simple-clock { font-variant-numeric: tabular-nums; font-weight: 700; }
-  .simple-job { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--text3); }
-  .simple-vote {
+  @keyframes ingameEnter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .ingame-hud {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--topbar-bg);
+    backdrop-filter: blur(12px);
+  }
+  .hud-players {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .hud-player {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px 6px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    min-width: 0;
+    transition: border-color .2s, box-shadow .2s, transform .2s;
+  }
+  .hud-player.hud-active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+    animation: hudTurnGlow 2.8s ease-in-out infinite;
+  }
+  @keyframes hudTurnGlow {
+    0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent); }
+    50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 24%, transparent); }
+  }
+  .hud-player.hud-me { outline: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+  .hud-portrait {
+    width: 34px; height: 34px; border-radius: 10px; overflow: hidden;
+    background: var(--bg3); border: 1px solid var(--border2);
+    display: grid; place-items: center; flex-shrink: 0; position: relative;
+    font-size: 12px; font-weight: 800; color: var(--text3);
+  }
+  .hud-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .hud-meta { display: grid; gap: 1px; min-width: 0; }
+  .hud-meta strong { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hud-job { font-size: 10px; font-weight: 700; color: var(--text3); }
+  .hud-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .hud-icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    border: 1px solid var(--border2); background: var(--card);
+    color: var(--text2); display: grid; place-items: center;
+    transition: border-color .18s, color .18s, transform .18s;
+  }
+  .hud-icon-btn:active { transform: scale(0.96); }
+  .hud-icon-btn:hover, .hud-icon-btn.hud-icon-active {
+    border-color: var(--accent); color: var(--accent);
+  }
+
+  .ingame-menu {
+    display: flex; gap: 8px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    animation: menuReveal .22s ease both;
+    transform-origin: top center;
+  }
+  @keyframes menuReveal {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ingame-menu button {
+    flex: 1; height: 36px; border-radius: 10px;
+    border: 1px solid var(--border2); background: var(--card);
+    font-size: 13px; font-weight: 700; color: var(--text2);
+  }
+  .ingame-menu button.danger { color: #dc2626; border-color: #fecaca; background: #fff5f5; }
+
+  .chain-next {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    transition: background .35s ease;
+  }
+  .chain-next-mine { background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
+  .chain-next-main { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  .chain-next-label { font-size: 12px; font-weight: 800; color: var(--text3); white-space: nowrap; transition: color .3s ease; }
+  .chain-next-mine .chain-next-label { color: var(--accent); }
+  .chain-next-syl {
+    font-size: clamp(28px, 7vw, 40px); font-weight: 900; line-height: 1;
+    letter-spacing: -1px; color: var(--text);
+    transition: transform .3s ease, color .3s ease;
+  }
+  .chain-next-mine .chain-next-syl {
+    animation: sylBreathe 3s ease-in-out infinite;
+  }
+  @keyframes sylBreathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  .chain-next-clock {
+    font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--text2); padding: 6px 10px; border-radius: 999px;
+    background: var(--bg2); border: 1px solid var(--border);
+    transition: color .2s ease, border-color .2s ease;
+  }
+
+  .ingame-vote {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 10px 12px; border-radius: 12px;
-    background: #fff7ed; border: 1px solid #fed7aa; font-size: 13px;
+    padding: 10px 12px; background: #fff7ed; border-bottom: 1px solid #fed7aa;
+    font-size: 13px;
+    animation: menuReveal .24s ease both;
   }
-  .simple-players { display: flex; gap: 8px; flex-wrap: wrap; }
-  .simple-player {
-    font-size: 13px; font-weight: 700; padding: 6px 10px;
-    border-radius: 999px; background: var(--bg2); color: var(--text2);
+
+  .chain-board {
+    flex: 1; min-height: 120px;
+    overflow: auto;
+    padding: 16px 12px 8px;
+    -webkit-overflow-scrolling: touch;
   }
-  .simple-player.active { background: var(--accent); color: #fff; }
-  .simple-player.me { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .simple-history {
-    flex: 1; min-height: 80px; overflow: auto;
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 12px; background: var(--card);
-    border: 1px solid var(--border); border-radius: 14px;
+  .chain-empty {
+    height: 100%; min-height: 140px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; color: var(--text3);
   }
-  .simple-word {
-    font-size: 16px; font-weight: 700; padding: 8px 12px;
-    background: var(--bg2); border-radius: 10px;
+  .chain-empty-syl { font-size: 42px; font-weight: 900; color: var(--text2); animation: sylBreathe 3.5s ease-in-out infinite; }
+  .chain-empty p { font-size: 13px; }
+  .chain-track {
+    display: flex; align-items: flex-end; gap: 0;
+    min-width: min-content;
+    padding-bottom: 8px;
   }
-  .simple-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .chain-item {
+    display: flex; align-items: flex-end; flex-shrink: 0;
+    animation: chainPop .28s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  @keyframes chainPop {
+    from { opacity: 0; transform: translateY(5px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .chain-link {
+    color: var(--text3); font-size: 18px; font-weight: 700;
+    padding: 0 6px 14px; opacity: .55;
+    animation: chainLinkIn .2s ease .08s both;
+  }
+  @keyframes chainLinkIn {
+    from { opacity: 0; }
+    to { opacity: .55; }
+  }
+  .chain-bubble {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 10px 12px; border-radius: 14px;
+    border: 1px solid var(--border2);
+    background: var(--card);
+    min-width: 72px; max-width: 180px;
+    box-shadow: 0 4px 14px rgba(15,23,42,.05);
+    transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
+  }
+  .chain-item-me .chain-bubble {
+    background: color-mix(in srgb, var(--my-color) 10%, var(--card));
+    border-color: color-mix(in srgb, var(--my-color) 28%, var(--border2));
+  }
+  .chain-item-last .chain-bubble {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+    animation: chainLastFlash .5s ease both;
+  }
+  @keyframes chainLastFlash {
+    0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+    100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
+  }
+  .chain-item-last .chain-tail {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color .2s ease;
+  }
+  .chain-name { font-size: 10px; font-weight: 800; color: var(--text3); letter-spacing: .3px; }
+  .chain-word { font-size: 17px; font-weight: 800; line-height: 1.2; word-break: break-all; }
+  .chain-head { color: var(--text2); }
+  .chain-tail { color: var(--text); }
+  .chain-bubble-pending {
+    min-width: 56px; min-height: 52px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    animation: chainPop .24s ease both;
+  }
+  .chain-bubble-pending .think-dot {
+    animation: think-pulse 1.1s ease-in-out infinite;
+  }
+  .chain-bubble-pending .think-dot:nth-child(2) { animation-delay: .15s; }
+  .chain-bubble-pending .think-dot:nth-child(3) { animation-delay: .3s; }
+
+  .ingame-toasts {
+    position: absolute;
+    left: 12px; right: 12px;
+    bottom: calc(100% + 8px);
+    display: grid; gap: 6px;
+    pointer-events: none;
+    z-index: 35;
+  }
+  .ingame-dock { position: relative; }
+  .ingame-toast {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 12px; border-radius: 10px;
+    background: color-mix(in srgb, var(--bg2) 92%, #000 8%);
+    border: 1px solid var(--border);
+    font-size: 12px; color: var(--text2);
+    box-shadow: 0 8px 24px rgba(15,23,42,.12);
+    animation: ingameToastIn .28s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  @keyframes ingameToastIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ingame-toast :global(svg) { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+
+  .ingame-dock.bottom-composer {
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -10px 30px rgba(15,23,42,.08);
+    transition: border-color .35s ease, box-shadow .35s ease;
+  }
+  .ingame-dock.bottom-composer.composer-active {
+    animation: dockGlow .45s ease both;
+  }
+  @keyframes dockGlow {
+    from { box-shadow: 0 -10px 30px rgba(15,23,42,.08); }
+    to { box-shadow: 0 -10px 32px color-mix(in srgb, var(--accent) 12%, rgba(15,23,42,.08)); }
+  }
+  .dock-job-row {
+    display: flex; align-items: stretch; gap: 8px;
+    width: 100%; max-width: 980px; margin: 0 auto;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .dock-job-card {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px 6px 6px; border-radius: 12px;
+    border: 1px solid var(--border2); background: var(--card);
+    flex-shrink: 0; min-width: 0;
+  }
+  .dock-job-portrait {
+    width: 36px; height: 36px; border-radius: 10px; overflow: hidden;
+    background: var(--bg3); border: 1px solid var(--border2);
+    display: grid; place-items: center; position: relative;
+    font-size: 12px; font-weight: 800; color: var(--text3);
+  }
+  .dock-job-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .dock-job-name { font-size: 12px; font-weight: 800; white-space: nowrap; }
+
+  .ability-cards {
+    display: flex; gap: 8px; flex: 1; min-width: 0;
+    overflow-x: auto;
+  }
+  .ability-card {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 108px; max-width: 150px;
+    padding: 8px 10px; border-radius: 12px;
+    border: 1px solid var(--border2);
+    background: linear-gradient(180deg, var(--card), var(--bg2));
+    text-align: left;
+    flex-shrink: 0;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease, opacity .2s ease;
+    animation: abilityIn .26s ease both;
+    animation-delay: calc(var(--ai) * 45ms);
+  }
+  @keyframes abilityIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ability-card-ready:not(:disabled):hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 16%, transparent);
+    transform: translateY(-1px);
+  }
+  .ability-card-ready:not(:disabled):active {
+    transform: translateY(0) scale(0.98);
+  }
+  .ability-card-cooldown {
+    opacity: .62;
+    background: var(--bg3);
+  }
+  .ability-card-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg3));
+    color: var(--accent); flex-shrink: 0;
+  }
+  .ability-card-body { display: grid; gap: 2px; min-width: 0; }
+  .ability-card-name { font-size: 12px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ability-card-status { font-size: 10px; font-weight: 700; color: var(--text3); }
+
+  :global([data-theme="dark"]) .ingame-menu button.danger {
+    background: #2a1515; border-color: #7f1d1d; color: #fca5a5;
+  }
+  :global([data-theme="dark"]) .ingame-vote { background: #2a1f12; border-color: #78350f; }
   :global([data-theme="dark"]) .wait-room-side,
   :global([data-theme="dark"]) .wait-room-main { box-shadow: none; }
   :global([data-theme="dark"]) .wait-player-slot { background: var(--bg3); }
