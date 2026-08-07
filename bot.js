@@ -18643,9 +18643,9 @@ Alt-F4 콤보를 준비합니다.`;
   let __botResult = function () {
     if (typeof JOB_INFO === "undefined" || typeof ALL_JOBS === "undefined") return;
     var __SPEC_JOB_INFO = {"해커": "[ 채린룰 해커 직업 정보 ]\n\n< 조작 > - 쿨타임 4턴 | 2회용\n\n3턴간 이미 사용한 단어를 또 사용할 수 있습니다.\n\n\n< 복제 > - 1회용\n\n현재 디버프를 모두 제거하고 상대방에게 그대로 적용합니다.\n7턴부터 사용 가능합니다.\n\n\n< 초토화 > - 쿨타임 4턴 | 2회용\n\n1턴간 상대방이 유도단어나 4글자 이상의 단어를 사용하면 가진 패시브와 능력을 모두 잃습니다.", "빚쟁이": "[ 채린룰 빚쟁이 직업 정보 ]\n\n< 거지 > - 패시브(자동 시전 능력)\n\n게임이 시작되면 빚이 20으로 설정됩니다.\n해당 값은 상대방이 사용한 단어에 따라 변동됩니다.\n상대가 사용한 단어의 글자 수가 짝수일 땐 빚에서 글자 수만큼을 차감합니다.\n상대가 사용한 단어의 글자 수가 홀수일 땐 빚에서 글자 수만큼을 추가합니다.\n[빚 ≤ 현재 턴 수] 수식에 해당하면 빚을 다 갚아 게임에서 승리합니다.\n\n< 조작 > - 쿨타임 3턴 | 3회용\n\n다음 차례에 { 거지 } 패시브 발동 시 주가를 무조건 차감합니다.\n\n\n< 도박 > - 쿨타임 4턴 | 2회용\n\n다음 차례에 빚 변동률이 2배가 됩니다.", "환자": "[ 채린룰 환자 직업 정보 ]\n\n< 강박증 > - 패시브(자동 시전 능력) | 쿨타임 2턴\n\n상대방이 글자 수가 홀수인 단어를 사용하면 1턴간 글자 수가 짝수인 단어만 사용할 수 있게 합니다.\n또한, 상대방이 1턴간 패시브와 능력, 유도단어와 한방단어를 사용할 수 없게 합니다.\n\n\n< 환각증 > - 1회용\n\n상대방이 1턴간 마지막 단어의 첫음절로 끝나는 단어만 사용할 수 있게 합니다.(앞말잇기)\n단, 환자는 능력 사용 직후에 현재 이을 음절로 끝나는 3글자 이하의 단어만 사용할 수 있습니다.\n또한, 환자는 능력 사용 후 어지럼증으로 인해 3턴 뒤 즉시 패배합니다.\n이 능력은 루트단어나 한방단어를 받았을 때만 사용 가능합니다.", "수집가": "[ 채린룰 수집가 직업 정보 ]\n\n< 수집 > - 패시브(자동 시전 능력)\n\n상대방이 사용한 단어의 첫 번째 음절을 수집하여 저장합니다.\n{ 제작 } 능력으로 만들어진 단어는 한방단어, 유도단어, 루트단어, 일반단어 중 그 무엇도 아닌 '추가단어'로 취급되며, 자신만 사용 가능하고 총 2번 사용 가능합니다.\n수집가 직업이 추가단어를 사용하게 되면 상대방은 1턴간 패시브와 능력을 사용할 수 없습니다.\n\n< 제작 > - 10회용\n수집한 음절을 소모하여 2글자 이상의 추가단어를 생성합니다.\n명령어는 [2제작 (단어)] 형태로 사용합니다.\n\n< 채굴 > - 쿨타임 1턴 | 3회용\n\n1턴간 { 수집 } 패시브 발동 시 상대방이 사용한 단어의 모든 음절을 수집합니다.", "감시자": "[ 채린룰 감시자 직업 정보 ]\n\n< 감시 > - 패시브(자동 시전 능력)\n\n게임 시작 후 감시 수가 32으로 설정됩니다.\n상대방이 유도단어를 사용하면 감시 수를 4 차감합니다.\n상대방이 한방단어를 사용하면 감시 수를 8 차감합니다.\n상대방이 루트단어를 사용하면 감시 수를 2 차감합니다.\n상대방이 첫음절과 끝음절이 같은 단어를 사용하면 감시 수를 4 차감합니다. 이는 중첩될 수 있습니다.\n감시자에게 디버프가 존재하면 매턴 디버프 하나당 감시 수를 1 차감합니다. 디버프가 패시브 불가 효과라면 1만큼 더 차감합니다. 이는 중첩될 수 있습니다.\n감시 수가 0 이하가 되면 무기한으로 이을 음절에 상관없이 그 어떤 단어나 사용할 수 있습니다.\n패시브 불가 효과를 무시합니다.\n\n< 탐지 > - 쿨타임 4턴 | 2회용\n\n상대방이 1턴간 능력을 사용하면 하나당 감시 수를 10 깎습니다.\n또한, 다음 차례에 { 감시 } 패시브 발동 시 감시 수를 2배로 차감합니다.", "뜀틀선수": "[ 채린룰 뜀틀선수 직업 정보 ]\n\n< 뜀틀 > - 패시브(자동 시전 능력) | 쿨타임 4턴 | 3회용\n\n언제든지 '뜀틀' 단어를 사용할 수 있습니다.\n사용 시 상대방은 1턴간 유도단어를 사용할 수 없으며 패시브와 능력을 '절대' 사용할 수 없습니다.\n패시브 불가 효과를 무시합니다.\n\n< 허들 넘기 > - 쿨타임 11턴\n\n22턴 이상이 되면 사용 가능합니다.\n{ 뜀틀 } 패시브의 기회를 1회 추가하고 쿨타임을 초기화합니다.", "전우치": "[ 채린룰 전우치 직업 정보 ]\n\n< 잔상 > - 패시브(자동 시전 능력) | 2회용\n\n더 이상 이어나갈 수 있는 단어가 없을 때, 아무 루트단어로 이어갈 수 있습니다.\n이미 사용한 단어에 의해 이어나갈 수 없는 경우엔 발동하지만, 디버프로 인해 이을 단어가 없거나 시스템상으로 단어 구조가 변경되어 이을 단어가 없는 경우는 발동하지 않습니다.\n또한, 직격뢰의 사용 횟수를 1회 늘립니다.\n8턴부터 사용 가능합니다.\n\n\n< 직격뢰 > - 3회용\n\n특정 단어가 사라지게 하여 영구적으로 아무도 사용할 수 없도록 합니다.\n'2직격뢰 (단어)' 형식으로 사용합니다.", "기관사": "[ 채린룰 기관사 직업 정보 ]\n\n< 운행 > - 패시브(자동 시전 능력)\n\n짝수 턴이 되면 전철역에 정차하여 1턴간 상대방이 패시브와 능력 및 유도단어를 사용할 수 없게 합니다.\n전철역 수는 총 10개며, 상대방은 글자 수가 종점까지 남은 역 수보다 큰 단어를 사용할 수 없습니다.(최소 글자 수는 2입니다)\n종점에 도착하면 승리합니다.\n단, 기관사 대 기관사 대전에서는 패시브 불가 효과를 주지 않으며, 종점 도착 시 무승부 처리됩니다.\n\n< 폭주기관차 > - 2회용\n역에 즉시 도착합니다.", "늑대인간": "[ 채린룰 늑대인간 직업 정보 ]\n\n< 포효 > - 패시브(자동 시전 능력) | 쿨타임 2턴\n\n사용한 단어에 [ㅇ] 또는 [ㅎ]이 포함된 개수에 따라 상대방에게 디버프를 부여합니다.\n개수가 1개 이상이면 2턴간 짝수 글자의 단어만 사용 가능하게 합니다.\n개수가 3개 이상 5개 미만이면 추가적으로 1턴간 루트음절로 끝나는 단어를 사용할 수 없게 합니다.\n개수가 5개 이상이면 추가적으로 2턴간 루트음절로 끝나는 단어를 사용할 수 없게 합니다.\n개수가 7개 이상이면 이 능력의 쿨타임이 영원히 1턴이 됩니다.\n개수가 9개 이상이면 즉시 승리합니다.\n\n패시브 불가 효과를 무시합니다.", "시프터": "[ 채린룰 시프터 직업 정보 ]\n\n< 시프트 > - 4회용\n\n현재 이을 음절의 중성을 다음 중성으로 넘깁니다.\n넘긴 직후 두음법칙은 적용되지 않으며, 중성의 순서는 [ᅡᅢᅣᅤᅥᅦᅧᅨᅩᅪᅫᅬᅭᅮᅯᅰᅱᅲᅳᅴᅵ]입니다.\n단, 현재 이을 음절로 시작하는 단어가 없으면 이 능력을 사용할 수 없습니다.\n\n< 빅 시프트 > - 1회용\n현재 이을 음절의 중성을 방금 상대가 사용한 단어의 글자 수만큼 앞의 중성으로 되돌립니다. (시프트와 반대 방향)\n넘긴 직후 두음법칙이 적용되며, 중성의 순서는 [ᅡᅢᅣᅤᅥᅦᅧᅨᅩᅪᅫᅬᅭᅮᅯᅰᅱᅲᅳᅴᅵ]입니다.\n현재 이을 음절로 시작하는 단어가 없어도 이 능력을 사용할 수 있습니다.\n시프트와 중첩할 수 있습니다.", "비밀요원": "[ 채린룰 비밀요원 직업 정보 ]\n\n< 타깃 확보 > - 패시브(자동 시전 능력)\n\n단어를 입력하면 입력한 단어로부터 이어질 수 있는 단어를 최대 3개까지 타깃 단어로 설정합니다.\n4글자 이하의 유도단어와 루트단어 중 긴 단어가 우선 선정되며, 길이가 같은 단어의 경우 ㄱㄴㄷ순으로 선정됩니다.\n상대방이 타깃 단어를 사용하면 상대방은 1턴간 패시브와 능력을 사용할 수 없고, 2턴간 타깃으로 설정되어 { 포획 } 능력의 대상이 되며, 5글자 이상의 단어를 사용할 수 없습니다.\n이 패시브가 다시 발동할 때까지 타깃 단어는 변동되지 않습니다.\n\n\n< 포획 > - 쿨타임 3턴 | 3회용\n\n상대방이 타깃으로 설정되었을 때만 사용 가능합니다.\n지정한 음절로 시작하는 사용 가능한 유도단어와 루트단어 각각 3개를 사라지게 하여 영구적으로 아무도 사용하지 못하게 합니다.\n길이가 긴 단어가 우선으로 사라지며, 길이가 같은 단어의 경우 ㄱㄴㄷ순으로 사라집니다.\n또한, 상대방이 2턴간 패시브와 능력을 사용할 수 없게 합니다.\n이 능력은 능력 사용 불가 효과를 무시합니다.\n능력은 '2포획 (음절)' 형식으로 사용합니다.", "67": "[ 채린룰 67 직업 정보 ]\n\n< 67 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n\n6글자 단어를 사용하면 상대방은 7턴간 유도단어를 사용할 수 없습니다.\n이미 유도 불가 효과가 있다면 7배가 되며, 없다면 1턴간 한방단어를 사용할 수 없게 합니다.\n상대방의 유도 불가 효과의 턴 수가 67턴 이상이 된다면 게임에서 즉시 승리합니다.\n패시브 불가 효과를 무시합니다.", "사과": "[ 채린룰 사과 직업 정보 ]\n\n< 삭와 > - 패시브(자동 시전 능력) | 쿨타임 2턴\n\n입력한 단어의 초성이나 종성에 포함된 [ㅅㄱㄴㅁㅇ]의 개수가 3개 이상이면 3턴간 상대방에게 사과 디버프를 부여합니다.\n이미 사과 디버프가 있으면 2턴 연장합니다.\n사과 디버프는 3글자 이상의 한방단어와 4글자 이상의 유도단어를 사용하지 못하도록 합니다.\n정확히 5턴에 이 디버프가 처음 발동하면 게임에서 즉시 승리합니다.\n\n\n< 사구아 > - 2회용\n\n상대방이 2턴간 패시브와 능력을 사용하지 못하게 합니다.", "시인": "[ 채린룰 시인 직업 정보 ]\n\n< 2음절 > - 쿨타임 2턴 | 3회용\n\n상대방이 1턴간 두 글자 단어만 사용할 수 있게 합니다.\n\n< 유도음절 > - 쿨타임 3턴 | 2회용\n\n이 능력을 사용한 후 일반음절로 끝나는 단어만 사용할 수 있습니다.\n상대방의 끝음절을 유도음절이나 한방음절로 강제합니다.\n\n< 시적 허용 > - 쿨타임 1턴 | 2회용\n\n상대방이 1턴간 두음법칙을 사용할 수 없게 합니다.", "공룡": "[ 채린룰 공룡 직업 정보 ]\n\n< 삼키기 > - 쿨타임 4턴 | 3회용\n\n마지막으로 사용된 단어를 삼키고, 그 이전 단어를 기준으로 단어를 잇습니다.\n삼킨 직후엔 글자 수가 3글자 이하인 단어만 사용할 수 있고, 유도단어와 한방단어를 사용할 수 없으며, 두음법칙 또한 사용할 수 없습니다.\n\n\n< 브레스 > - 쿨타임 3턴 | 2회용\n\n상대방이 1턴간 유도단어를 사용할 수 없도록 합니다.\n8턴부터 사용 가능합니다.\n\n\n< 꼬리 날리기 > - 1회용\n\n다음 차례에 능력 사용 불가 디버프를 무시하고, 상대방이 1턴간 능력을 사용할 수 없게 합니다.\n8턴부터 사용할 수 있습니다.", "마법사": "[ 채린룰 마법사 직업 정보 ]\n\n< 부작용 > - 패시브(자동 시전 능력)\n\n마법사는 영원히 유도단어를 사용할 수 없습니다.\n\n\n< 공허 > - 쿨타임 3턴 | 5회용\n\n현재 이을 음절의 종성을 제거합니다.\n사용 후 2턴간 한방단어를 사용할 수 없습니다.\n제거 후 두음법칙을 사용할 수 있습니다.\n\n\n< 폭발 > - 1회용\n1턴간 부작용을 무시합니다.\n12턴부터 사용 가능합니다.", "사신": "[ 채린룰 사신 직업 정보 ]\n\n< 처형 > - 패시브(자동 시전 능력) | 4444회용\n\n게임 시작 후 처형 수가 44로 설정됩니다.\n사신이 입력하는 단어의 글자 수만큼 처형 수가 차감되며, 8글자 이상의 단어를 입력하면 처형식을 개최하여 상대방은 1턴간 패시브와 능력, 그리고 한방단어와 유도단어를 사용할 수 없습니다.\n\n\n< 사형 선고 > - 쿨타임 4턴 | 4444회용\n\n능력 사용 직후 처형 수가 24 이하면 상대방은 1턴간 글자 수가 4글자인 단어만 사용할 수 있습니다.\n처형 수가 4 이하면 게임에서 즉시 승리합니다.\n\n< 영혼 > - 1회용\n영혼이 되어 상대방이 4번째 턴의 단어를 잇게 합니다.\n5턴부터 사용할 수 있습니다.", "피보나치": "[ 채린룰 피보나치 직업 정보 ]\n\n< 피보나치 수열 > - 패시브(자동 시전 능력)\n\n현재 턴이 3턴부터 피보나치 수열 [1, 2, 3, 5, 8, 13, 21, ...]에 포함되면 발동합니다.\n발동한 턴에는 상대방이 1턴간 끝음절이 루트음절인 단어만 사용할 수 있습니다.\n3턴부터 발동됩니다.\n\n< 뤼카 수열 > - 패시브(자동 시전 능력)\n\n현재 턴이 뤼카 수열에 포함될 때 상대방이 공격단어를 사용한다면 즉시 승리합니다.", "?": "[ 채린룰 ? 직업 정보 ]\n\n< 물음표 > - 2회용\n\n상대가 3글자 이상의 홀수 글자 단어를 사용했을 때만 사용할 수 있습니다.\n상대가 쓴 단어의 가운데 글자로 이어갈 수 있습니다.\n\n\n< 쉼표 > - 1회용\n\n현재 이을 음절의 중성이 [ᅡᅢᅣᅤᅥᅦᅧᅨᅩᅪᅫᅬᅭᅮᅯᅰᅱᅲᅳᅴᅵ] 순으로 현재 모음에서 2칸 다음 모음으로 바뀝니다.\n\n< 마침표 > - 패시브(자동 시전 능력)\n\n12턴 이상일 때 즉시 자신의 승리로 게임을 끝냅니다.", "수학자": "[ 채린룰 수학자 직업 정보 ]\n\n< 계산 > - 쿨타임 1턴 | 2회용\n\n능력 사용 시 결과 수가 두자릿수 소수면 게임에서 승리합니다.\n결과 수는 게임 시작 후 바로 0으로 설정되며, 변동되어도 결과 수 자체를 알려 주지 않으므로 직접 계산하여야 합니다.\n해당 능력 사용 시 결과 수가 공개됩니다.\n\n\n< 덧셈 > - 쿨타임 2턴 | 3회용\n\n능력 사용 직전에 받은 단어의 글자 수만큼을 결과 수에 더합니다.\n\n\n< 뺄셈 > - 2회용\n\n능력 사용 직전에 받은 단어의 글자 수만큼을 결과 수에서 뺍니다.\n\n\n< 곱셈 > - 1회용\n\n능력 사용 직전에 받은 단어의 글자 수만큼을 결과 수에 곱합니다.\n\n\n< 교정 > - 쿨타임 7턴 | 1회용\n\n결과 수에 1을 더합니다.\n이 능력 사용 후 2턴간 능력을 사용할 수 없습니다.\n\n\n< 미적분 > - 쿨타임 1턴 | 2회용\n\n상대방이 1턴간 패시브와 능력을 '절대' 사용할 수 없게 합니다.", "과학자": "[ 채린룰 과학자 직업 정보 ]\n\n< 실험 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n\n초성이나 종성에 [ㅇㅅㅎ]이 총 4개 이상 포함된 단어를 사용하면 실험에 성공합니다.\n성공 시 상대방은 1턴간 유도단어와 능력, 패시브를 사용할 수 없습니다.\n실험 성공 횟수는 누적되며, 패시브 사용 불가 효과를 무시합니다.\n누적된 실험 성공 횟수가 10회가 된다면 세상을 지배하여 사전에 없는 단어도 사용할 수 있습니다.\n\n\n< DNA파괴 > - 쿨타임 8턴 | 2회용\n\n상대방의 액티브 능력 하나를 지정합니다.\n사용 다음 턴부터 실험에 2턴 연속으로 성공하면, 지정한 능력을 파괴합니다.\n파괴된 능력은 더 이상 사용할 수 없습니다.\n명령어는 '2DNA파괴 능력명' 형식으로 사용합니다.", "갈릴레오": "[ 채린룰 갈릴레오 직업 정보 ]\n\n< 관측 > - 패시브(자동 시전 능력)\n\n갈릴레오가 사용한 단어의 초성과 종성을 분석하여 목성의 위성을 발견합니다.\n단어에 포함된 초성과 종성의 집합이 다음 조건을 만족하면 해당 위성을 발견합니다.\n- {ㅇ}로만 이루어진단어: 이오 발견\n- {ㅇ, ㄹ, ㅍ} 중 2개로만 이루어진 단어: 유로파 발견\n- {ㄱ, ㄴ, ㅁ, ㄷ} 중 3개로만 이루어진 단어: 가니메데 발견\n- {ㅋ, ㄹ, ㅅ, ㅌ} 중 2개로만 이루어진 단어: 칼리스토 발견\n\n위성을 발견하면 상대방은 2턴간 끝음절이 루트음절인 단어만 사용할 수 있습니다.\n4개의 위성을 모두 발견하면 지동설이 증명되어 즉시 승리합니다.\n각 위성은 한 번만 발견할 수 있습니다.\n\n\n< 관성의 법칙 > - 패시브(자동 시전 능력)\n\n상대방은 끝음절의 초성이 ㄲ, ㄸ, ㅃ, ㅆ, ㅉ인 단어를 사용할 수 없습니다.", "작곡가": "[ 채린룰 작곡가 직업 정보 ]\n\n< 작곡 > - 패시브(자동 시전 능력)\n\n방금 상대방이 사용한 단어의 글자 수가 2글자라면 2분음표를, 4글자라면 4분음표를, 8글자라면 8분음표를 악보에 추가합니다.\n한 마디가 완성될 때 다음 효과가 부여됩니다.\n완성된 마디에 8분음표가 포함되었다면 게임에서 즉시 승리합니다.\n상대방은 4분음표가 포함된 개수만큼 턴 동안 유도단어를 사용할 수 없습니다.\n음표가 마디를 초과한다면 마디는 완성되지 않고 연장됩니다.\n패시브 사용 불가 효과를 무시합니다.\n\n\n< 쪼개기 > - 쿨타임 2턴 | 2회용\n\n현재까지 들어간 모든 음표가 2분음표는 4분음표로, 4분음표는 8분음표로 쪼개집니다.\n8분음표는 쪼개지지 않습니다.\n\n< 쉼표 > - 쿨타임 3턴\n\n현재 진행 중인 마디에 가능한 만큼 쉼표를 추가하여 마디를 즉시 완성합니다.\n그러나 작곡 패시브는 발동되지 않습니다.\n상대방은 1턴간 한방단어와 능력을 사용할 수 없습니다.\n능력 사용 불가 효과를 무시합니다.", "스폰지밥": "[ 채린룰 스폰지밥 직업 정보 ]\n\n< 저금통 > - 패시브(자동 시전 능력)\n\n게임 시작 시 4달러를 가지고 시작합니다.\n상대방이 단어를 말할 때마다 글자 수만큼 저금통에 저금합니다.\n\n\n< 게살버거 > - 쿨타임 1턴\n\n가격은 6000원입니다.\n상대방은 1턴간 한방단어와 유도단어를 사용할 수 없습니다.\n\n\n< 감자튀김 > - 쿨타임 1턴\n\n가격은 8000원입니다.\n상대방은 2턴간 두음법칙을 사용할 수 없습니다.\n\n\n< 보너스 > - 쿨타임 3턴 | 4회용\n\n다음에 들어오는 돈이 2배가 됩니다.\n\n\n< 강도 채용 > - 쿨타임 5턴 | 3회용\n\n가격은 30000원입니다.\n게살버거와 감자튀김을 충분히 구매해 5턴간 공짜로 사용할 수 있습니다. \n단, 현상수배에 걸려 영원히 5글자 이상의 단어를 사용할 수 없습니다.", "나이트": "[ 채린룰 나이트 직업 정보 ]\n\n< L자 도약 > - 패시브(자동 시전 능력)\n\n사용하는 단어의 글자 수가 [2글자 - 4글자 - 2글자] 순서를 이루면 발동합니다.\n발동 시 상대방은 2턴간 그로기 상태가 되어 짝수 글자 단어만 사용할 수 있습니다. 또한 두음법칙을 사용할 수 없게 합니다.\n\n\n< 체크메이트 > - 쿨타임 6턴 | 2회용\n\n상대방은 2턴간 끝음절이 루트음절인 단어만 사용할 수 있습니다.\n6턴부터 사용 가능합니다.\n\n\n< 교환 > - 1회용\n\n상대방이 한 턴을 보낸 뒤 다음 차례에 이미 사용된 루트단어 중 아무 루트단어를 사용할 수 있습니다\n\n< 울음 > - 1회용\n말이 울음소리를 냅니다.\n너무 슬퍼서 즉시 패배합니다.", "생존자": "[ 채린룰 생존자 직업 정보 ]\n\n< 신호 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n\n2글자 단어를 입력하면 [ · ] 모스부호 신호를 보냅니다.\n3글자 이상의 단어를 입력하면 [ - ] 모스부호 신호를 보냅니다.\n전체 모스부호 신호가 [ · · · - - - · · · - · - · - - ]가 되면 'SOS!' 신호가 완성되어 게임에서 즉시 승리합니다.\n신호를 잘못 입력하면 그 신호는 취소되지만, 상대방이 1턴간 3글자 이상의 유도단어를 사용할 수 없도록 합니다.\n\n< 아이쿠 > - 쿨타임 3턴 | 2회용\n손이 미끄러져서 다음 < 신호 > 패시브 발동 시 2번 발동됩니다.\n\n< 긴급 구조 > - 쿨타임 6턴 | 3회용\n\n게임에서 사용된 단어 중 맨처음 2개의 단어를 제외한 전체 단어를 한 묶음으로 하여 뒤집고, 뒤집은 단어를 기준으로 게임을 진행합니다.\n[기차 차표 표범 범죄 죄인]이면 [인죄 죄범 범표]와 같이 뒤집힙니다.\n긴급 구조 발동 시 모든 디버프를 제거하지만, 1턴간 한방단어나 유도단어를 사용할 수 없습니다.\n한방단어나 유도단어를 받았을 때만 사용 가능합니다.", "천사": "[ 채린룰 천사 직업 정보 ]\n\n< 보호 > - 쿨타임 3턴 | 3회용\n\n능력 사용 시 마지막에 사용된 단어의 글자 수만큼의 턴간 지속되는 보호를 생성합니다.\n보호가 생성되면 보호 초성이 [ㄱㄴ]으로 설정되며, 상대방은 보호가 지속되는 동안 끝음절에 보호 초성이 포함된 단어를 사용할 수 없습니다.\n또한, 보호가 지속되는 동안 상대방이 입력하는 단어의 글자 수만큼 보호 초성이 늘어납니다.\n추가되는 순서는 [ㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ]입니다.\n보호 초성이 [ㅎ]까지 도달하면 보호가 끝날 때까지 더 이상 변동되지 않습니다.\n\n\n< 천계 > - 쿨타임 1턴 | 2회용\n\n보호 시전 중에만 사용할 수 있습니다.\n사용 즉시 이때까지 진행된 보호 초성을 모두 뒤집습니다.\n[ㄱㄴㄷㄹ]인 경우, [ㅎㅍㅌㅋ]로 뒤집힙니다.\n뒤집힌 보호 초성이 4개 이상인 경우 상대방은 1턴간 패시브와 능력을 사용할 수 없습니다.", "기자": "[ 채린룰 기자 직업 정보 ]\n\n< 거짓 보도 > - 쿨타임 2턴 | 5회용\n\n1턴간 보도를 실시하며, 상대방이 보도 중에 한방단어나 유도단어를 사용하면 마지막 음절을 '삐'로 변경 후 상대방이 1턴간 능력과 유도단어를 사용하지 못하도록 합니다.\n상대방은 보도 중엔 패시브와 능력을 사용할 수 없으며, 두음법칙도 제한됩니다.\n\n< 거짓 뉴스 > - 1회용\n\n2턴간 보도를 실시하며, 상대방이 보도 중에 한방단어나 유도단어를 사용하면 마지막 음절을 '삐'로 변경 후 상대방이 1턴간 능력과 유도단어를 사용하지 못하도록 합니다.\n상대방은 보도 중엔 패시브와 능력을 사용할 수 없으며, 두음법칙도 제한됩니다.\n\n보도가 끝난 후 거짓 뉴스가 알려지며, 2턴간 능력을 사용할 수 없게 됩니다.", "검객": "[ 채린룰 검객 직업 정보 ]\n\n< 찌르기 > - 쿨타임 5턴 | 2회용\n\n상대방이 1턴간 패시브와 능력을 사용할 수 없게 합니다.\n또한, 1턴간 두음법칙을 사용할 수 없도록 합니다.\n4턴부터 사용 가능합니다.\n\n\n< 가르기 > - 쿨타임 3턴 | 3회용\n\n능력 사용 직전에 받은 단어를 반으로 가르고 단어를 이어갑니다.\n홀수 단어를 가르면 초성과 종성, 종성이 없으면 초성과 중성 기준으로 갈라집니다.(속 -> 소/ㄱ, 누 -> ㄴ/ㅜ)\n가른 직후 두음법칙은 적용되지 않으며, 2글자 단어를 갈랐다면 가른 직후 한방단어와 유도단어를 사용할 수 없습니다.", "마하트마간디": "[ 채린룰 마하트마간디 직업 정보 ]\n\n< 비폭력 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n\n상대방이 한방단어나 유도단어를 사용할 때마다 비폭력 스탯이 1회 추가됩니다.\n상대방이 능력을 사용하고 차례가 지나면 비폭력 스탯이 1회 추가됩니다.\n비폭력 스탯이 4회가 되면 개발자를 협박하여 게임을 즉시 승리로 종료합니다.\n패시브 불가 효과를 무시합니다.\n\n\n< 억제 > - 쿨타임 3턴\n\n비폭력 스탯을 1회 사용하여 상대방이 1턴간 공격단어, 패시브와 능력을 사용할 수 없게 합니다.", "은하계전사": "[ 채린룰 은하계전사 직업 정보 ]\n\n< 별인 듯 달 아닌 별 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n\n[별] 또는 [달]이 포함된 단어나 모음이 [ㅕ], [ㅏ]로만 이루어진 단어를 사용하면 상대방은 1턴간 끝음절이 루트음절인 단어만 사용 가능합니다. 발동할 때마다 지속 시간이 1턴씩 늘어납니다. 또한, 상대방은 2턴간 패시브와 능력을 사용할 수 없습니다.\n[별] 또는 [달]이 포함된 단어를 사용한 횟수가 3의 배수일 경우, 끝음절이 [벨]으로 변경됩니다.\n 이 능력이 9번째 발동될때, 사용하는 단어의 끝음절이 [볠]으로 변하게 되며, 상대방은 무기한으로 끝음절 초성이 [ㅅㅍㄴㅂ] 중 하나인 단어만 사용 가능합니다. (이때, 더 이상 이 패시브는 발동하지 않습니다.)\n패시브 불가 효과를 무시합니다.", "혜성전사": "[ 채린룰 혜성전사 직업 정보 ]\n\n< 핼리 혜성 > - 패시브(자동 시전 능력)\n\n혜성전사가 [성]이 포함된 단어를 사용하면 결계가 생성되거나 지속 시간이 1턴 늘어나며, 상대방은 1턴간 유도단어를 사용할 수 없습니다.\n결계가 생성되면 기본 3턴 동안 지속되며, 결계 초성이 [ㄱㄴ]으로 설정됩니다.\n상대방은 결계가 지속되는 동안 끝음절에 결계 초성이 포함된 단어를 사용할 수 없으며, 유도단어를 사용할 수 없습니다.\n\n결계가 지속되는 동안 상대방이 입력하는 단어의 글자 수만큼 결계 초성이 늘어납니다.\n추가되는 순서는 [ㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ]입니다.\n결계 초성이 [ㅎ]까지 도달하면 결계가 끝날 때까지 더 이상 변동되지 않습니다.\n\n혜성전사가 [혜]가 포함된 단어를 사용하면 결계 타이머가 0으로 초기화되고,\n상대방은 2턴간 유도단어를 사용할 수 없습니다.\n\n결계가 종료되면 이 패시브는 5턴간 사용할 수 없습니다.\n패시브 사용 불가 효과를 무시합니다.\n\n16턴 전까지 [성]이 포함된 단어를 5번 이상, [혜]가 포함된 단어를 1번 이상 사용했다면,\n상대방은 영구적으로 끝음절이 ㅎ, ㅅ인 단어만 사용 가능합니다.", "수리사": "[ 채린룰 수리사 직업 정보 ]\n\n< 방탄 > - 패시브(자동 시전 능력) | 쿨타임 2턴 | 13회용\n\n단어 입력 시 상대방은 1턴간 끝음절로 시작하는 단어가 10개 이하인 단어를 사용할 수 없습니다.\n\n\n< 수리 > - 쿨타임 3턴 | 3회용\n\n현재 이을 음절의 중성을 애매하게 수리합니다.\n수리 후 두음법칙을 사용할 수 있지만, 유도단어는 사용할 수 없습니다.\n[ㅏㅑㅓㅕㅣ] <-> [ㅜㅠㅗㅛㅡ]", "우라늄": "[ 채린룰 우라늄 직업 정보 ]\n\n< 방사선 > - 패시브(자동 시전 능력) | 쿨타임 1턴\n\n사용한 단어 조건에 따라 방사선이 발동합니다.\n3글자 단어를 사용하면 알파선이 나가 상대방은 1턴간 모든 음절에 받침이 있는 단어를 사용할 수 없습니다.\n2글자 단어를 3번 연속으로 사용했다면 3번째 공격은 베타선이 나가 상대방은 2턴간 패시브와 능력을 '절대' 사용할 수 없습니다.\n2글자, 3글자, 4글자, 5글자, 4글자, 3글자, 2글자 단어를 순서대로 사용하면 감마선이 나가 상대방은 영구적으로 2글자 단어만 사용할 수 있습니다.\n\n\n< 핵분열 > - 1회용\n\n상대의 마지막 단어에서 첫음절이 아닌 아무 음절로 이어갈 수 있으며, 다음 턴에도 똑같이 적용됩니다.\n단, 능력 사용 직후 2턴간 한방단어나 유도단어를 사용할 수 없습니다.", "고죠": "[ 채린룰 고죠 직업 정보 ]\n\n< 무하한 > - 패시브(자동 시전 능력)\n\n게임 시작 후 상대방은 무기한으로 사용된 단어에 상관없이 정의상 첫음절과 끝음절이 같은 단어를 사용할 수 없습니다.\n\n\n< 무량공처 > - 쿨타임 2턴 | 4회용\n\n능력 사용 시 상대방은 1턴간 한방단어와 유도단어를 사용할 수 없습니다.\n또한, 1턴간 패시브와 능력을 ‘절대’ 사용할 수 없습니다.\n능력 사용 불가 효과를 무시합니다.", "스핔이": "[ 채린룰 스핔이 직업 정보 ]\n\n< 백수가 쪼아요 > - 패시브(자동 시전 능력)\n\n이 능력을 제외한 모든 능력의 남은 사용 횟수가 0회라면 즉시 승리합니다.\n\n\n< 물걸레질 > - 쿨타임 4턴 | 4회용\n\n단어를 청소하여 이번 차례에 이미 사용된 단어를 사용할 수 있으며, 게임의 턴이 1 줄어듭니다.\n\n\n< 호박 > - 쿨타임 5턴 | 2회용\n\n1턴간 호박을 먹느라 수를 둘 수 없습니다.\n상대가 사용한 단어를 상대가 이어야 합니다.\n단, 한방단어를 받았을 때는 사용할 수 없습니다.", "해달": "[ 채린룰 해달 직업 정보 ]\n\n< 돌대가리 > - 패시브(자동 시전 능력)\n\n능력 불가 효과를 무시합니다.\n\n\n< 조개 > - 쿨타임 4턴 | 3회용\n\n해달이 2턴 동안 조개를 깝니다.\n조개를 까는 동안 상대는 받침에 [ㅈ, ㄱ, ㄲ, ㄷ]인 음절이 포함된 단어를 사용할 수 없습니다.\n맛있게 먹습니다. 먹은 후 (2턴 후) 모든 디버프가 사라집니다.\n\n\n< 깨부수기 > - 1회용\n\n검객의 가르기처럼 받은 단어를 반으로 깨부숩니다. 그러나 맛있는 조개를 다 먹은 후 2턴 안에 사용해야 합니다.", "프로그래머": "[ 채린룰 프로그래머 직업 정보 ]\n\n< Restart > - 패시브(자동 및 수동 시전 능력)(재부팅)\n프로그래머가 유도단어를 사용했을때 즉시 재부팅됩니다.\n기보가 초기화되고 1턴으로 돌아가며 첫 단어는 프로그래머가 입력합니다.\n\n< Shift > - 1회용\n현재 이을 음절의 중성을 다음 중성으로 넘깁니다. (시프터 참고)\n\n< Caps Lock > - 쿨타임 12턴 | 12회용\n현재 이을 음절의 중성을 다음 중성으로 계속 넘겨, 실제로 이어질 수 있는 음절을 찾습니다. (시프터 참고)\n게임 시작 후 12턴부터 사용 가능하며 재부팅 후에는 6턴부터 사용 가능합니다.\n\n< Backspace > - 1회용\n현재 이을 단어를 지우고 그 전 단어를 잇게 됩니다. 1턴간 한방단어와 유도단어를 사용할 수 없으며 유도단어를 받았을때 사용할 수 없습니다.\n\n< Tab > - 1회용\n상대와 자신의 차례를 바꿉니다. 단, 루트단어를 받았을 때만 사용할 수 있습니다.\n\n< 잘못 뽑은 반장 > - 패시브 (자동시전능력) | 쿨타임 2턴\n\n패시브가 발동된 상태에서 상대방은 짝수글자의 단어만 사용할 수 있습니다.\n\n패시브 불가 효과를 무시합니다.\n\n< 담임의 가호 > - 쿨타임 4턴 | 2회용\n상대방은 선도위원회에 보내집니다.\n상대는 1턴동안 공격단어를 사용할 수 없습니다.\n또한, 모든 디버프를 1턴간 무시합니다.\n\n< 교장의 가호 > - 1회용\n상대방은 2턴동안 능력과 패시브를 사용할 수 없습니다. \n다음 수에 상대방이 2글자 단어를 사용하지 않는다면(이때 다음 패시브는 적용되지 않음) 강제전학으로 반장은 게임에서 즉시 승리합니다.", "볼링선수": "[채린룰 볼링선수 정보]\n\n< 볼링중독 > - 패시브(자동 시전 능력)\n사용하는 단어에 [ㅅ, ㅌ, ㄹ, ㅇ ,ㅋ] 가 1개 들어갔다면 점수는 10점이 오른다.\n2개가 들어갔다면 점수에 30점이 추가되고 상대는 1턴간 짝수 글자의 단어만 사용 할 수 있게 된다.\n3개이상이 들어갔다면 점수가 50점이 오르고 상대는 2턴간 홀수 글자의 단어만 사용 할 수 있게 된다.\n점수는 누적된다.\n\n총점이 300점이 되면 게임에서 즉시 승리한다.\n\n패시브 불가 효과를 무시한다.\n<스트라이크> -능력 | 쿨타임 2턴 | 3회용\n자신의 점수를 30점 사용하여 이 능력을 발동시킬 수 있다. \n상대는 1턴간 유도단어를 사용할 수 없습니다.\n\n<스페어> -능력 | 쿨타임 3턴 | 2회용\n자신의 점수를 30점 사용하여 이 능력을 발동시킬 수 있다.\n상대는 1턴간 두음법칙을 사용할 수 없습니다."};
-    var __SPEC_ALL_JOBS = ["해커", "빚쟁이", "환자", "수집가", "감시자", "뜀틀선수", "전우치", "기관사", "늑대인간", "시프터", "비밀요원", "67", "사과", "시인", "공룡", "마법사", "사신", "피보나치", "?", "수학자", "과학자", "갈릴레오", "작곡가", "스폰지밥", "나이트", "생존자", "천사", "기자", "검객", "마하트마간디", "은하계전사", "혜성전사", "수리사", "우라늄", "고죠", "스핔이", "해달", "프로그래머", "반장", "볼링선수"];
-    var __SPEC_ACTIVE = {"해커": ["조작", "복제", "초토화"], "빚쟁이": ["조작", "도박"], "환자": ["환각증"], "수집가": ["제작", "채굴"], "감시자": ["탐지"], "뜀틀선수": ["뜀틀", "허들 넘기"], "전우치": ["직격뢰"], "기관사": ["폭주기관차"], "늑대인간": [], "시프터": ["시프트", "빅 시프트"], "비밀요원": ["포획"], "67": [], "사과": ["사구아"], "시인": ["2음절", "유도음절", "시적 허용"], "공룡": ["삼키기", "브레스", "꼬리 날리기"], "마법사": ["공허", "폭발"], "사신": ["사형 선고", "영혼"], "피보나치": [], "?": ["?", "물음표", "쉼표"], "과학자": ["DNA파괴"], "갈릴레오": [], "작곡가": ["쪼개기", "쉼표"], "스폰지밥": ["게살버거", "감자튀김", "보너스", "강도 채용"], "나이트": ["체크메이트", "교환", "울음"], "생존자": ["아이쿠", "긴급 구조"], "천사": ["보호", "천계"], "기자": ["거짓 보도", "거짓 뉴스"], "검객": ["찌르기", "가르기"], "마하트마간디": ["억제"], "은하계전사": [], "혜성전사": [], "수리사": ["수리"], "우라늄": ["핵분열"], "고죠": ["무량공처"], "스핔이": ["물걸레질", "호박"], "해달": ["조개", "깨부수기"], "볼링선수": ["스트라이크", "스페어"]};
-    var __SPEC_ALIAS = {"투자자":"빚쟁이","ㅂㅈㅇ":"빚쟁이","볼링":"볼링선수","ㅂㄹㅅㅅ":"볼링선수","물음표":"?","ㅁㅇㅍ":"?"};
+    var __SPEC_ALL_JOBS = ["해커", "빚쟁이", "환자", "수집가", "감시자", "뜀틀선수", "전우치", "기관사", "늑대인간", "시프터", "비밀요원", "67", "사과", "시인", "공룡", "마법사", "사신", "피보나치", "?", "수학자", "과학자", "갈릴레오", "작곡가", "스폰지밥", "나이트", "생존자", "천사", "기자", "검객", "마하트마간디", "은하계전사", "혜성전사", "수리사", "우라늄", "고죠", "스핔이", "해달", "프로그래머", "반장", "홍명보", "페인터"];
+    var __SPEC_ACTIVE = {"해커": ["조작", "복제", "초토화"], "빚쟁이": ["조작", "도박"], "환자": ["환각증"], "수집가": ["제작", "채굴"], "감시자": ["탐지"], "뜀틀선수": ["뜀틀", "허들 넘기"], "전우치": ["직격뢰"], "기관사": ["폭주기관차"], "늑대인간": [], "시프터": ["시프트", "빅 시프트"], "비밀요원": ["포획"], "67": [], "사과": ["사구아"], "시인": ["2음절", "유도음절", "시적 허용"], "공룡": ["삼키기", "브레스", "꼬리 날리기"], "마법사": ["공허", "폭발"], "사신": ["사형 선고", "영혼"], "피보나치": [], "?": ["?", "물음표", "쉼표"], "과학자": ["DNA파괴"], "갈릴레오": [], "작곡가": ["쪼개기", "쉼표"], "스폰지밥": ["게살버거", "감자튀김", "보너스", "강도 채용"], "나이트": ["체크메이트", "교환", "울음"], "생존자": ["아이쿠", "긴급 구조"], "천사": ["보호", "천계"], "기자": ["거짓 보도", "거짓 뉴스"], "검객": ["찌르기", "가르기"], "마하트마간디": ["억제"], "은하계전사": [], "혜성전사": [], "수리사": ["수리"], "우라늄": ["핵분열"], "고죠": ["무량공처"], "스핔이": ["물걸레질", "호박"], "해달": ["조개", "깨부수기"], "홍명보": ["손흥민의 눈물", "옌스의 눈물", "LA 도주", "제 안에 있는 무언가가 나오기 시작했습니다"], "페인터": ["페인트", "카피"]};
+    var __SPEC_ALIAS = {"투자자":"빚쟁이","ㅂㅈㅇ":"빚쟁이","물음표":"?","ㅁㅇㅍ":"?"};
     Bot.functions.each(Bot.functions.keys(__SPEC_JOB_INFO), function (k) {
       /* 수학자·프로그래머는 신버전이 base+PATCH·핸들러에 구현돼 있다.
          __SPEC 의 구버전으로 덮어쓰지 않는다. (프로그래머 신킷 = Delete/BIOS/Alt-F4/…,
@@ -26662,8 +26662,7 @@ Alt-F4 콤보를 준비합니다.`;
       P("Tab", "프로그래머", "active", "조작"),
       P("잘못 뽑은 반장", "반장", "passive", "제약"),
       P("담임의 가호", "반장", "active", "버프"),
-      P("교장의 가호", "반장", "active", "제약", true),
-      P("볼링중독", "볼링선수", "passive", "제약", true)
+      P("교장의 가호", "반장", "active", "제약", true)
     ];
   })();
 
@@ -30629,6 +30628,342 @@ LA로 도주합니다.
       if (mover.speaki_pumpkin_cooldown > 0) mover.speaki_pumpkin_cooldown -= 1;
     }
     return result;
+  };
+})();
+
+/* ===== 신규 직업: 페인터 ===== */
+(function installPainter() {
+  var S = Bot.scope, JOB = "페인터";
+  var PAINT = "페인트", PASSIVE = "페인트 게이지", COPY = "카피";
+  var PAINT_MAX = 2, PAINT_COOLDOWN = 4, COPY_MAX = 1, GAUGE_MAX = 4, PAINT_BLOCK_TURNS = 2;
+
+  S.JOB_INFO[JOB] = `[ 채린룰 페인터 직업 정보 ]
+
+< ${PAINT} > - 액티브 | ${PAINT_MAX}회용 | 쿨타임 ${PAINT_COOLDOWN}턴
+
+상대의 지정한 능력을 칠해 상대의 ${PAINT_BLOCK_TURNS}번의 턴 동안 사용할 수 없게 합니다.
+
+
+< ${PASSIVE} > - 패시브(자동 시전 능력)
+
+상대가 능력을 실제로 사용할 때마다 페인트 게이지가 1씩 찹니다. (최대 ${GAUGE_MAX})
+게이지가 ${GAUGE_MAX}가 되면 상대의 사용 가능한 액티브 능력 하나를 영구히 칠해 빼앗고, 자신의 능력으로 만듭니다.
+강탈 후 게이지는 0으로 돌아갑니다.
+
+
+< ${COPY} > - 액티브 | ${COPY_MAX}회용
+
+상대의 능력을 현재 턴 동안 복사하며, 복사한 능력은 원래 능력 명령으로 한 번 사용할 수 있습니다.
+대가로 자신은 2턴 동안 한방단어와 유도단어를 사용할 수 없습니다.`;
+
+  function hasCard(state, ability) {
+    return !!(state && state.mode === "조합" && state.kit && state.kit.abilities && state.kit.abilities[ability]);
+  }
+  function ownsPassive(state) { return !!(state && S.owns && S.owns(state, JOB)); }
+  function hasPainterJob(state) { return !!(state && (state.job === JOB || hasCard(state, PAINT) || hasCard(state, COPY))); }
+  function hasActive(state, ability) {
+    if (!state) return false;
+    if (state.job === JOB || hasCard(state, ability)) return true;
+    if (state.ptr_stolen && state.ptr_stolen.indexOf(ability) >= 0) return true;
+    if (state.ptr_copy_ability === ability && state.ptr_copy_turn === (state._ptr_turn_ref || 0)) return true;
+    return false;
+  }
+  function ensureState(state) {
+    if (!state) return;
+    if (!state.ptr_paint_uses) state.ptr_paint_uses = 0;
+    if (typeof state.ptr_paint_cooldown !== "number") state.ptr_paint_cooldown = 0;
+    if (!state.ptr_copy_uses) state.ptr_copy_uses = 0;
+    if (typeof state.ptr_gauge !== "number") state.ptr_gauge = 0;
+    if (!state.ptr_stolen) state.ptr_stolen = [];
+    if (!state.ptr_stolen_from) state.ptr_stolen_from = {};
+    if (!state.ptr_painted) state.ptr_painted = {};
+  }
+  function opponents(game, name) {
+    var out = [], players = game && game.players ? game.players : [];
+    var si = players.indexOf(String(name)), team = si >= 0 ? si % 2 : -1;
+    for (var i = 0; i < players.length; i++) {
+      if (i === si || (game.teamMode > 1 && team >= 0 && i % 2 === team)) continue;
+      out.push(players[i]);
+    }
+    return out;
+  }
+  function firstOppState(game, name) {
+    var names = opponents(game, name);
+    for (var i = 0; i < names.length; i++) {
+      var st = game.playerStates && game.playerStates[names[i]];
+      if (st) return st;
+    }
+    return null;
+  }
+  function say(replier, state, text) {
+    if (S.replyJob) S.replyJob(replier, state && state.job ? state.job : JOB, text);
+    else replier.reply(text);
+  }
+  function resolve(room, sender) {
+    var info = S.resolveSenderGame ? S.resolveSenderGame(room, sender) : null;
+    if (!info && S.findPlayerGameGlobal) info = S.findPlayerGameGlobal(String(sender));
+    return info;
+  }
+  function abilityBlocked(game, state, sender) {
+    if (game.phase !== "playing") return "경기 중에만 사용할 수 있습니다.";
+    if (game.currentTurnIndex !== -1 && game.players[game.currentTurnIndex] !== String(sender)) return "현재 자신의 차례에만 사용할 수 있습니다.";
+    if ((S.isMapAbilityBlocked && S.isMapAbilityBlocked(game)) ||
+        (S.isAbilityUseDisabled && S.isAbilityUseDisabled(state))) return "현재 능력을 사용할 수 없습니다.";
+    return null;
+  }
+  function pickStealTarget(oppState) {
+    var list = S.getActiveAbilityNames ? S.getActiveAbilityNames(oppState.job) : [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var ab = list[i];
+      if (!oppState.destroyed_active_abilities || oppState.destroyed_active_abilities.indexOf(ab) < 0) {
+        if (!oppState.ptr_painted || !oppState.ptr_painted[ab]) out.push(ab);
+      }
+    }
+    return out.length ? out[0] : null;
+  }
+  function addGauge(painterState, oppState, replier, gr) {
+    if (!painterState || !oppState) return;
+    ensureState(painterState);
+    if (painterState.ptr_gauge >= GAUGE_MAX) return;
+    painterState.ptr_gauge += 1;
+    if (painterState.ptr_gauge < GAUGE_MAX) {
+      say(gr, painterState, PASSIVE + " · 게이지 " + painterState.ptr_gauge + "/" + GAUGE_MAX);
+      return;
+    }
+    var stolen = pickStealTarget(oppState);
+    if (!stolen) {
+      painterState.ptr_gauge = GAUGE_MAX - 1;
+      say(gr, painterState, PASSIVE + " · 게이지가 가득 찼지만 빼앗을 능력이 없습니다.");
+      return;
+    }
+    if (!oppState.destroyed_active_abilities) oppState.destroyed_active_abilities = [];
+    if (oppState.destroyed_active_abilities.indexOf(stolen) < 0) oppState.destroyed_active_abilities.push(stolen);
+    if (painterState.ptr_stolen.indexOf(stolen) < 0) painterState.ptr_stolen.push(stolen);
+    painterState.ptr_stolen_from[stolen] = oppState.job;
+    painterState.ptr_gauge = 0;
+    say(gr, painterState, PASSIVE + " · " + stolen + " 능력을 영구히 빼앗았습니다.");
+  }
+  function parseCommand(text) {
+    var t = String(text || "").trim();
+    if (t.charAt(0) !== "2") return null;
+    var body = t.substring(1).trim();
+    if (body.indexOf(PAINT + " ") === 0) return { kind: "paint", target: body.substring(PAINT.length + 1).trim() };
+    if (body.indexOf(COPY + " ") === 0) return { kind: "copy", target: body.substring(COPY.length + 1).trim() };
+    if (body === PAINT || body === "ㅍㅇㅌ") return { kind: "paint", target: "" };
+    if (body === COPY || body === "ㅋㅍ") return { kind: "copy", target: "" };
+    return null;
+  }
+  function isPaintBlocked(state, ability) {
+    ensureState(state);
+    var left = state.ptr_painted[ability];
+    return typeof left === "number" && left > 0;
+  }
+  function tickPainted(state) {
+    if (!state || !state.ptr_painted) return;
+    var keys = Object.keys(state.ptr_painted);
+    for (var i = 0; i < keys.length; i++) {
+      if (state.ptr_painted[keys[i]] > 0) state.ptr_painted[keys[i]] -= 1;
+      if (state.ptr_painted[keys[i]] <= 0) delete state.ptr_painted[keys[i]];
+    }
+  }
+
+  var previousInitJobState = S.initJobState;
+  S.initJobState = function (job) {
+    var state = previousInitJobState ? previousInitJobState(job) : { job: job };
+    if (job === JOB) ensureState(state);
+    return state;
+  };
+  var previousActiveNames = S.getActiveAbilityNames;
+  S.getActiveAbilityNames = function (job) {
+    var base = previousActiveNames ? previousActiveNames(job) : [];
+    if (job !== JOB) return base;
+    return base.concat([PAINT, COPY]);
+  };
+  var previousOwns = S.owns;
+  S.owns = function (state, jobName) {
+    if (state && state.ptr_exec_as && state.ptr_exec_as === jobName) return true;
+    return previousOwns ? previousOwns(state, jobName) : false;
+  };
+  if (S.ALL_JOBS && S.ALL_JOBS.indexOf(JOB) === -1) S.ALL_JOBS.push(JOB);
+  var previousNormalizeJobName = S.normalizeJobName;
+  S.normalizeJobName = function (job) {
+    var name = previousNormalizeJobName ? previousNormalizeJobName(job) : String(job == null ? "" : job).trim();
+    if (name === "ㅍㅇㅌ") return JOB;
+    return name;
+  };
+
+  if (Bot.combat && Bot.combat.pool && Bot.combat.pool.cards) {
+    var cards = Bot.combat.pool.cards;
+    for (var ci = cards.length - 1; ci >= 0; ci--) if (cards[ci].homeJob === JOB) cards.splice(ci, 1);
+    var make = Bot.combat.pool.makeCard;
+    cards.push(make(PASSIVE, JOB, "passive", "성장", true));
+    cards.push(make(PAINT, JOB, "active", "제약"));
+    cards.push(make(COPY, JOB, "active", "조작"));
+    Bot.combat.pool.abilityIndex = {};
+    Bot.combat.pool.jobHasPassive = {};
+    Bot.combat.pool.computePower();
+    Bot.combat.pool.indexCards();
+    if (S.__combatMode) {
+      S.__combatMode.POOL = cards;
+      S.__combatMode.ABIL_INDEX = Bot.combat.pool.abilityIndex;
+    }
+  }
+
+  var previousMain = Bot.functions.main;
+  Bot.functions.main = function (room, msg, sender, isGroupChat, replier, imageDB, packageName, isMultiChat) {
+    var text = String(msg == null ? "" : msg).trim();
+    var info = resolve(room, sender);
+    var game = info && info.game;
+    var state = game && game.playerStates ? game.playerStates[String(sender)] : null;
+    if (game && game.playerStates) {
+      for (var pi = 0; pi < game.players.length; pi++) ensureState(game.playerStates[game.players[pi]]);
+      if (state) state._ptr_turn_ref = game.turnCount || 1;
+    }
+
+    var cmd = state && hasPainterJob(state) ? parseCommand(text) : null;
+    if (cmd) {
+      ensureState(state);
+      var blocked = abilityBlocked(game, state, sender);
+      if (blocked) { replier.reply(blocked); return; }
+      var oppState = firstOppState(game, sender);
+      if (!oppState) { replier.reply("상대를 찾을 수 없습니다."); return; }
+      if (cmd.kind === "paint") {
+        if (!cmd.target) { replier.reply("칠할 상대 능력명을 입력하세요. 예: 2" + PAINT + " 조작"); return; }
+        if (state.ptr_paint_uses >= PAINT_MAX) { replier.reply(PAINT + "을 모두 사용했습니다."); return; }
+        if (state.ptr_paint_cooldown > 0) { replier.reply(PAINT + " 쿨타임입니다. (" + state.ptr_paint_cooldown + "턴)"); return; }
+        var activeList = S.getActiveAbilityNames ? S.getActiveAbilityNames(oppState.job) : [];
+        if (activeList.indexOf(cmd.target) < 0) {
+          replier.reply("상대 직업의 액티브 능력이 아닙니다. 가능: " + (activeList.join(", ") || "없음"));
+          return;
+        }
+        ensureState(oppState);
+        state.ptr_paint_uses += 1;
+        state.ptr_paint_cooldown = PAINT_COOLDOWN;
+        oppState.ptr_painted[cmd.target] = PAINT_BLOCK_TURNS;
+        state.used_active_this_turn = true;
+        say(replier, state, PAINT + " · 상대의 " + cmd.target + " 능력을 " + PAINT_BLOCK_TURNS + "턴 동안 막았습니다.");
+        return;
+      }
+      if (!cmd.target) { replier.reply("복사할 상대 능력명을 입력하세요. 예: 2" + COPY + " 조작"); return; }
+      if (state.ptr_copy_uses >= COPY_MAX) { replier.reply(COPY + "를 모두 사용했습니다."); return; }
+      var copyList = S.getActiveAbilityNames ? S.getActiveAbilityNames(oppState.job) : [];
+      if (copyList.indexOf(cmd.target) < 0) {
+        replier.reply("상대 직업의 액티브 능력이 아닙니다. 가능: " + (copyList.join(", ") || "없음"));
+        return;
+      }
+      state.ptr_copy_uses += 1;
+      state.ptr_copy_ability = cmd.target;
+      state.ptr_copy_from = oppState.job;
+      state.ptr_copy_turn = game.turnCount || 1;
+      state.no_hanbang_turns = Math.max(state.no_hanbang_turns || 0, 2);
+      state.no_yudo_turns = Math.max(state.no_yudo_turns || 0, 2);
+      state.used_active_this_turn = true;
+      say(replier, state, COPY + " · " + cmd.target + " 능력을 이번 턴에 복사했습니다. 2" + cmd.target + " 로 사용하세요.");
+      return;
+    }
+
+    if (state && text.charAt(0) === "2") {
+      var abilityTry = text.substring(1).trim();
+      var multi = abilityTry.indexOf(" ");
+      if (multi > 0) abilityTry = abilityTry.split(" ")[0] + " " + abilityTry.split(" ").slice(1).join(" ");
+      var abilityName = abilityTry.indexOf(" ") > 0 ? abilityTry : abilityTry.split(" ")[0];
+      if (abilityTry.indexOf(" ") > 0) {
+        var parts = abilityTry.split(" ");
+        abilityName = parts[0];
+        if (parts.length > 1 && (abilityName === "거짓" || abilityName === "허들" || abilityName === "빅" || abilityName === "긴급" || abilityName === "사형" || abilityName === "꼬리" || abilityName === "시적" || abilityName === "CPU" || abilityName === "Boot" || abilityName === "Intel")) {
+          abilityName = parts[0] + " " + parts[1];
+        }
+      }
+      if (isPaintBlocked(state, abilityName)) {
+        replier.reply(PAINT + " 효과: " + abilityName + " 능력을 아직 사용할 수 없습니다.");
+        return;
+      }
+      if (hasPainterJob(state) && state.ptr_copy_ability === abilityName && state.ptr_copy_turn === (game.turnCount || 1)) {
+        state.ptr_exec_as = state.ptr_copy_from;
+        var copyResult = previousMain.apply(this, arguments);
+        state.ptr_exec_as = null;
+        state.ptr_copy_ability = null;
+        state.ptr_copy_from = null;
+        state.ptr_copy_turn = 0;
+        return copyResult;
+      }
+      if (state.ptr_stolen && state.ptr_stolen.indexOf(abilityName) >= 0) {
+        state.ptr_exec_as = state.ptr_stolen_from[abilityName];
+        var stolenResult = previousMain.apply(this, arguments);
+        state.ptr_exec_as = null;
+        return stolenResult;
+      }
+    }
+
+    var usedBefore = {};
+    if (game && game.players && game.playerStates) {
+      for (var ui = 0; ui < game.players.length; ui++) {
+        var ps = game.playerStates[game.players[ui]];
+        usedBefore[game.players[ui]] = !!(ps && ps.used_active_this_turn);
+      }
+    }
+    var beforeLength = game && game.history ? game.history.length : -1;
+    var result = previousMain.apply(this, arguments);
+
+    info = resolve(room, sender);
+    game = info && info.game;
+    if (!game || !game.playerStates) return result;
+    var gr = S.createGameReplier ? S.createGameReplier(game, room, replier) : replier;
+
+    if (game.history && game.history.length > beforeLength) {
+      var mover = game.playerStates[String(sender)];
+      if (mover && hasPainterJob(mover) && mover.ptr_paint_cooldown > 0) mover.ptr_paint_cooldown -= 1;
+      tickPainted(mover);
+      for (var oi = 0; oi < game.players.length; oi++) {
+        var oppName = game.players[oi];
+        if (oppName === String(sender)) continue;
+        var oppSt = game.playerStates[oppName];
+        if (!usedBefore[oppName] && oppSt && oppSt.used_active_this_turn) {
+          var painters = opponents(game, oppName);
+          for (var pj = 0; pj < painters.length; pj++) {
+            var painter = game.playerStates[painters[pj]];
+            if (painter && ownsPassive(painter)) addGauge(painter, oppSt, replier, gr);
+          }
+        }
+      }
+    }
+    return result;
+  };
+})();
+
+/* Remove retired jobs from the live roster. */
+(function cleanupRetiredJobs() {
+  var S = Bot.scope;
+  if (!S || !S.ALL_JOBS) return;
+  var RETIRED = ["볼링선수", "닭2병걸린닭"];
+  for (var i = S.ALL_JOBS.length - 1; i >= 0; i--) {
+    if (RETIRED.indexOf(S.ALL_JOBS[i]) >= 0) S.ALL_JOBS.splice(i, 1);
+  }
+  ["홍명보", "페인터"].forEach(function (job) {
+    if (S.ALL_JOBS.indexOf(job) === -1) S.ALL_JOBS.push(job);
+  });
+  delete S.JOB_INFO["볼링선수"];
+  delete S.JOB_INFO["닭2병걸린닭"];
+  if (Bot.combat && Bot.combat.pool && Bot.combat.pool.cards) {
+    var cards = Bot.combat.pool.cards;
+    for (var ci = cards.length - 1; ci >= 0; ci--) {
+      if (RETIRED.indexOf(cards[ci].homeJob) >= 0) cards.splice(ci, 1);
+    }
+    Bot.combat.pool.abilityIndex = {};
+    Bot.combat.pool.jobHasPassive = {};
+    Bot.combat.pool.computePower();
+    Bot.combat.pool.indexCards();
+    if (S.__combatMode) {
+      S.__combatMode.POOL = cards;
+      S.__combatMode.ABIL_INDEX = Bot.combat.pool.abilityIndex;
+    }
+  }
+  var previousNormalize = S.normalizeJobName;
+  S.normalizeJobName = function (job) {
+    var raw = String(job == null ? "" : job).trim();
+    if (raw === "볼링선수" || raw === "볼링" || raw === "ㅂㄹㅅㅅ" || raw === "닭2병걸린닭") return "__REMOVED_JOB__";
+    return previousNormalize ? previousNormalize(job) : raw;
   };
 })();
 
