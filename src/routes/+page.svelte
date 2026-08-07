@@ -2067,7 +2067,7 @@
           <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'login'} onclick={() => (authMode = 'login')}>로그인</button>
           <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'signup'} onclick={() => (authMode = 'signup')}>회원가입</button>
         </div>
-        <form class="auth-panel-form auth-gate-form" onsubmit={(e) => { e.preventDefault(); auth(); }}>
+        <form class="auth-gate-form" onsubmit={(e) => { e.preventDefault(); auth(); }}>
           <input class="auth-panel-input" bind:value={username} placeholder="아이디" autocomplete="username" />
           <input class="auth-panel-input" bind:value={password} placeholder="비밀번호" type="password" autocomplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
           <button class="auth-panel-submit" type="submit" disabled={!username.trim() || !password.trim() || busy}>
@@ -7368,7 +7368,7 @@
   .auth-gate-brand h1 { font-size: 28px; font-weight: 900; }
   .auth-gate-brand p { font-size: 14px; color: var(--text2); }
   .auth-gate-tabs { justify-content: center; }
-  .auth-gate-form { display: grid; gap: 10px; }
+  .auth-gate-form { display: grid; grid-template-columns: 1fr; gap: 10px; }
   .wizard-card-sm { width: min(360px, 100%); }
   .wizard-join-hint { font-size: 13px; color: var(--text2); line-height: 1.45; }
   .wizard-join-form { display: grid; gap: 12px; }
