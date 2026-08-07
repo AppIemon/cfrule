@@ -15936,7 +15936,6 @@ Alt-F4 콤보를 준비합니다.`;
         });
         if (__botLoop186) return __botLoop186;
       }
-      if (!__patchArrayContains(ALL_JOBS, "볼링선수")) ALL_JOBS.push("볼링선수");
       if (!__patchArrayContains(ALL_JOBS, "빚쟁이")) ALL_JOBS.push("빚쟁이");
       if (!__patchArrayContains(ALL_JOBS, "반장")) ALL_JOBS.push("반장");
       var __origNormalizeJobName = Bot.scope.normalizeJobName;
