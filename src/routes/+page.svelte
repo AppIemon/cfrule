@@ -6,6 +6,8 @@
     Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
+  import { jobImageSrc } from '$lib/jobImages';
+  import TierMaker from '$lib/components/TierMaker.svelte';
 
   const TIER_INFO = [
     { name: '아이언 V',      min: 0,    max: 39,       color: '#9E9E9E' },
@@ -79,7 +81,8 @@
     스핔이: ['물걸레질', '호박'],
     해달: ['조개', '깨부수기'],
     프로그래머: ['Shift', 'Caps Lock', 'Backspace', 'Tab', '담임의 가호', '교장의 가호'],
-    볼링선수: ['스트라이크', '스페어'],
+    홍명보: ['손흥민의 눈물', '옌스의 눈물', 'LA 도주', '제 안에 있는 무언가가 나오기 시작했습니다'],
+    페인터: ['페인트', '카피'],
     반장: ['담임의 가호', '교장의 가호']
   };
 
@@ -161,7 +164,7 @@
     },
     {
       title: '티어와 직업 정보',
-      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명과 직업별 랭킹, 레이팅 티어표는 직업 탭에서만 확인합니다.'
+      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명·직업별 랭킹·레이팅 티어표·직업 티어 메이커는 직업 탭에서 확인합니다.'
     }
   ];
 
@@ -657,7 +660,7 @@
     '나이트': ['L자 도약'], '생존자': ['신호'], '악당': [], '기자': [],
     '검객': [], '마하트마간디': ['비폭력'], '은하계전사': ['별인 듯 달 아닌 별'],
     '혜성전사': ['핼리 혜성'], '수리사': ['방탄'], '고죠': [], '우라늄': ['방사선', '감마 수열'],
-    '스핔이': ['백수가 쪼아요'], '해달': [], '프로그래머': [], '볼링선수': ['볼링'], '반장': ['반장']
+    '스핔이': ['백수가 쪼아요'], '해달': [], '프로그래머': [], '홍명보': ['홍명보', 'ㅎㅁㅂ', '명보'], '페인터': ['페인터', 'ㅍㅇㅌ'], '반장': ['반장']
   };
 
   function findAbilityMatch(text, dict) {
@@ -1957,8 +1960,11 @@
     if (job === '?' && (state.question_uses !== undefined || state.comma_uses !== undefined)) {
       statuses.push({ label: '사용', value: `${state.question_uses || 0}/${state.comma_uses || 0}`, type: 'question' });
     }
-    if (job === '볼링선수' && state.bowling_score !== undefined) {
-      statuses.push({ label: '점수', value: `${state.bowling_score}점`, type: 'bowler' });
+    if (job === '홍명보' && (state.hmb_wc_active || state.hmb_wc_pending_turn)) {
+      statuses.push({ label: '월드컵', value: state.hmb_wc_active ? '진행' : '예정', type: 'worldcup' });
+    }
+    if (job === '페인터' && state.ptr_gauge !== undefined) {
+      statuses.push({ label: '게이지', value: `${state.ptr_gauge}/4`, type: 'paint' });
     }
     if (job === '반장') {
       if (state.class_president_homeroom_uses !== undefined) statuses.push({ label: '가호', value: `${state.class_president_homeroom_uses}회`, type: 'president' });
@@ -1993,10 +1999,6 @@
     }
 
     return statuses;
-  }
-
-  function jobImageSrc(name) {
-    return `/job-images/${encodeURIComponent(encodeURIComponent(name))}.jpg`;
   }
 
   function jobInfoCards(text) {
@@ -3240,6 +3242,8 @@
           </div>
         </section>
       </div>
+
+      <TierMaker />
     </div>
 
   <!-- ══════════════════════ ANALYSIS TAB ══════════════════════ -->
