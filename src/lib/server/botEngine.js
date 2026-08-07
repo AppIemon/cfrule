@@ -676,6 +676,83 @@ function requiredPlayersForGame(game, meta = {}) {
   return (game?.teamMode || meta?.mode || 1) * 2;
 }
 
+function restorePlayerStates(saved) {
+  const out = {};
+  for (const [name, state] of Object.entries(saved || {})) {
+    if (!state || typeof state !== 'object') continue;
+    out[name] = JSON.parse(JSON.stringify(state));
+  }
+  return out;
+}
+
+const WEB_RESTORE_PHASES = new Set(['waiting', 'job_selection', 'combat_draft', 'playing']);
+
+export async function botRestoreWebLobby(room, { game: saved, meta = {} } = {}) {
+  const bot = await getBotEngine();
+  const existing = resolveRoomGame(bot.context, room);
+  if (!saved?.phase || !WEB_RESTORE_PHASES.has(saved.phase)) {
+    return existing ? serializeGame(existing) : null;
+  }
+  if (saved.phase === 'waiting' && saved.started) {
+    return existing ? serializeGame(existing) : null;
+  }
+  if (existing) {
+    const matches = existing.phase === saved.phase && !!existing.started === !!saved.started;
+    if (matches) return serializeGame(existing);
+    await botDeleteRoom(room);
+  }
+
+  const scope = scopeApi(bot.context);
+  const createBaseGameState = scope.createBaseGameState;
+  if (typeof createBaseGameState !== 'function') return null;
+
+  const cleanMode = Math.min(3, Math.max(1, Math.floor(Number(meta.mode || saved.teamMode) || 1)));
+  const game = createBaseGameState(cleanMode);
+  game.players = Array.isArray(saved.players) ? saved.players.slice() : [];
+  game.hostPlayer = saved.hostPlayer || meta.owner || game.players[0] || '';
+  game.hostRoom = room;
+  game.phase = saved.phase;
+  game.started = !!saved.started;
+  game.webManualStart = saved.phase === 'waiting';
+  game.history = Array.isArray(saved.history) ? saved.history.slice() : [];
+  game.turnCount = Number(saved.turnCount) || 1;
+  game.currentTurnIndex = Number.isFinite(saved.currentTurnIndex) ? saved.currentTurnIndex : -1;
+  game.firstTurnIndex = Number.isFinite(saved.firstTurnIndex) ? saved.firstTurnIndex : -1;
+  game.lastLetter = saved.lastLetter ? { ...saved.lastLetter } : { s1: '', s2: '' };
+  game.isWaitingVote = !!saved.isWaitingVote;
+  game.voteType = saved.voteType || null;
+  game.targetWord = saved.targetWord || null;
+  game.requester = saved.requester || null;
+  game.teamMode = Number(saved.teamMode) || cleanMode;
+  game.teamLives = Array.isArray(saved.teamLives) ? saved.teamLives.slice() : [cleanMode, cleanMode];
+  game.bannedJobs = Array.isArray(saved.bannedJobs) ? saved.bannedJobs.slice() : [];
+  game.firstPicker = saved.firstPicker || null;
+  game.banPhase = !!saved.banPhase;
+  game.isPractice = !!saved.isPractice;
+  game.playerStates = restorePlayerStates(saved.playerStates);
+  game.used = new Set(Array.isArray(saved.used) ? saved.used : []);
+  if (saved.gueruleSettings) game.gueruleSettings = { ...saved.gueruleSettings };
+  if (saved.gameType) game.gameType = saved.gameType;
+  if (saved.ruleType) game.ruleType = saved.ruleType;
+
+  game.playerRooms = game.playerRooms || {};
+  for (const player of game.players) {
+    if (/^채린컴퓨터\d*$/.test(player)) {
+      game.playerRooms[player] = room;
+      game.cpuFill = true;
+    }
+  }
+
+  const games = getGames(bot.context);
+  games[room] = game;
+  if (meta.combat || saved.gueruleSettings?.combat || saved.combat) {
+    const combatApi = bot.context.__Bot?.combat || bot.context.Bot?.combat;
+    combatApi?.setRoomDefault?.(room, true);
+    combatApi?.applyRoomDefault?.(room, game);
+  }
+  return serializeGame(game);
+}
+
 export async function botCreateWebLobby(room, { owner, mode = 1, combat = false }) {
   const bot = await getBotEngine();
   const scope = scopeApi(bot.context);

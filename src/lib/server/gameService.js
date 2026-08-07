@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
-import { botAddCpuToLobby, botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
+import { botAddCpuToLobby, botAllRoomStates, botBootStatus, botCreateWebLobby, botJoinWebLobby, botLeaveWebLobby, botRankings, botRestoreWebLobby, botRoomState, botSetRoomCombat, botStartWebLobby, configureBotRoom, dispatchBotMessage } from './botEngine.js';
 import { isAllowedWebCommand } from './webCommands.js';
 import { publishRoom } from './realtime.js';
 import { getSessionCookieName, getUserByToken } from './auth.js';
@@ -151,29 +151,66 @@ async function performRestore(room) {
   // A finished match must never be replayed: the bot would re-create the room and walk
   // it back to job selection, and rating-changing commands would run a second time.
   if (finishedRooms.has(room)) return;
-  const lastPhase = persisted.lastGame?.phase || persisted.snapshot?.game?.phase || '';
+  const lastGame = persisted.lastGame || persisted.snapshot?.game || null;
+  const lastPhase = lastGame?.phase || '';
   if (!lastPhase || lastPhase === 'ended' || lastPhase === 'finished') return;
 
   const commands = persisted.commands || [];
   // The command log is capped, so an older room may no longer hold the command that
   // created the game. Replaying from the middle just throws on every entry.
   const startIndex = commands.findIndex((item) => isGameStartCommand(item?.command));
-  if (startIndex === -1) return;
-
-  for (const item of commands.slice(startIndex)) {
-    try {
-      await dispatchBotMessage(room, item.command, item.sender);
-    } catch {
-      // Drop the partial game rather than exposing a half-replayed state; callers
-      // fall back to the persisted snapshot, which is at least self-consistent.
-      await discardBotRoom(room);
-      return;
+  if (startIndex !== -1) {
+    for (const item of commands.slice(startIndex)) {
+      try {
+        await dispatchBotMessage(room, item.command, item.sender);
+      } catch {
+        // Drop the partial game rather than exposing a half-replayed state; callers
+        // fall back to the persisted snapshot, which is at least self-consistent.
+        await discardBotRoom(room);
+        break;
+      }
     }
+  }
+
+  // Web lobbies are created without a 1채린/1연습 command, so command replay cannot
+  // rebuild them after a serverless cold start. Rehydrate active web games from the
+  // persisted game snapshot instead (also fixes stale in-memory phase mismatches).
+  if (persisted.meta && !persisted.meta.practice && isRestorableWebPhase(lastPhase, lastGame?.started)) {
+    await syncWebGameFromPersisted(room);
   }
 }
 
 function isGameStartCommand(command) {
   return /^1(채린|연습)/.test(String(command || '').trim());
+}
+
+function isRestorableWebPhase(phase, started = false) {
+  if (!phase || phase === 'ended' || phase === 'finished') return false;
+  if (phase === 'waiting' && started) return false;
+  return phase === 'waiting' || phase === 'job_selection' || phase === 'combat_draft' || phase === 'playing';
+}
+
+function webGameMatchesSnapshot(memory, saved) {
+  if (!saved?.phase) return !!memory;
+  if (!memory) return false;
+  if (memory.phase !== saved.phase || !!memory.started !== !!saved.started) return false;
+  const memHist = Array.isArray(memory.history) ? memory.history.length : 0;
+  const savedHist = Array.isArray(saved.history) ? saved.history.length : 0;
+  if (saved.phase === 'playing' && memHist !== savedHist) return false;
+  if (saved.phase === 'playing' && Number(memory.turnCount || 0) !== Number(saved.turnCount || 0)) return false;
+  return true;
+}
+
+async function syncWebGameFromPersisted(room) {
+  const meta = roomMeta.get(room);
+  if (!meta || meta.practice) return;
+  const persisted = await loadPersistedRoom(room);
+  const lastGame = persisted?.lastGame || persisted?.snapshot?.game || null;
+  if (!isRestorableWebPhase(lastGame?.phase, lastGame?.started)) return;
+  const memory = await botRoomState(room);
+  if (webGameMatchesSnapshot(memory, lastGame)) return;
+  await botRestoreWebLobby(room, { game: lastGame, meta: persisted?.meta || meta });
+  await applyRoomOptions(room);
 }
 
 async function discardBotRoom(room) {
@@ -612,6 +649,7 @@ export async function joinRoom({ room, nickname, password = '' }) {
 
 export async function setRoomReady({ room, nickname, ready = true }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -630,6 +668,7 @@ export async function setRoomReady({ room, nickname, ready = true }) {
 
 export async function startRoomGame({ room, nickname }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -654,6 +693,7 @@ export async function startRoomGame({ room, nickname }) {
 
 export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '' }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -709,6 +749,7 @@ export async function leaveRoom({ room, nickname }) {
 
 export async function updateRoomSettings({ room, nickname, patch = {} }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
   const sender = String(nickname || '').trim();
@@ -783,8 +824,13 @@ export async function updateRoomSettings({ room, nickname, patch = {} }) {
   return state;
 }
 
+async function ensureWebGameRoom(room) {
+  await syncWebGameFromPersisted(room);
+}
+
 export async function sendCommand({ room, nickname, command, internal = false }) {
   await restoreRoom(room);
+  await ensureWebGameRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
   const msg = String(command || '').trim();
@@ -872,6 +918,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
 
 export async function getRoomSnapshot(room) {
   await restoreRoom(room);
+  await syncWebGameFromPersisted(room);
   await updateRoomClock(room, { finalize: true });
   const state = await buildRoomSnapshot(room, true);
   if (state.game || state.meta) persistRoom(room, state).catch(() => {});
