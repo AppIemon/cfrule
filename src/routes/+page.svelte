@@ -6,6 +6,8 @@
     Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
+  import { jobImageSrc } from '$lib/jobImages';
+  import TierMaker from '$lib/components/TierMaker.svelte';
 
   const TIER_INFO = [
     { name: '아이언 V',      min: 0,    max: 39,       color: '#9E9E9E' },
@@ -162,7 +164,7 @@
     },
     {
       title: '티어와 직업 정보',
-      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명과 직업별 랭킹, 레이팅 티어표는 직업 탭에서만 확인합니다.'
+      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명·직업별 랭킹·레이팅 티어표·직업 티어 메이커는 직업 탭에서 확인합니다.'
     }
   ];
 
@@ -1999,10 +2001,6 @@
     return statuses;
   }
 
-  function jobImageSrc(name) {
-    return `/job-images/${encodeURIComponent(encodeURIComponent(name))}.jpg`;
-  }
-
   function jobInfoCards(text) {
     const raw = String(text || '').trim();
     if (!raw) return [];
@@ -3244,6 +3242,8 @@
           </div>
         </section>
       </div>
+
+      <TierMaker />
     </div>
 
   <!-- ══════════════════════ ANALYSIS TAB ══════════════════════ -->
