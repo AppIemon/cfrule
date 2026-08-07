@@ -20195,7 +20195,6 @@ Alt-F4 콤보를 준비합니다.`;
     /* 사전(dictSource)과 잇기 방향(chainMode)은 서로 독립이다. */
     /* 앞말잇기를 사전 종류가 덮어쓰던 탓에 "사전 로블 + 모드 앞말"이 끝말잇기로 돌아가던 문제를 막는다. */
     else if (gs.chainMode === "prefix") gs.ruleType = "prefix";
-    else if (gs.dictSource === "kkutu") gs.ruleType = "kkutu";
     else if (gs.dictSource === "roble") gs.ruleType = "roble";
     else if (gs.dictSource === "jime") gs.ruleType = "jime";
     else if (gs.dictSource === "urimalsam") gs.ruleType = "sinen";
@@ -20218,7 +20217,6 @@ Alt-F4 콤보를 준비합니다.`;
       if (game.gueruleSettings.geonmatRounds > 0) return "geonmat";
       if (game.gueruleSettings.pyohanLives > 0) return "pyohan";
       if (game.gueruleSettings.jobsMode === "charynn" || game.gueruleSettings.jobsMode === 1 || game.gueruleSettings.jobsMode === "1") return "charynn";
-      if (game.gueruleSettings.dictSource === "kkutu") return "kkutu";
       if (game.gueruleSettings.dictSource === "roble") return "roble";
       if (game.gueruleSettings.dictSource === "jime") return "jime";
       if (game.gueruleSettings.chainMode === "prefix") return "prefix";
@@ -20839,9 +20837,11 @@ Alt-F4 콤보를 준비합니다.`;
     } else {
       game.cards = null;
       var rt = getRuleType(game);
+      var ds = getDictSource(game);
       if (rt === "sinen") replier.reply(S.systemLine("신엜룰 시작 · 끝말잇기 · 우리말샘 · 0단어"));
       else if (rt === "roble") replier.reply(S.systemLine("로블룰 시작 · 끝말잇기 · 로블 사전 · 0단어"));
       else if (rt === "jime") replier.reply(S.systemLine("지메룰 시작 · 끝말잇기 · 지메 사전 · 0단어"));
+      else if (ds === "kkutu") replier.reply(S.systemLine("끄투 사전 시작 · 끝말잇기 · 0단어"));
       else if (rt === "prefix") replier.reply(S.systemLine("앞말잇기 시작 · 이전 단어 첫글자로 끝 · 한방단어 즉시 종료 없음 · 0단어"));
     }
     /* 라운드(목숨) 준비 + 제시어 뽑기. 둘 다 안 켜져 있으면 아무것도 안 한다. */
@@ -25103,7 +25103,7 @@ Alt-F4 콤보를 준비합니다.`;
       startGeonmatGame(game, game.hostRoom, replier);
       return;
     }
-    if (rt === "kkutu" && !game.cpuFill) {
+    if (rt === "kkutu" && game.gameType === "kkutu" && !game.cpuFill) {
       if (S.__bootKkutuLobby) S.__bootKkutuLobby(game, replier);
       else replier.reply("끄투 모듈 로드 실패");
       return;
@@ -25114,6 +25114,7 @@ Alt-F4 콤보를 준비합니다.`;
     }
     startCrossGame(game, replier);
   }
+  S.__startLobbyGame = startLobbyGame;
   function crossFinalize(hostRoom, game, winner, winType, replier, slot) {
     var mode = game.gameType === "geonmat" ? 1 : gameTeamMode(game);
     if (mode > 1) {
@@ -25445,7 +25446,7 @@ Alt-F4 콤보를 준비합니다.`;
       game.gueruleSettings.geonmatRounds = 0;
       game.gueruleSettings.cardsMode = false;
       syncDerivedRuleType(game.gueruleSettings);
-      return { ok: true, message: "모드: 끄투" };
+      return { ok: true, message: "사전: 끄투" };
     }
     if (/^카드\s*(켬|켜|1|on)?$/i.test(body) || /^카드$/i.test(body)) {
       /* 변형 축 배타: 카드를 켜면 채린·조합은 끈다. 카드는 cross 엔진(사전 인식)이라

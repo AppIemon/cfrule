@@ -511,10 +511,21 @@ export async function configureBotRoom(room, options = {}) {
       raw.ruleType = 'pyohan';
     } else if (mode === 'card') {
       gs.cardsMode = true;
+      gs.jobsMode = 0;
+      gs.combat = false;
       raw.gameType = 'cross';
-    } else if (mode === 'kkutu') {
-      gs.dictSource = 'kkutu';
-      raw.gameType = 'kkutu';
+    } else if (mode === 'none') {
+      gs.jobsMode = 0;
+      gs.cardsMode = false;
+      gs.combat = false;
+      gs.pyohanLives = 0;
+      gs.geonmatRounds = 0;
+      raw.gameType = 'cross';
+    } else if (mode === 'guerule') {
+      gs.jobsMode = 'charynn';
+      gs.cardsMode = false;
+      gs.combat = false;
+      raw.gameType = 'cross';
     } else if (mode === 'combat' || mode === '조합') {
       gs.combat = true;
       gs.jobsMode = 'charynn';
@@ -732,6 +743,11 @@ export async function botStartWebLobby(room, meta = {}) {
   combatApi?.applyRoomDefault?.(room, raw);
 
   const replier = silentReplier();
+  if (typeof scope.__startLobbyGame === 'function') {
+    scope.__startLobbyGame(raw, replier);
+    return serializeGame(raw);
+  }
+
   const gameType = raw.gameType || raw.ruleType || 'charynn';
   const gs = raw.gueruleSettings || {};
 
@@ -755,7 +771,7 @@ export async function botStartWebLobby(room, meta = {}) {
     return serializeGame(raw);
   }
 
-  if (gameType === 'kkutu' || meta.gameMode === 'kkutu' || gs.dictSource === 'kkutu') {
+  if (gameType === 'kkutu' || meta.gameMode === 'kkutu') {
     if (typeof scope.__bootKkutuLobby === 'function') {
       scope.__bootKkutuLobby(raw, replier);
       return serializeGame(raw);

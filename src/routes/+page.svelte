@@ -177,6 +177,8 @@
   let showCreateWizard = $state(false);
   let wizardStep = $state(0);
   let chainMode = $state('end');
+  let playKind = $state('normal');
+  let minigameVariant = $state('geonmat');
   let ruleMode = $state('guerule');
   let duEum = $state(true);
   let rated = $state(true);
@@ -795,11 +797,13 @@
   const activeDictSource = $derived(
     game?.gueruleSettings?.dictSource || snapshot?.meta?.dictSource || dictSource || 'default'
   );
-  const isGeonmatMode = $derived(String(ruleMode).startsWith('geonmat:'));
-  const supportsChainPick = $derived(!isGeonmatMode && ['guerule', 'combat', 'card', 'pyohan', 'kkutu'].includes(ruleMode));
-  const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
+  const isGeonmatMode = $derived(playKind === 'minigame');
+  const supportsChainPick = $derived(playKind === 'normal' && ['none', 'guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
+  const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['none', 'guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
   const wizardSteps = $derived.by(() => {
     const steps = ['room', 'mode'];
+    if (playKind === 'minigame') steps.push('minigame');
+    else steps.push('variant');
     if (supportsChainPick) steps.push('chain');
     steps.push('dict');
     if (supportsDuEum) steps.push('dueum');
@@ -994,22 +998,44 @@
     if (wizardStep > 0) wizardStep -= 1;
   }
 
+  function selectPlayKind(value) {
+    playKind = value;
+    if (value === 'minigame') {
+      chainMode = 'end';
+      ruleMode = `geonmat:${minigameVariant}`;
+    }
+  }
+
+  function selectMinigameVariant(value) {
+    minigameVariant = value;
+    ruleMode = `geonmat:${value}`;
+    chainMode = 'end';
+  }
+
   function selectRuleMode(value) {
     ruleMode = value;
-    if (String(value).startsWith('geonmat:')) chainMode = 'end';
-    if (value === 'kkutu') dictSource = 'kkutu';
     if (value === 'pyohan') dictSource = 'default';
   }
 
   function selectChainMode(value) {
     chainMode = value;
-    if (value === 'start' && isGeonmatMode) ruleMode = 'guerule';
+    if (value === 'start' && isGeonmatMode) {
+      playKind = 'normal';
+      ruleMode = 'guerule';
+    }
+  }
+
+  function resolvedGameMode() {
+    if (playKind === 'minigame') return `geonmat:${minigameVariant}`;
+    return ruleMode === 'combat' ? 'guerule' : ruleMode;
   }
 
   function wizardStepTitle(key) {
     const map = {
       room: '방 설정',
-      mode: '게임 모드',
+      mode: '게임 유형',
+      variant: '게임 모드',
+      minigame: '미니게임',
       chain: '잇기 방향',
       dict: '사전',
       dueum: '두음법칙',
@@ -1026,11 +1052,11 @@
 
   function ruleModeLabel(value) {
     const map = {
+      none: '모드 없음',
       guerule: '채린룰',
       combat: '조합',
       card: '카드',
       pyohan: '표한룰',
-      kkutu: '끄투',
       'geonmat:geonmat': '미니 · 검맞',
       'geonmat:rare': '미니 · 희귀맞',
       'geonmat:bingo': '미니 · 빙고맞',
@@ -1053,8 +1079,9 @@
     const players = resolveCreatePlayerSettings();
     mode = players.mode;
     playerCount = players.playerCount;
-    combat = ruleMode === 'combat';
-    gameMode = ruleMode === 'combat' ? 'guerule' : ruleMode;
+    const resolvedMode = resolvedGameMode();
+    combat = playKind === 'normal' && ruleMode === 'combat';
+    gameMode = resolvedMode;
     await create();
     closeCreateWizard();
   }
@@ -1206,9 +1233,9 @@
         cpuJob,
         timer: { enabled: timerEnabled, minutes: Number(timerMinutes), increment: Number(timerIncrement) },
         disabledJobs,
-        combat: ruleMode === 'combat',
+        combat: playKind === 'normal' && ruleMode === 'combat',
         dictSource,
-        gameMode: ruleMode === 'combat' ? 'guerule' : ruleMode,
+        gameMode: resolvedGameMode(),
         searchAllowed,
         cpuLevel,
         cpuThink,
@@ -2244,17 +2271,38 @@
                 </div>
               {:else if wizardStepKey === 'mode'}
                 <p class="wizard-hint">미니게임은 끝말잇기만 지원합니다.</p>
+                <div class="wizard-choice-grid">
+                  <button class="wizard-choice" class:wizard-choice-active={playKind === 'normal'} onclick={() => selectPlayKind('normal')}>
+                    <strong>일반 게임</strong>
+                    <span>모드·사전·잇기 방향을 설정합니다</span>
+                  </button>
+                  <button class="wizard-choice" class:wizard-choice-active={playKind === 'minigame'} onclick={() => selectPlayKind('minigame')}>
+                    <strong>미니게임</strong>
+                    <span>검맞, 희귀맞, 빙고맞, 이어달리기</span>
+                  </button>
+                </div>
+              {:else if wizardStepKey === 'minigame'}
+                <div class="wizard-choice-grid wizard-choice-grid-2">
+                  {#each [
+                    ['geonmat', '검맞', '개수 맞추기'],
+                    ['rare', '희귀맞', '희귀 단어'],
+                    ['bingo', '빙고맞', '3×3 빙고'],
+                    ['relay', '이어달리기', '다단 경로']
+                  ] as [value, title, desc]}
+                    <button class="wizard-choice" class:wizard-choice-active={minigameVariant === value} onclick={() => selectMinigameVariant(value)}>
+                      <strong>{title}</strong>
+                      <span>{desc}</span>
+                    </button>
+                  {/each}
+                </div>
+              {:else if wizardStepKey === 'variant'}
                 <div class="wizard-choice-grid wizard-choice-grid-3">
                   {#each [
+                    ['none', '모드 없음', '직업·능력 없음'],
                     ['guerule', '채린룰', '직업·능력'],
                     ['combat', '조합', '능력 드래프트'],
                     ['card', '카드', '세트 드래프트'],
-                    ['pyohan', '표한룰', '목숨제'],
-                    ['kkutu', '끄투', '끄투 사전'],
-                    ['geonmat:geonmat', '검맞', '개수 맞추기'],
-                    ['geonmat:rare', '희귀맞', '희귀 단어'],
-                    ['geonmat:bingo', '빙고맞', '3×3 빙고'],
-                    ['geonmat:relay', '이어달리기', '다단 경로']
+                    ['pyohan', '표한룰', '목숨제']
                   ] as [value, title, desc]}
                     <button class="wizard-choice" class:wizard-choice-active={ruleMode === value} onclick={() => selectRuleMode(value)}>
                       <strong>{title}</strong>
@@ -2282,16 +2330,12 @@
                     ['jime', '지메'],
                     ['kkutu', '끄투']
                   ] as [value, title]}
-                    {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
                     <button
                       class="wizard-choice"
                       class:wizard-choice-active={dictSource === value}
-                      class:wizard-choice-disabled={locked}
-                      onclick={() => { if (!locked) dictSource = value; }}
-                      disabled={locked}
+                      onclick={() => (dictSource = value)}
                     >
                       <strong>{title}</strong>
-                      {#if locked}<span>끄투 모드 전용</span>{/if}
                     </button>
                   {/each}
                 </div>
