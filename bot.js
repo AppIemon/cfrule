@@ -17086,6 +17086,24 @@ Alt-F4 콤보를 준비합니다.`;
         if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
         return __botResult;
       }
+      /* cfrule 적응: 내 직업(selfJob)을 가장 잘 잡는 직업부터 최대 limit 개.
+         점수가 낮을수록 나에게 나쁜 상대이므로 그 순서로 지운다. */
+      Bot.scope.recommendBansForJob = function recommendBansForJob(game, selfJob, pool, limit) {
+        if (!selfJob || !pool || !pool.length) return [];
+        var scored = [], i;
+        for (i = 0; i < pool.length; i++) {
+          var enemy = pool[i];
+          if (enemy === selfJob) continue;
+          var s;
+          try { s = __jsonHybridJobScore(selfJob, [enemy], []).total; } catch (e) { s = 0; }
+          scored.push({ job: enemy, score: s });
+        }
+        scored.sort(function (a, b) { return a.score - b.score; });
+        var out = [];
+        for (i = 0; i < scored.length && out.length < (limit || 6); i++) out.push(scored[i].job);
+        return out;
+      };
+
       chooseRecommendedJobForPlayer = function (game, player, selectableJobs, preferredJob) {
         let __botResult = function () {
           if (!selectableJobs || selectableJobs.length === 0) return null;

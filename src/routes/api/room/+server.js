@@ -59,7 +59,8 @@ export async function POST({ request, locals }) {
         nickname,
         cpuLevel: String(body?.cpuLevel || '보통').slice(0, 12),
         cpuThink: !!body?.cpuThink,
-        cpuJob: String(body?.cpuJob || '')
+        cpuJob: String(body?.cpuJob || ''),
+        cpuDraftMode: String(body?.cpuDraftMode || 'random')
       }));
     }
     if (action === 'updateSettings') {

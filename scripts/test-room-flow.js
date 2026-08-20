@@ -94,6 +94,45 @@ if (phaseOf(snap) === 'playing') {
   check('재선택은 명확히 거부됨', rejected, rejected ? '이미 직업을 선택하셨습니다' : '거부 메시지 없음');
 }
 
+// ── 9. 선픽 — 봇이 먼저 고르고 밴 권한을 쓴다 ──────────────────────
+{
+  const ME3 = '테스터3';
+  const r3 = (await createRoom({ nickname: ME3, mode: 1, gameMode: 'guerule', rated: false })).room;
+  await addRoomBot({ room: r3, nickname: ME3, cpuLevel: '어려움', cpuDraftMode: 'first' });
+  const started = await startRoomGame({ room: r3, nickname: ME3 });
+  const cpu3 = playersOf(started).find((p) => isCpuPlayer(p)) || '';
+  const botJob = statesOf(started)[cpu3]?.job;
+
+  check('선픽: 봇이 먼저 직업 보유', !!botJob, `${cpu3}=${botJob}`);
+  check('선픽: 사람은 아직 미선택', !statesOf(started)[ME3], `내 상태=${statesOf(started)[ME3]?.job ?? '없음'}`);
+  check('선픽: 밴이 실제로 적용됨',
+    (started?.game?.bannedJobs || []).length > 0,
+    `밴 ${(started?.game?.bannedJobs || []).length}개: ${(started?.game?.bannedJobs || []).slice(0, 4).join(', ')}`);
+  check('선픽: 봇 직업은 밴에 없음',
+    !(started?.game?.bannedJobs || []).includes(botJob), `botJob=${botJob}`);
+
+  // 사람이 밴되지 않은 직업을 고르면 바로 시작돼야 한다.
+  const pick = (started?.game?.status?.jobs || [])
+    .filter((j) => j !== botJob && !(started?.game?.bannedJobs || []).includes(j))[0] || '사과';
+  const after = await sendCommand({ room: r3, nickname: ME3, command: `1ㅈㅅ ${pick}` });
+  check('선픽: 사람 선택 후 게임 시작', phaseOf(after) === 'playing', `phase=${phaseOf(after)} 내 직업=${statesOf(after)[ME3]?.job}`);
+}
+
+// ── 10. 후픽 — 사람이 먼저 고른다 (기본 동작과 같아야 한다) ─────────
+{
+  const ME4 = '테스터4';
+  const r4 = (await createRoom({ nickname: ME4, mode: 1, gameMode: 'guerule', rated: false })).room;
+  await addRoomBot({ room: r4, nickname: ME4, cpuLevel: '어려움', cpuDraftMode: 'last' });
+  const started = await startRoomGame({ room: r4, nickname: ME4 });
+  const cpu4 = playersOf(started).find((p) => isCpuPlayer(p)) || '';
+  check('후픽: 봇이 먼저 고르지 않음', !statesOf(started)[cpu4], `${cpu4}=${statesOf(started)[cpu4]?.job ?? '없음'}`);
+
+  await sendCommand({ room: r4, nickname: ME4, command: '1ㅈㅅ 해커' });
+  const done = await sendCommand({ room: r4, nickname: ME4, command: '1밴' });
+  check('후픽: 봇이 대응 직업 선택', !!statesOf(done)[cpu4], `${cpu4}=${statesOf(done)[cpu4]?.job}`);
+  check('후픽: 게임 시작', phaseOf(done) === 'playing', `phase=${phaseOf(done)}`);
+}
+
 const finalSnap = await getRoomSnapshot(room);
 console.log(`\n최종 phase=${phaseOf(finalSnap)} · 수 ${(finalSnap?.game?.history || []).length}`);
 

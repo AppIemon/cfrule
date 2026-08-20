@@ -652,7 +652,7 @@ export async function startRoomGame({ room, nickname }) {
   return state;
 }
 
-export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '' }) {
+export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '', cpuDraftMode = 'random' }) {
   await restoreRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
@@ -661,7 +661,7 @@ export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink
   const game = await botRoomState(room);
   if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
 
-  const { cpuName } = await botAddCpuToLobby(room, { cpuLevel, cpuThink, cpuJob });
+  const { cpuName } = await botAddCpuToLobby(room, { cpuLevel, cpuThink, cpuJob, cpuDraftMode });
   meta.ready = meta.ready || {};
   meta.ready[cpuName] = true;
   roomMeta.set(room, meta);

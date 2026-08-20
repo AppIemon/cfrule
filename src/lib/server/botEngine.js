@@ -5,6 +5,13 @@ import bundledBotSource from '../../../bot.js?raw';
 import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir, bundledDataDir } from './runtime.js';
 import { installJobSearch } from './jobSearch.js';
 import { ensureEngineLevel, isValidDifficulty, PRESET_ORDER, MAX_DEPTH } from './botDifficulty.js';
+import {
+  normalizeDraftMode,
+  shouldBotPickFirst,
+  shouldBotBan,
+  chooseFirstPickJob,
+  chooseBans
+} from './botDraft.js';
 import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
 let enginePromise = null;
@@ -775,7 +782,34 @@ export async function botStartWebLobby(room, meta = {}) {
   } else {
     raw.bannedJobs = raw.bannedJobs || [];
   }
+  runBotDraft(bot, scope, room, raw);
   return serializeGame(raw);
+}
+
+/**
+ * 선픽 봇 처리. 봇이 먼저 직업을 고르면 원본 규칙대로 밴 권한을 갖게 되므로
+ * 밴까지 이어서 낸다. 정본의 handleJobSelection 을 통해 골라야 firstPicker 와
+ * banPhase 가 제대로 세워진다 — playerStates 에 직접 꽂으면 밴 단계가 생기지 않는다.
+ */
+function runBotDraft(bot, scope, room, raw) {
+  const gs = raw.gueruleSettings || {};
+  if (normalizeDraftMode(gs.cpuDraftMode) !== 'first') return;
+
+  const cpuName = (raw.players || []).find((p) => scope.isCpuPlayerName?.(p));
+  if (!cpuName) return;
+
+  const replier = silentReplier();
+  if (shouldBotPickFirst(raw, cpuName)) {
+    const job = chooseFirstPickJob(scope, raw, cpuName, gs.cpuJob || '');
+    if (job) {
+      try { scope.handleJobSelection?.(raw, cpuName, job, replier, false, room); } catch {}
+    }
+  }
+  if (shouldBotBan(raw, cpuName)) {
+    const bans = chooseBans(scope, raw, cpuName, scope.getMaxBanCount?.(raw) ?? 6);
+    raw.bannedJobs = Array.from(new Set([...(raw.bannedJobs || []), ...bans]));
+    raw.banPhase = false;
+  }
 }
 
 export async function botLeaveWebLobby(room, nickname) {
@@ -804,7 +838,7 @@ function nextCpuName(game, scope) {
   return name;
 }
 
-export async function botAddCpuToLobby(room, { cpuLevel = '보통', cpuThink = false, cpuJob = '' } = {}) {
+export async function botAddCpuToLobby(room, { cpuLevel = '보통', cpuThink = false, cpuJob = '', cpuDraftMode = 'random' } = {}) {
   const bot = await getBotEngine();
   const scope = scopeApi(bot.context);
   const raw = resolveMutableRoomGame(bot.context, room);
@@ -824,6 +858,7 @@ export async function botAddCpuToLobby(room, { cpuLevel = '보통', cpuThink = f
   gs.cpuDepth = resolved.depth;
 
   gs.cpuThink = !!cpuThink;
+  gs.cpuDraftMode = normalizeDraftMode(cpuDraftMode);
   const job = String(cpuJob || '').trim();
   if (job) {
     gs.cpuJob = job;

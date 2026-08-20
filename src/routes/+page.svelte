@@ -226,6 +226,9 @@
   let premoveSending = $state(false);
   let premoveAttemptKey = $state('');
   let ability = $state('');
+  /* 서버가 확정한 직업이 진실이고(myJob), selectedJob 은 요청이 오가는 동안만
+     쓰는 임시 표시다. 예전에는 클릭 즉시 selectedJob 을 바꿔 놓고 서버가
+     "이미 직업을 선택하셨습니다"로 거절해, 화면과 실제 상태가 어긋났다. */
   let selectedJob = $state('');
   let selectedBans = $state([]);
   let searchText = $state('');
@@ -858,10 +861,34 @@
   );
   const myReady = $derived(!!roomReadyMap[nickname]);
   const maxBanCount = 6;
+  /* 확정된 내 직업. 이게 있으면 직업 선택은 끝난 것이다. */
+  const myJob = $derived(myState?.job || '');
+  const jobLocked = $derived(!!myJob);
+  const shownJob = $derived(myJob || selectedJob);
+
+  $effect(() => {
+    // 서버가 직업을 확정하면 임시 표시는 지운다.
+    if (myJob && selectedJob && selectedJob !== myJob) selectedJob = '';
+  });
 
   /* 봇 난이도. 이름 프리셋이 기본이고, 고급을 켜면 D1~D20 을 직접 준다.
      PRESET_DEPTH 는 서버 src/lib/server/botDifficulty.js 와 같은 값이어야 한다. */
   const BOT_PRESETS = ['쉬움', '보통', '어려움', '지옥'];
+  /* 봇이 직업을 언제/어떻게 고르는가. 선픽은 먼저 골라 밴 권한을 쓰고,
+     후픽은 내 직업을 보고 대응한다 (원본 드래프트 규칙 그대로). */
+  const BOT_DRAFT_MODES = [
+    ['random', '랜덤'],
+    ['pick', '지정'],
+    ['first', '선픽'],
+    ['last', '후픽']
+  ];
+  const BOT_DRAFT_HINTS = {
+    random: '밴되지 않은 직업 중에서 아무거나 고릅니다.',
+    pick: '지정한 직업으로 고정합니다.',
+    first: '봇이 먼저 고르고 밴 권한을 씁니다. 내 선택지가 좁아집니다.',
+    last: '내 직업을 보고 상성이 좋은 직업으로 맞받습니다.'
+  };
+  const botDraftHint = $derived(BOT_DRAFT_HINTS[botCpuJobMode] || '');
   const BOT_PRESET_DEPTH = { 쉬움: 1, 보통: 1, 어려움: 3, 지옥: 5 };
   const BOT_MAX_DEPTH = 20;
   const botDifficultyValue = $derived(botCpuAdvanced ? `D${botCpuDepth}` : botCpuLevel);
@@ -1478,7 +1505,8 @@
           room,
           cpuLevel: botDifficultyValue,
           cpuThink: botCpuThink,
-          cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : ''
+          cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : '',
+          cpuDraftMode: isGueruleRoom ? botCpuJobMode : 'random'
         })
       });
       showBotSetup = false;
@@ -1608,6 +1636,23 @@
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ room, command: commandText.trim() })
     });
+  }
+
+  /**
+   * 직업 선택. job 이 비면 랜덤.
+   * 이미 확정된 직업이 있으면 아예 보내지 않는다 — 보내 봐야 서버가
+   * "이미 직업을 선택하셨습니다"로 거절하고, 그 사이 화면만 바뀌어
+   * 눌리는 것처럼 보였다가 되돌아간다.
+   */
+  async function pickJob(job) {
+    if (busy || jobLocked || isBanWaiting) return;
+    const target = String(job || '').trim();
+    selectedJob = target;
+    try {
+      await send(target ? `1ㅈㅅ ${target}` : '1ㅈㅅㄹㄷ');
+    } finally {
+      selectedJob = '';
+    }
   }
 
   // 왜 지금 둘 수 없는지 한 줄로 설명한다. 이유를 안 알려주면 입력이
@@ -2768,10 +2813,12 @@
               {#if isGueruleRoom}
                 <div class="bot-setup-field">
                   <span class="bot-setup-label">직업</span>
-                  <div class="mode-row">
-                    <button class="mode-btn" class:mode-active={botCpuJobMode === 'random'} onclick={() => (botCpuJobMode = 'random')}>랜덤</button>
-                    <button class="mode-btn" class:mode-active={botCpuJobMode === 'pick'} onclick={() => (botCpuJobMode = 'pick')}>지정</button>
+                  <div class="mode-row bot-draft-row">
+                    {#each BOT_DRAFT_MODES as [value, label]}
+                      <button type="button" class="mode-btn" class:mode-active={botCpuJobMode === value} onclick={() => (botCpuJobMode = value)}>{label}</button>
+                    {/each}
                   </div>
+                  <p class="bot-draft-hint">{botDraftHint}</p>
                   {#if botCpuJobMode === 'pick'}
                     <select class="lobby-input" bind:value={botCpuJob}>
                       <option value="">직업 선택</option>
@@ -2865,9 +2912,10 @@
               <p>{game.firstPicker}님의 밴 선택이 끝나면 직업을 고를 수 있어요</p>
             {/if}
           </div>
-          {#if selectedJob}
-            <div class="selected-pill">
-              <span class="sel-gem">◆</span>{selectedJob}
+          {#if shownJob}
+            <div class="selected-pill" class:selected-pill-pending={!myJob}>
+              <span class="sel-gem">◆</span>{shownJob}
+              <span class="sel-state">{myJob ? '선택 완료' : '전송 중'}</span>
             </div>
           {/if}
         </div>
@@ -2911,14 +2959,19 @@
         <div class="job-grid">
           {#each availableJobs as job, i}
             <button
+              type="button"
               class="job-card"
-              class:job-selected={selectedJob === job}
+              class:job-selected={shownJob === job}
               class:job-ban-pick={isBanPicker && selectedBans.includes(job)}
               class:job-banned={bannedJobs.includes(job)}
               class:job-unavailable={roomDisabledJobs.includes(job)}
+              onclick={() => isBanPicker ? toggleBan(job) : pickJob(job)}
+              disabled={busy
+                || isBanWaiting
+                || (!isBanPicker && (jobLocked || unavailableJobs.includes(job)))
+                || (isBanPicker && (myJob === job || unavailableJobs.includes(job)))}
+              title={!isBanPicker && jobLocked && myJob !== job ? '이미 직업을 선택했습니다' : job}
               style="--i:{i}"
-              onclick={() => isBanPicker ? toggleBan(job) : (selectedJob = job, send(`1ㅈㅅ ${job}`))}
-              disabled={busy || isBanWaiting || (!isBanPicker && unavailableJobs.includes(job)) || (isBanPicker && (myState?.job === job || unavailableJobs.includes(job)))}
             >
               <span class="jc-portrait">
                 <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
@@ -2931,21 +2984,27 @@
                 <span class="jc-check">밴</span>
               {:else if bannedJobs.includes(job)}
                 <span class="jc-check">잠김</span>
+              {:else if myJob === job}
+                <span class="jc-check">선택함</span>
               {:else if selectedJob === job}
-                <span class="jc-check">✓</span>
+                <span class="jc-check">전송 중</span>
               {/if}
             </button>
           {/each}
         </div>
         {#if !isBanPicker}
           <div class="job-actions">
-            <button class="action-btn" onclick={() => send('1ㅈㅅㄹㄷ')} disabled={busy || isBanWaiting}>
+            <button type="button" class="action-btn" onclick={() => pickJob('')} disabled={busy || isBanWaiting || jobLocked}>
               <Shuffle size={16} />랜덤
             </button>
             <div class="job-count">
-              선택 가능 <strong>{selectableJobs.length}</strong>개
+              {#if jobLocked}
+                <strong>{myJob}</strong> 선택 완료 · 상대를 기다리는 중
+              {:else}
+                선택 가능 <strong>{selectableJobs.length}</strong>개
+              {/if}
             </div>
-            <button class="action-btn" onclick={() => openJobsTab(selectedJob || selectableJobs[0])}>
+            <button type="button" class="action-btn" onclick={() => openJobsTab(shownJob || selectableJobs[0])}>
               <BriefcaseBusiness size={16} />직업 정보
             </button>
           </div>
@@ -4392,6 +4451,12 @@
     font-size: 22px;
     font-weight: 900;
     letter-spacing: -.5px;
+  }
+  .selected-pill-pending { opacity: .7; }
+  .sel-state {
+    margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 800;
+    background: var(--bg3); color: var(--text2);
   }
   .selected-pill {
     display: flex;
@@ -6368,6 +6433,9 @@
   .bot-adv-toggle input[type=checkbox] { display: none; }
   .bot-preset-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .bot-preset-row .mode-btn { padding: 0 4px; font-size: 13px; white-space: nowrap; }
+  .bot-draft-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .bot-draft-row .mode-btn { padding: 0 4px; font-size: 13px; white-space: nowrap; }
+  .bot-draft-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); }
   .bot-depth-block {
     display: grid; gap: 12px;
     padding: 14px; border-radius: var(--radius);

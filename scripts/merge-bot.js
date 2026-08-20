@@ -191,7 +191,39 @@ patch(
   '        if (game.isPractice || Bot.scope.gameHasCpuPlayer(game)) {\n          autoAssignPracticeCpuJobs(game);'
 );
 
-/* 9) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
+/* 9) 봇 밴 추천 — 선픽한 봇이 밴 권한을 실제로 쓰게 한다.
+
+   정본은 CPU 가 직업을 playerStates 에 직접 꽂아 넣어서 firstPicker 가 되지
+   않는다. 그래서 봇은 밴을 해 본 적이 없다. 웹의 "선픽" 옵션은 봇을 먼저 고르게
+   해 밴 권한을 주므로, 무엇을 밴할지 고르는 함수가 필요하다.
+
+   arena 의 chooseBans 와 같은 기준이다 — 내 직업을 가장 잘 잡는 순서로 지운다.
+   점수 함수는 정본이 이미 갖고 있는 것(__jsonHybridJobScore)을 그대로 쓴다. */
+patch(
+  '봇 밴 추천',
+  '      chooseRecommendedJobForPlayer = function (game, player, selectableJobs, preferredJob) {',
+  `      /* cfrule 적응: 내 직업(selfJob)을 가장 잘 잡는 직업부터 최대 limit 개.
+         점수가 낮을수록 나에게 나쁜 상대이므로 그 순서로 지운다. */
+      Bot.scope.recommendBansForJob = function recommendBansForJob(game, selfJob, pool, limit) {
+        if (!selfJob || !pool || !pool.length) return [];
+        var scored = [], i;
+        for (i = 0; i < pool.length; i++) {
+          var enemy = pool[i];
+          if (enemy === selfJob) continue;
+          var s;
+          try { s = __jsonHybridJobScore(selfJob, [enemy], []).total; } catch (e) { s = 0; }
+          scored.push({ job: enemy, score: s });
+        }
+        scored.sort(function (a, b) { return a.score - b.score; });
+        var out = [];
+        for (i = 0; i < scored.length && out.length < (limit || 6); i++) out.push(scored[i].job);
+        return out;
+      };
+
+      chooseRecommendedJobForPlayer = function (game, player, selectableJobs, preferredJob) {`
+);
+
+/* 10) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
 patch(
   'eval 관리자 명령',
   /(if \(cmd\.indexOf\("cpuknow "\) === 0\) \{[\s\S]*?return true;\n      \})/,
