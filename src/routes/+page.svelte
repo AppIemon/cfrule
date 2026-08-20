@@ -2795,7 +2795,7 @@
                 <span class="jc-initial">{jobInitial(card.homeJob)}</span>
               </span>
               <span class="jc-name">{card.ability}</span>
-              <span class="jc-check">{card.homeJob} · {card.kind === 'passive' ? '패시브' : '액티브'}</span>
+              <span class="jc-sub">{card.homeJob} · {card.kind === 'passive' ? '패시브' : '액티브'}</span>
             </button>
           {/each}
         </div>
@@ -4433,7 +4433,8 @@
     gap: 10px;
   }
   .job-card {
-    height: 92px;
+    min-height: 92px;
+    padding: 10px 8px;
     border-radius: var(--radius);
     background: var(--bg2);
     border: 1px solid var(--border2);
@@ -4564,6 +4565,17 @@
     z-index: 2;
   }
   .job-card.job-selected .jc-check { background: rgba(255,255,255,.24); }
+  .jc-sub {
+    max-width: 100%;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 1;
+  }
   .job-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .job-count {
     font-size: 13px;
@@ -5643,7 +5655,6 @@
     *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
   }
 
-  .job-card { position: relative; }
 
   .ab-btn { position: relative; overflow: visible; }
   .ab-status-val {
@@ -6805,7 +6816,7 @@
     .job-screen { padding: 14px; gap: 14px; }
     .job-screen-header h2 { font-size: 20px; }
     .job-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
-    .job-card { height: 88px; }
+    .job-card { min-height: 88px; }
     .jc-portrait { width: 40px; height: 40px; }
     .jc-name { font-size: 11px; }
     .word-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
