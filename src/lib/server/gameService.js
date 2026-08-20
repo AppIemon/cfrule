@@ -844,10 +844,25 @@ export function updatePresence(room, nickname, online) {
   presence.set(room, roomPresence);
 }
 
+/**
+ * 스냅샷마다 만들어진 시각을 붙인다.
+ *
+ * 클라이언트는 폴링(2.5초) · 웹소켓 푸시 · 명령 응답 세 갈래로 스냅샷을 받는다.
+ * 순서 보장이 없어서, 명령을 보내기 전에 출발한 폴링이 뒤늦게 도착하면 방금 반영한
+ * 결과를 옛 상태로 덮어썼다. 화면이 되돌아가니 "서버가 불안정하다"고 느껴진다.
+ * rev 를 보고 더 오래된 스냅샷은 버리면 된다.
+ *
+ * 서버가 여러 인스턴스로 뜰 수 있으므로 프로세스 카운터가 아니라 시각을 쓴다.
+ */
+function snapshotRev() {
+  return Date.now();
+}
+
 async function buildRoomSnapshot(room, allowPersistedFallback = true) {
   const game = await botRoomState(room);
   const state = {
     room,
+    rev: snapshotRev(),
     meta: metaForSnapshot(room),
     status: await botBootStatus(),
     game,
@@ -861,6 +876,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
       return {
         ...persisted.snapshot,
         room,
+        rev: state.rev,
         meta: state.meta || persisted.snapshot.meta || persisted.meta || null,
         game: state.game || persisted.snapshot.game || persisted.lastGame || null,
         log: state.log.length ? state.log : (persisted.snapshot.log || persisted.log || [])

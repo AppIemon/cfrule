@@ -236,6 +236,12 @@
   let searchTotal = $state(0);
   let searchFilter = $state('전체');
   let snapshot = $state(null);
+  /* 지금까지 반영한 스냅샷 중 가장 최신의 rev. 이보다 오래된 것은 버린다. */
+  let snapshotRev = 0;
+  /* 마지막으로 서버 상태를 받은 시각. 폴링·웹소켓 어느 쪽이든 갱신한다.
+     끊긴 걸 화면에 알려 주지 않으면 그냥 멈춘 것처럼 보인다. */
+  let lastSyncAt = $state(0);
+  let syncFailed = $state(false);
   let ranking = $state(null);
   let rankMode = $state('overall');
   let rankJob = $state('');
@@ -819,6 +825,7 @@
     return steps;
   });
   const isGuest = $derived(!!user?.isGuest);
+  const connectionStale = $derived(!!room && (syncFailed || (lastSyncAt > 0 && now - lastSyncAt > 8000)));
   const isGueruleRoom = $derived(['guerule', 'combat'].includes(snapshot?.meta?.gameMode || 'guerule'));
   const isRoomHost = $derived(snapshot?.meta?.owner === nickname);
   const roomReadyMap = $derived(snapshot?.meta?.ready || {});
@@ -1125,11 +1132,11 @@
 
   async function setReadyState(ready) {
     if (!room || !nickname || isRoomHost) return;
-    snapshot = await request('/api/room', {
+    applySnapshot(await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ action: 'ready', room, ready })
-    });
+    }));
     hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
   }
 
@@ -1182,11 +1189,11 @@
       if (snapshot?.meta?.gameMode === 'pyohan') {
         patch.pyohanLives = Number(pyohanLives);
       }
-      snapshot = await request('/api/room', {
+      applySnapshot(await request('/api/room', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'updateSettings', room, patch })
-      });
+      }));
       roomPassword = '';
       waitSettingsOpen = false;
       hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
@@ -1195,19 +1202,22 @@
     }
   }
 
+  /* 스냅샷이 올 때마다 방 설정을 폼에 복사하면, 방장이 설정 패널을 열어 두고
+     입력하는 중에 2.5초마다 오는 폴링이 입력을 되돌려 버린다. 패널이 닫혀 있을
+     때만 동기화한다 — 열려 있는 동안은 방장의 입력이 진실이다. */
   $effect(() => {
-    if (isWaitPhase && snapshot?.meta) syncWaitSettingsFromSnapshot();
+    if (isWaitPhase && snapshot?.meta && !waitSettingsOpen) syncWaitSettingsFromSnapshot();
   });
 
   async function startGameRoom() {
     if (!room || !isRoomHost) return;
     busy = true;
     try {
-      snapshot = await request('/api/room', {
+      applySnapshot(await request('/api/room', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'start', room })
-      });
+      }));
       hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
     } finally {
       busy = false;
@@ -1227,7 +1237,7 @@
       });
     } catch {}
     room = '';
-    snapshot = null;
+    resetSnapshot();
     hasMatched = false;
     waitSettingsOpen = false;
     tab = 'game';
@@ -1250,7 +1260,7 @@
     user = null;
     nickname = '';
     room = '';
-    snapshot = null;
+    resetSnapshot();
     hasMatched = false;
   }
 
@@ -1286,7 +1296,8 @@
       })
     });
     room = data.room;
-    snapshot = data;
+    snapshotRev = 0;
+    applySnapshot(data, { force: true });
     hasMatched = !!data.game && data.game.phase !== 'waiting';
     startLiveUpdates();
     fetchRoomList();
@@ -1303,7 +1314,8 @@
       body: JSON.stringify({ action: 'join', room: target, password: password || joinPasswordInput })
     });
     room = data.room;
-    snapshot = data;
+    snapshotRev = 0;
+    applySnapshot(data, { force: true });
     hasMatched = !!data.game && data.game.phase !== 'waiting';
     showJoinPassword = false;
     pendingJoinRoom = '';
@@ -1497,7 +1509,7 @@
     if (!room || !isRoomHost) return;
     busy = true;
     try {
-      snapshot = await request('/api/room', {
+      applySnapshot(await request('/api/room', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -1508,7 +1520,7 @@
           cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : '',
           cpuDraftMode: isGueruleRoom ? botCpuJobMode : 'random'
         })
-      });
+      }));
       showBotSetup = false;
     } finally {
       busy = false;
@@ -1519,9 +1531,11 @@
     if (!targetRoom) return;
     try {
       const res = await fetch(apiUrl(`/api/room?room=${encodeURIComponent(targetRoom)}`), { cache: 'no-store', credentials: 'include' });
-      if (!res.ok || targetRoom !== room) return;
-      snapshot = await res.json();
-    } catch {}
+      if (!res.ok || targetRoom !== room) { syncFailed = !res.ok; return; }
+      applySnapshot(await res.json());
+    } catch {
+      syncFailed = true;
+    }
   }
 
   function startPolling() {
@@ -1534,7 +1548,7 @@
     if (!targetRoom) return;
     room = targetRoom;
     hasMatched = false;
-    snapshot = null;
+    resetSnapshot();
     await refresh(targetRoom);
     hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
     startLiveUpdates();
@@ -1561,8 +1575,7 @@
         socket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data?.room && data.room !== room) return;
-            snapshot = data;
+            applySnapshot(data);
           } catch {}
         };
         socket.onerror = () => {};
@@ -1629,13 +1642,36 @@
     }
   });
 
+  /**
+   * 스냅샷 반영. 폴링(2.5초) · 웹소켓 푸시 · 명령 응답이 각각 도착하는데
+   * 순서 보장이 없다. 명령을 보내기 전에 출발한 폴링이 뒤늦게 오면 방금 반영한
+   * 결과를 옛 상태로 덮어써 화면이 되돌아갔다 — "서버가 불안정하다"의 큰 몫이다.
+   * 더 오래된 rev 는 버린다. 방을 옮겼을 때는 rev 를 리셋한다.
+   */
+  function applySnapshot(next, { force = false } = {}) {
+    if (!next) return false;
+    if (next.room && room && next.room !== room) return false;
+    const rev = Number(next.rev) || 0;
+    if (!force && rev && snapshotRev && rev < snapshotRev) return false;
+    if (rev) snapshotRev = rev;
+    snapshot = next;
+    lastSyncAt = Date.now();
+    syncFailed = false;
+    return true;
+  }
+
+  function resetSnapshot() {
+    snapshot = null;
+    snapshotRev = 0;
+  }
+
   async function send(commandText) {
     if (!room || !commandText.trim() || !user?.nickname) return;
-    snapshot = await request('/api/action', {
+    applySnapshot(await request('/api/action', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ room, command: commandText.trim() })
-    });
+    }));
   }
 
   /**
@@ -1949,7 +1985,7 @@
   async function startPractice() {
     showPracticeBar = false;
     room = '';
-    snapshot = null;
+    resetSnapshot();
     hasMatched = false;
     practice = true;
     await create();
@@ -2144,6 +2180,12 @@
   {#if error}
     <div class="toast-error" role="alert">
       <span class="toast-dot"></span>{error}
+    </div>
+  {/if}
+
+  {#if connectionStale}
+    <div class="toast-offline" role="status">
+      <span class="toast-dot"></span>연결이 끊겼습니다 · 다시 연결하는 중
     </div>
   {/if}
 
@@ -2517,7 +2559,7 @@
             <div class="wait-rules-head">
               <h3>방 설정</h3>
               {#if isRoomHost}
-                <button class="wait-settings-toggle" onclick={() => (waitSettingsOpen = !waitSettingsOpen)}>
+                <button type="button" class="wait-settings-toggle" onclick={() => { if (!waitSettingsOpen) syncWaitSettingsFromSnapshot(); waitSettingsOpen = !waitSettingsOpen; }}>
                   {waitSettingsOpen ? '닫기' : '변경'}
                 </button>
               {/if}
@@ -4211,6 +4253,27 @@
     pointer-events: none;
   }
   .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: pulse 1.4s ease-in-out infinite; }
+  .toast-offline {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    background: var(--card);
+    border: 1px solid var(--warn-line);
+    box-shadow: var(--shadow-lg);
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--warn-fg);
+    animation: toastSlideIn .3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+    pointer-events: none;
+  }
+  .toast-offline .toast-dot { background: var(--warn-fg); }
 
   @keyframes toastSlideIn {
     from { opacity: 0; transform: translate(-50%, -20px); }

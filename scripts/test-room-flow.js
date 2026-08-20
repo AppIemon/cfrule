@@ -133,6 +133,14 @@ if (phaseOf(snap) === 'playing') {
   check('후픽: 게임 시작', phaseOf(done) === 'playing', `phase=${phaseOf(done)}`);
 }
 
+// ── 11. 스냅샷 rev 가 단조 증가하는가 (폴링이 최신 상태를 덮어쓰지 않으려면 필요) ──
+{
+  const a = await getRoomSnapshot(room);
+  const b = await getRoomSnapshot(room);
+  check('스냅샷에 rev 존재', Number.isFinite(a?.rev) && a.rev > 0, `rev=${a?.rev}`);
+  check('rev 는 뒤로 가지 않음', (b?.rev ?? 0) >= (a?.rev ?? 0), `${a?.rev} → ${b?.rev}`);
+}
+
 const finalSnap = await getRoomSnapshot(room);
 console.log(`\n최종 phase=${phaseOf(finalSnap)} · 수 ${(finalSnap?.game?.history || []).length}`);
 
