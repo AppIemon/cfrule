@@ -25173,6 +25173,17 @@ Alt-F4 콤보를 준비합니다.`;
      Replaces the practice/채린룰 brain on this path: that brain assumes per-player
      job states and runs a heavy 채린룰 path solve, which never returns on a jobless
      구엜룰 turn (the "턴이 안 넘어감" stall). This stays O(candidates + N·replies). */
+  /* cfrule 적응: 웹 서버의 직업 인지 탐색이 쓰는 헬퍼들. */
+  S.crossCpuLevel = crossCpuLevel;
+  S.crossSylDiff = crossSylDiff;
+  S.crossSylTable = crossSylTable;
+  S.crossEndSyl = crossEndSyl;
+  S.crossCpuContSyls = crossCpuContSyls;
+  S.crossCpuReplyWords = crossCpuReplyWords;
+  S.crossCpuReplyCount = crossCpuReplyCount;
+  S.crossSolveApplicable = crossSolveApplicable;
+  S.crossChainMode = crossChainMode;
+
   function crossCpuPickWord(game) {
     /* Precomputed-solve fast path: if the mapped solve has a legal WINNING move
        for this position, play it immediately (no live search). Falls through to

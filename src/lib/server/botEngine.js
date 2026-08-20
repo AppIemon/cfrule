@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import bundledBotSource from '../../../bot.js?raw';
 import { resolveBotDataPath, readJsonFile, writeJsonFile, ensureRuntimeDir, runtimeDir, bundledDataDir } from './runtime.js';
-import { installCpuStrategyPatch } from './cpuStrategyPatch.js';
+import { installJobSearch } from './jobSearch.js';
+import { ensureEngineLevel, isValidDifficulty, PRESET_ORDER, MAX_DEPTH } from './botDifficulty.js';
 import { flushRatingSyncs, isRatingJsonPath, queueRatingSync } from './ratingSync.js';
 
 let enginePromise = null;
@@ -117,7 +118,7 @@ function bootSync(initialRatings = {}) {
   context.globalThis.__WEB_RUNTIME = true;
   vm.runInContext(`${source}\n;globalThis.__Bot = Bot; globalThis.__response = response;`, context, { filename: 'bot.js' });
   configureWebRuntime(context);
-  installCpuStrategyPatch(context);
+  installJobSearch(context);
 
   const response = context.__response;
   if (typeof response !== 'function') {
@@ -390,7 +391,7 @@ function buildCpuThoughtLines(bot, room, msg, sender) {
 export async function dispatchBotMessage(room, msg, sender) {
   const bot = await getBotEngine();
   const context = bot.context;
-  installCpuStrategyPatch(context);
+  installJobSearch(context);
   const players = getTierPlayers(context);
   const before = snapshotPlayerStats(players);
   const beforeLeader = rankLeaderName(players);
@@ -495,7 +496,11 @@ export async function configureBotRoom(room, options = {}) {
   }
   if (options.searchAllowed === true) gs.searchAllowed = true;
   if (options.searchAllowed === false) gs.searchAllowed = false;
-  if (options.cpuLevel) gs.cpuLevel = String(options.cpuLevel);
+  if (options.cpuLevel) {
+    const lvl = ensureEngineLevel(scopeApi(bot.context), options.cpuLevel);
+    gs.cpuLevel = lvl.name;
+    gs.cpuDepth = lvl.depth;
+  }
   if (options.cpuThink === true) gs.cpuThink = true;
   if (options.cpuThink === false) gs.cpuThink = false;
   if (options.chainMode) gs.chainMode = String(options.chainMode);
@@ -809,10 +814,14 @@ export async function botAddCpuToLobby(room, { cpuLevel = '보통', cpuThink = f
 
   raw.gueruleSettings = raw.gueruleSettings || {};
   const gs = raw.gueruleSettings;
-  const levels = scope.CROSS_CPU_LEVELS || {};
-  const level = String(cpuLevel || '보통').trim();
-  if (levels[level]) gs.cpuLevel = level;
-  else throw new Error(`난이도는 ${(scope.CROSS_CPU_LEVEL_ORDER || ['쉬움', '보통', '어려움', '지옥']).join(', ')} 중에서 고르세요.`);
+  if (!isValidDifficulty(cpuLevel)) {
+    throw new Error(`난이도는 ${PRESET_ORDER.join(', ')} 또는 D1~D${MAX_DEPTH} 중에서 고르세요.`);
+  }
+  // D 난이도는 엔진 테이블에 해당 항목을 만들어 넣는다. 그래야 정본의 끝말잇기
+  // 수읽기와 jobSearch 의 직업 모드 수읽기가 같은 난이도를 함께 본다.
+  const resolved = ensureEngineLevel(scope, cpuLevel);
+  gs.cpuLevel = resolved.name;
+  gs.cpuDepth = resolved.depth;
 
   gs.cpuThink = !!cpuThink;
   const job = String(cpuJob || '').trim();

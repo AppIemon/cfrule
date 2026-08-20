@@ -133,7 +133,27 @@ patch(
 /* 6) 조합 카드 풀 — 웹은 인원이 많아 후보를 넓게 준다. */
 patch('조합 카드 풀 16', 'POOL_SIZE: 8,', 'POOL_SIZE: 16,');
 
-/* 7) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
+/* 7) 수읽기 헬퍼 노출 — 채린룰/카드처럼 crossSolveApplicable 이 false 인 모드에서
+   서버가 같은 헬퍼로 직업 인지 탐색을 돌린다. 전부 클로저 지역 변수라
+   Bot.scope 에 올려 주지 않으면 vm 바깥에서 손댈 수가 없다. */
+patch(
+  '수읽기 헬퍼 노출',
+  '  function crossCpuPickWord(game) {',
+  `  /* cfrule 적응: 웹 서버의 직업 인지 탐색이 쓰는 헬퍼들. */
+  S.crossCpuLevel = crossCpuLevel;
+  S.crossSylDiff = crossSylDiff;
+  S.crossSylTable = crossSylTable;
+  S.crossEndSyl = crossEndSyl;
+  S.crossCpuContSyls = crossCpuContSyls;
+  S.crossCpuReplyWords = crossCpuReplyWords;
+  S.crossCpuReplyCount = crossCpuReplyCount;
+  S.crossSolveApplicable = crossSolveApplicable;
+  S.crossChainMode = crossChainMode;
+
+  function crossCpuPickWord(game) {`
+);
+
+/* 8) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
 patch(
   'eval 관리자 명령',
   /(if \(cmd\.indexOf\("cpuknow "\) === 0\) \{[\s\S]*?return true;\n      \})/,

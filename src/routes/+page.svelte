@@ -198,6 +198,8 @@
   let friendAddInput = $state('');
   let friendsBusy = $state(false);
   let botCpuLevel = $state('보통');
+  let botCpuAdvanced = $state(false);
+  let botCpuDepth = $state(5);
   let botCpuThink = $state(false);
   let botCpuJobMode = $state('random');
   let botCpuJob = $state('');
@@ -857,6 +859,21 @@
   const myReady = $derived(!!roomReadyMap[nickname]);
   const maxBanCount = 6;
 
+  /* 봇 난이도. 이름 프리셋이 기본이고, 고급을 켜면 D1~D20 을 직접 준다.
+     PRESET_DEPTH 는 서버 src/lib/server/botDifficulty.js 와 같은 값이어야 한다. */
+  const BOT_PRESETS = ['쉬움', '보통', '어려움', '지옥'];
+  const BOT_PRESET_DEPTH = { 쉬움: 1, 보통: 1, 어려움: 3, 지옥: 5 };
+  const BOT_MAX_DEPTH = 20;
+  const botDifficultyValue = $derived(botCpuAdvanced ? `D${botCpuDepth}` : botCpuLevel);
+  const botDepthHint = $derived.by(() => {
+    const d = botCpuDepth;
+    if (d <= 2) return '짧은 단어만 알고 공격 개념이 거의 없습니다';
+    if (d <= 4) return '기본적인 공격 음절을 알아봅니다';
+    if (d <= 7) return '루트단어로 수순을 만듭니다';
+    if (d <= 12) return '강제 승리 수순을 찾아냅니다';
+    return '사전 전체를 알고 깊게 읽습니다';
+  });
+
   $effect(() => {
     const phase = game?.phase ?? '';
     if (phase && phase !== 'waiting') hasMatched = true;
@@ -1441,6 +1458,8 @@
   function openBotSetup() {
     if (!isRoomHost) return;
     botCpuLevel = '보통';
+    botCpuAdvanced = false;
+    botCpuDepth = BOT_PRESET_DEPTH['보통'];
     botCpuThink = false;
     botCpuJobMode = 'random';
     botCpuJob = '';
@@ -1457,7 +1476,7 @@
         body: JSON.stringify({
           action: 'addBot',
           room,
-          cpuLevel: botCpuLevel,
+          cpuLevel: botDifficultyValue,
           cpuThink: botCpuThink,
           cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : ''
         })
@@ -2300,7 +2319,7 @@
                         <strong>{playerCount}</strong>
                         <span>명</span>
                       </div>
-                      <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}`} />
+                      <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}; --max: 20`} />
                       <div class="player-slider-quick">
                         {#each [2, 4, 6, 10, 20] as preset}
                           <button type="button" class="player-slider-preset" class:player-slider-preset-active={playerCount === preset} onclick={() => (playerCount = preset)}>
@@ -2471,7 +2490,7 @@
                 </label>
                 <div class="wizard-field">
                   <span>인원 ({playerCount}명)</span>
-                  <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}`} />
+                  <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}; --max: 20`} />
                 </div>
                 {#if !String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')}
                   <div class="wait-settings-row">
@@ -2702,12 +2721,44 @@
             </div>
             <div class="wizard-body bot-setup-body">
               <div class="bot-setup-field">
-                <span class="bot-setup-label">난이도</span>
-                <div class="mode-row">
-                  {#each ['쉬움', '보통', '어려움', '지옥'] as level}
-                    <button class="mode-btn" class:mode-active={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
-                  {/each}
+                <div class="bot-setup-head">
+                  <span class="bot-setup-label">난이도</span>
+                  <label class="bot-adv-toggle">
+                    <input
+                      type="checkbox"
+                      bind:checked={botCpuAdvanced}
+                      onchange={() => { if (botCpuAdvanced) botCpuDepth = BOT_PRESET_DEPTH[botCpuLevel] ?? 5; }}
+                    />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    고급
+                  </label>
                 </div>
+
+                {#if botCpuAdvanced}
+                  <div class="bot-depth-block">
+                    <div class="bot-depth-value">
+                      <strong>D{botCpuDepth}</strong>
+                      <span>수읽기 깊이</span>
+                    </div>
+                    <input
+                      class="player-slider"
+                      type="range"
+                      min="1"
+                      max={BOT_MAX_DEPTH}
+                      step="1"
+                      bind:value={botCpuDepth}
+                      style={`--value: ${botCpuDepth}; --max: ${BOT_MAX_DEPTH}`}
+                      aria-label="수읽기 깊이"
+                    />
+                    <p class="bot-depth-hint">{botDepthHint}</p>
+                  </div>
+                {:else}
+                  <div class="mode-row bot-preset-row">
+                    {#each BOT_PRESETS as level}
+                      <button type="button" class="mode-btn" class:mode-active={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
+                    {/each}
+                  </div>
+                {/if}
               </div>
               <label class="practice-toggle">
                 <input type="checkbox" bind:checked={botCpuThink} />
@@ -2733,8 +2784,9 @@
               {/if}
             </div>
             <div class="wizard-foot">
-              <button class="ghost-btn" onclick={() => (showBotSetup = false)}>취소</button>
+              <button type="button" class="ghost-btn" onclick={() => (showBotSetup = false)}>취소</button>
               <button
+                type="button"
                 class="accent-btn"
                 onclick={confirmBotSetup}
                 disabled={busy || (isGueruleRoom && botCpuJobMode === 'pick' && !botCpuJob)}
@@ -6307,6 +6359,27 @@
   .bot-setup-body { display: grid; gap: 14px; }
   .bot-setup-field { display: grid; gap: 8px; }
   .bot-setup-label { font-size: 12px; font-weight: 800; color: var(--text3); }
+  .bot-setup-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .bot-adv-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; color: var(--text2);
+    cursor: pointer; user-select: none;
+  }
+  .bot-adv-toggle input[type=checkbox] { display: none; }
+  .bot-preset-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .bot-preset-row .mode-btn { padding: 0 4px; font-size: 13px; white-space: nowrap; }
+  .bot-depth-block {
+    display: grid; gap: 12px;
+    padding: 14px; border-radius: var(--radius);
+    background: var(--bg3); border: 1px solid var(--border2);
+  }
+  .bot-depth-value { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+  .bot-depth-value strong {
+    font-size: 30px; font-weight: 900; line-height: 1; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .bot-depth-value span { font-size: 13px; font-weight: 700; color: var(--text2); }
+  .bot-depth-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); text-align: center; }
   /* Lobby */
   .lobby-hub {
     flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -6441,7 +6514,12 @@
   .player-slider-value span { font-size: 16px; font-weight: 800; color: var(--text2); }
   .player-slider {
     width: 100%; height: 8px; appearance: none; border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent) 0%, var(--accent) calc((var(--value, 2) - 1) / 19 * 100%), var(--border2) calc((var(--value, 2) - 1) / 19 * 100%));
+    background: linear-gradient(
+      90deg,
+      var(--accent) 0%,
+      var(--accent) calc((var(--value, 2) - 1) / (var(--max, 20) - 1) * 100%),
+      var(--border2) calc((var(--value, 2) - 1) / (var(--max, 20) - 1) * 100%)
+    );
     accent-color: var(--accent);
   }
   .player-slider::-webkit-slider-thumb {
