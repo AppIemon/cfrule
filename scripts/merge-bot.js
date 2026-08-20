@@ -153,7 +153,45 @@ patch(
   function crossCpuPickWord(game) {`
 );
 
-/* 8) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
+/* 8) 방에 들어온 채린컴퓨터에게도 직업을 배정한다.
+
+   정본은 CPU 직업 자동 배정을 `game.isPractice` 로만 건다. 카톡에서는 CPU 가
+   연습 대전에만 들어오므로 맞는 가정이다. 하지만 웹은 일반 방에 봇을 추가할 수
+   있고(cpuFill), 그 방은 isPractice 가 false 다. 그래서 사람이 직업을 고른 뒤
+   봇이 영영 직업을 안 골라 job_selection 에서 게임이 멈췄다.
+
+   조건을 "연습이거나 CPU 가 끼어 있으면"으로 넓힌다. 카톡 일반전에는 CPU 가
+   없으므로 그쪽 동작은 그대로다. */
+patch(
+  'CPU 직업 배정: 헬퍼',
+  '  isCpuPlayerName = function isCpuPlayerName(name) {',
+  `  /* cfrule 적응: 이 게임에 채린컴퓨터가 들어와 있는가. */
+  Bot.scope.gameHasCpuPlayer = function gameHasCpuPlayer(game) {
+    if (!game || !game.players) return false;
+    for (var i = 0; i < game.players.length; i++) {
+      if (isCpuPlayerName(game.players[i])) return true;
+    }
+    return false;
+  };
+  isCpuPlayerName = function isCpuPlayerName(name) {`
+);
+patch(
+  'CPU 직업 배정: 게이트 완화',
+  '      if (!game || !game.isPractice) return;\n      let preferredJob = game.practiceCpuJobArg',
+  '      if (!game) return;\n      if (!game.isPractice && !Bot.scope.gameHasCpuPlayer(game)) return;\n      let preferredJob = game.practiceCpuJobArg'
+);
+patch(
+  'CPU 직업 배정: 직업 선택 직후',
+  '      if (game.isPractice) autoAssignPracticeCpuJobs(game);\n',
+  '      if (game.isPractice || Bot.scope.gameHasCpuPlayer(game)) autoAssignPracticeCpuJobs(game);\n'
+);
+patch(
+  'CPU 직업 배정: 밴 확정 직후',
+  '        if (game.isPractice) {\n          autoAssignPracticeCpuJobs(game);',
+  '        if (game.isPractice || Bot.scope.gameHasCpuPlayer(game)) {\n          autoAssignPracticeCpuJobs(game);'
+);
+
+/* 9) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
 patch(
   'eval 관리자 명령',
   /(if \(cmd\.indexOf\("cpuknow "\) === 0\) \{[\s\S]*?return true;\n      \})/,

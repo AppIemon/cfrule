@@ -2568,6 +2568,14 @@ with (Bot.scope) {
     if (__botResult && __botResult.__botControl && __botResult.type === "return") return __botResult.value;
     return __botResult;
   };
+  /* cfrule 적응: 이 게임에 채린컴퓨터가 들어와 있는가. */
+  Bot.scope.gameHasCpuPlayer = function gameHasCpuPlayer(game) {
+    if (!game || !game.players) return false;
+    for (var i = 0; i < game.players.length; i++) {
+      if (isCpuPlayerName(game.players[i])) return true;
+    }
+    return false;
+  };
   isCpuPlayerName = function isCpuPlayerName(name) {
     let __botResult = function () {
       return !!(name && String(name).indexOf(CPU_NAME) === 0);
@@ -6457,7 +6465,8 @@ with (Bot.scope) {
   };
   autoAssignPracticeCpuJobs = function autoAssignPracticeCpuJobs(game) {
     let __botResult = function () {
-      if (!game || !game.isPractice) return;
+      if (!game) return;
+      if (!game.isPractice && !Bot.scope.gameHasCpuPlayer(game)) return;
       let preferredJob = game.practiceCpuJobArg ? normalizeJobName(game.practiceCpuJobArg) : null;
       let bannedJobs = game.bannedJobs || [];
       {
@@ -6603,7 +6612,7 @@ with (Bot.scope) {
         return true;
       }
       replySystem(replier, sender + "의 직업이 " + job + pickedText);
-      if (game.isPractice) autoAssignPracticeCpuJobs(game);
+      if (game.isPractice || Bot.scope.gameHasCpuPlayer(game)) autoAssignPracticeCpuJobs(game);
       if (Object.keys(game.playerStates).length === game.players.length) {
         startSelectedGame(game, replier, room);
       }
@@ -11338,7 +11347,7 @@ with (Bot.scope) {
         }).join(", ");
         let replyLines = [systemLine("밴 선택이 완료됐다."), systemLine("밴된 직업: " + bannedStr)];
         if (errors.length > 0) replyLines.push(systemLine("처리 중 제외된 항목: " + errors.join(" / ")));
-        if (game.isPractice) {
+        if (game.isPractice || Bot.scope.gameHasCpuPlayer(game)) {
           autoAssignPracticeCpuJobs(game);
           replier.reply(joinFoldedLines(replyLines.concat([systemLine("CPU 직업이 자동으로 배정된다.")]), [systemLine("선택 가능 직업: [" + availStr + "]")]));
           if (Object.keys(game.playerStates).length === game.players.length) {
