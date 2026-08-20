@@ -187,6 +187,7 @@
   let showJoinPassword = $state(false);
   let pendingJoinRoom = $state('');
   let joinPasswordInput = $state('');
+  let joinPasswordEl = $state();
   let showBotSetup = $state(false);
   let showInviteModal = $state(false);
   let waitSettingsOpen = $state(false);
@@ -2038,6 +2039,10 @@
     return cards.length ? cards : [{ name: '직업 설명', meta: [], lines: withoutTitle.split(/\n+/).map((line) => line.trim()).filter(Boolean) }];
   }
 
+  $effect(() => {
+    if (showJoinPassword && joinPasswordEl) tick().then(() => joinPasswordEl?.focus());
+  });
+
   // Escape closes the top-most overlay, in the order they stack.
   function handleGlobalKeydown(event) {
     if (event.key !== 'Escape') return;
@@ -2251,10 +2256,10 @@
                 <h2>입장 비밀번호</h2>
                 <p class="wizard-join-hint">선택한 방에 입장하려면 비밀번호를 입력하세요.</p>
               </div>
-              <button class="wizard-close" onclick={() => { showJoinPassword = false; pendingJoinRoom = ''; }}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={() => { showJoinPassword = false; pendingJoinRoom = ''; }} aria-label="닫기"><X size={18} /></button>
             </div>
             <form class="wizard-body wizard-join-form" onsubmit={(e) => { e.preventDefault(); confirmJoinPassword(); }}>
-              <input class="auth-panel-input" type="password" bind:value={joinPasswordInput} placeholder="비밀번호" autofocus />
+              <input class="auth-panel-input" type="password" bind:this={joinPasswordEl} bind:value={joinPasswordInput} placeholder="비밀번호" />
               <button class="accent-btn" type="submit" disabled={busy || !joinPasswordInput.trim()}>입장</button>
             </form>
           </div>
@@ -2274,7 +2279,7 @@
                   {/each}
                 </div>
               </div>
-              <button class="wizard-close" onclick={closeCreateWizard}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={closeCreateWizard} aria-label="닫기"><X size={18} /></button>
             </div>
 
             <div class="wizard-body">
@@ -2636,7 +2641,7 @@
                 <h2>플레이어 초대</h2>
                 <p class="wizard-join-hint">친구에게 초대를 보내거나 새 친구를 추가하세요.</p>
               </div>
-              <button class="wizard-close" onclick={() => (showInviteModal = false)}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={() => (showInviteModal = false)} aria-label="닫기"><X size={18} /></button>
             </div>
             <div class="wizard-body invite-modal-body">
               <form class="friend-add-row" onsubmit={(e) => { e.preventDefault(); addFriend(); }}>
@@ -2693,7 +2698,7 @@
                 <h2>봇 추가</h2>
                 <p>채린컴퓨터를 빈 자리에 넣습니다</p>
               </div>
-              <button class="wizard-close" onclick={() => (showBotSetup = false)}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={() => (showBotSetup = false)} aria-label="닫기"><X size={18} /></button>
             </div>
             <div class="wizard-body bot-setup-body">
               <div class="bot-setup-field">
@@ -4413,8 +4418,8 @@
   }
   .ban-chip.selected {
     background: var(--danger-bg);
-    border-color: #fecaca;
-    color: #b91c1c;
+    border-color: var(--danger-line);
+    color: var(--danger-fg);
   }
   .ban-chip.locked {
     display: inline-flex;
@@ -4469,7 +4474,7 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: #e0ecff;
+    background: linear-gradient(140deg, var(--accent-soft), var(--bg3));
     border: 2px solid var(--accent-line);
     display: flex;
     align-items: center;
@@ -4508,8 +4513,8 @@
   .job-card.job-selected .jc-name { color: var(--on-accent); }
   .job-card.job-ban-pick {
     background: var(--danger-bg);
-    border-color: #ef4444;
-    box-shadow: 0 12px 28px rgba(220,38,38,.16);
+    border-color: var(--red);
+    box-shadow: 0 12px 28px var(--danger-bg);
   }
   .job-card.job-ban-pick .jc-initial,
   .job-card.job-ban-pick .jc-name,
@@ -4539,10 +4544,8 @@
     cursor: not-allowed;
   }
   .job-card.job-unavailable .jc-initial,
-  .job-card.job-unavailable .jc-name,
-  .job-card.job-unavailable .jc-check {
-    color: #be123c;
-  }
+  .job-card.job-unavailable .jc-name { color: var(--danger-fg); }
+  .job-card.job-unavailable .jc-check { background: var(--red); color: #fff; }
   .job-card.job-unavailable .jc-portrait {
     filter: grayscale(.85);
     opacity: .5;
@@ -4588,8 +4591,8 @@
     padding: 0 14px;
     border-radius: var(--radius-sm);
     background: var(--danger-bg);
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    border: 1px solid var(--danger-line);
+    color: var(--danger-fg);
     font-size: 13px;
     font-weight: 700;
     display: inline-flex;
@@ -4603,7 +4606,7 @@
     color: var(--on-accent);
   }
   .ban-btn:hover:not(:disabled) { background: var(--danger-bg); }
-  .ban-btn.primary:hover:not(:disabled) { background: #b91c1c; }
+  .ban-btn.primary:hover:not(:disabled) { filter: brightness(.92); }
   .notice-list { display: flex; flex-direction: column; gap: 6px; }
   .notice-item {
     display: flex;
@@ -5235,8 +5238,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #e0ecff;
-    color: var(--accent2);
+    background: var(--accent-soft);
+    color: var(--accent);
     font-size: 14px;
     font-weight: 900;
     position: relative;
@@ -5739,7 +5742,7 @@
     gap: 8px;
     font-weight: 800;
     font-size: 14px;
-    color: #1e293b;
+    color: var(--text);
   }
   .chat-messages {
     flex: 1;
@@ -5794,7 +5797,7 @@
   }
   .chat-at {
     font-size: 9px;
-    color: #94a3b8;
+    color: var(--text3);
     margin-top: 4px;
   }
   .chat-form {
@@ -5856,8 +5859,8 @@
      DM PANEL
   ═══════════════════════════════════════════ */
   .dm-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.4);
-    backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+    position: fixed; inset: 0; background: var(--overlay);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
     z-index: 900;
     animation: overlayIn .2s ease both;
   }
@@ -5866,10 +5869,10 @@
     top: 0; right: 0; bottom: 0;
     width: min(480px, 100vw);
     background: var(--bg2);
-    border-left: 1.5px solid var(--border);
+    border-left: 1px solid var(--border);
     z-index: 950;
     display: flex; flex-direction: column;
-    box-shadow: -10px 0 40px rgba(0,0,0,.15);
+    box-shadow: var(--shadow-lg);
     animation: slideFromRight .3s cubic-bezier(0.16,1,0.3,1) both;
   }
   @keyframes slideFromRight {
