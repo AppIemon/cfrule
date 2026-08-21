@@ -156,7 +156,7 @@
     },
     {
       title: '단어 검색',
-      body: '검색 탭이나 게임 중 검색 서랍에서 기*, *차, 기? 같은 식으로 찾습니다. K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 수 있습니다.'
+      body: '검색 탭이나 게임 중 검색 서랍에서 기*, *차, 기? 같은 식으로 찾습니다. K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 수 있습니다. 같은 탭의 "수 분석"으로 직업 대결까지 읽어 볼 수 있습니다.'
     },
     {
       title: '투표와 종료',
@@ -164,7 +164,7 @@
     },
     {
       title: '티어와 직업 정보',
-      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명·직업별 랭킹·레이팅 티어표·직업 티어 메이커는 직업 탭에서 확인합니다.'
+      body: '전체 랭킹과 레이팅 티어표는 랭킹 탭에서, 직업 설명·직업별 랭킹·직업 티어 메이커는 직업 탭에서 봅니다. 도움말과 설정은 오른쪽 위 계정 메뉴에 있습니다.'
     }
   ];
 
@@ -3387,11 +3387,6 @@
                 <h2>{jobTabJob}</h2>
               </div>
             </div>
-            {#if jobTabAbilities.length}
-              <div class="job-ability-strip">
-                {#each jobTabAbilities as ab}<span>{ab}</span>{/each}
-              </div>
-            {/if}
           </div>
 
           <div class="job-info-gui">
@@ -3416,7 +3411,7 @@
             {/each}
           </div>
 
-          <div class="job-side-grid">
+          <div class="job-side-grid job-side-grid-single">
             <section class="job-stat-card">
               <div class="job-section-title">직업별 랭킹</div>
               {#if jobTabRanking.length}
@@ -3432,19 +3427,6 @@
               {:else}
                 <div class="rank-empty small">이 직업은 아직 표시할 전적이 없습니다.</div>
               {/if}
-            </section>
-
-            <section class="job-stat-card">
-              <div class="job-section-title">레이팅 티어표</div>
-              <div class="tier-table">
-                {#each TIER_INFO as tier}
-                  <div class="tier-row" style="--tc:{tier.color};--tc-glow:{tier.color}26">
-                    <span class="tier-dot"></span>
-                    <span class="tier-name">{tier.name}</span>
-                    <span class="tier-range">{tier.min} - {tier.max === Infinity ? '∞' : tier.max}</span>
-                  </div>
-                {/each}
-              </div>
             </section>
           </div>
         </section>
@@ -3642,32 +3624,36 @@
         <h2>채린룰 입문 강의</h2>
         <p>끝말잇기의 기본 룰은 아는 사람을 기준으로, 채린룰의 단어 분류와 직업 운영을 정리했습니다.</p>
       </div>
+      <!-- 전에는 전부 펼쳐져 4000px 짜리 한 덩어리였다. 접어 두면 목차가 되고,
+           찾는 장만 열면 된다. 첫 장만 열어 둔다. -->
       <div class="lecture-stack">
         {#each TUTORIAL_CHAPTERS as chapter, index}
-          <section class="lecture-card">
-            <div class="lecture-heading">
+          <details class="lecture-card" open={index === 0}>
+            <summary class="lecture-heading">
               <span class="tutorial-num">{index + 1}</span>
               <div>
                 <h3>{chapter.title}</h3>
                 <p>{chapter.lead}</p>
               </div>
-            </div>
-            {#if chapter.terms}
-              <div class="term-grid">
-                {#each chapter.terms as [term, desc]}
-                  <div class="term-row">
-                    <strong>{term}</strong>
-                    <span>{desc}</span>
-                  </div>
+            </summary>
+            <div class="lecture-body">
+              {#if chapter.terms}
+                <div class="term-grid">
+                  {#each chapter.terms as [term, desc]}
+                    <div class="term-row">
+                      <strong>{term}</strong>
+                      <span>{desc}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+              <ul class="lecture-points">
+                {#each chapter.points as point}
+                  <li>{point}</li>
                 {/each}
-              </div>
-            {/if}
-            <ul class="lecture-points">
-              {#each chapter.points as point}
-                <li>{point}</li>
-              {/each}
-            </ul>
-          </section>
+              </ul>
+            </div>
+          </details>
         {/each}
       </div>
       <div class="help-header help-subheader">
@@ -3675,13 +3661,15 @@
         <h2>사이트 조작 도움말</h2>
         <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며 게임 명령은 사이트 UI로만 실행됩니다.</p>
       </div>
-      <div class="tutorial-grid">
+      <div class="lecture-stack">
         {#each SITE_HELP_STEPS as step, index}
-          <section class="tutorial-card">
-            <span class="tutorial-num">{index + 1}</span>
-            <h3>{step.title}</h3>
-            <p>{step.body}</p>
-          </section>
+          <details class="lecture-card">
+            <summary class="lecture-heading">
+              <span class="tutorial-num">{index + 1}</span>
+              <div><h3>{step.title}</h3></div>
+            </summary>
+            <div class="lecture-body"><p class="lecture-text">{step.body}</p></div>
+          </details>
         {/each}
       </div>
     </div>
@@ -3717,6 +3705,21 @@
       {:else}
         <div class="rank-empty">랭킹 데이터를 불러오고 있습니다.</div>
       {/if}
+
+      <!-- 티어표는 레이팅 이야기지 직업 이야기가 아니다. 직업 탭에서 옮겨 왔고,
+           한 번 보면 되는 표라 접어 둔다. -->
+      <details class="rank-tiers">
+        <summary>레이팅 티어표</summary>
+        <div class="tier-table">
+          {#each TIER_INFO as tier}
+            <div class="tier-row" style="--tc:{tier.color};--tc-glow:{tier.color}26">
+              <span class="tier-dot"></span>
+              <span class="tier-name">{tier.name}</span>
+              <span class="tier-range">{tier.min} - {tier.max === Infinity ? '∞' : tier.max}</span>
+            </div>
+          {/each}
+        </div>
+      </details>
     </div>
 
   <!-- ══════════════════════ SETTINGS TAB ══════════════════════ -->
@@ -5456,16 +5459,6 @@
   }
   .job-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .job-detail-icon { width: 54px; height: 54px; font-size: 22px; }
-  .job-ability-strip { display: flex; flex-wrap: wrap; gap: 6px; max-width: 420px; justify-content: flex-end; }
-  .job-ability-strip span {
-    border: 1px solid var(--accent-line);
-    background: var(--accent-soft);
-    color: var(--accent2);
-    border-radius: 999px;
-    padding: 4px 9px;
-    font-size: 11px;
-    font-weight: 800;
-  }
   .job-info-gui {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -5553,6 +5546,23 @@
   .mini-rank-record { color: var(--text3); }
   .mini-rank-rating { color: var(--tc, var(--accent)); font-weight: 900; }
   .tier-table { max-height: 340px; overflow: auto; }
+  .rank-tiers {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg2); overflow: hidden;
+  }
+  .rank-tiers > summary {
+    padding: 12px 16px; cursor: pointer; list-style: none;
+    font-size: 13px; font-weight: 800; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rank-tiers > summary::-webkit-details-marker { display: none; }
+  .rank-tiers > summary::before {
+    content: '▸'; color: var(--text3); font-size: 11px; transition: transform .15s;
+  }
+  .rank-tiers[open] > summary::before { transform: rotate(90deg); }
+  .rank-tiers[open] > summary { border-bottom: 1px solid var(--border); }
+  .rank-tiers .tier-table { padding: 6px 16px 14px; }
+  .job-side-grid-single { grid-template-columns: minmax(0, 1fr); }
   .tier-row { grid-template-columns: 10px minmax(0, 1fr) auto; }
   .tier-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tc); box-shadow: 0 0 10px var(--tc-glow); }
   .tier-name { font-weight: 800; }
@@ -5563,23 +5573,36 @@
   .help-header { display: flex; flex-direction: column; gap: 4px; }
   .help-header p { color: var(--text2); font-size: 14px; }
   .help-subheader { margin-top: 10px; }
-  .lecture-stack { display: grid; gap: 12px; }
+  .lecture-stack { display: grid; gap: 8px; }
   .lecture-card {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg2);
-    padding: 16px;
-    display: grid;
-    gap: 13px;
+    overflow: hidden;
   }
   .lecture-heading {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr) 14px;
     gap: 10px;
-    align-items: start;
+    align-items: center;
+    padding: 13px 16px;
+    cursor: pointer;
+    list-style: none;
   }
-  .lecture-heading h3 { font-size: 17px; font-weight: 900; }
-  .lecture-heading p { margin-top: 3px; color: var(--text2); font-size: 13px; line-height: 1.55; }
+  .lecture-heading::-webkit-details-marker { display: none; }
+  .lecture-heading::after {
+    content: '▸'; color: var(--text3); font-size: 11px;
+    transition: transform .15s;
+  }
+  .lecture-card[open] > .lecture-heading::after { transform: rotate(90deg); }
+  .lecture-heading:hover { background: var(--bg3); }
+  .lecture-heading h3 { font-size: 15.5px; font-weight: 900; }
+  .lecture-heading p { margin-top: 2px; color: var(--text2); font-size: 12.5px; line-height: 1.5; }
+  .lecture-body {
+    display: grid; gap: 13px;
+    padding: 2px 16px 16px 54px;
+  }
+  .lecture-text { font-size: 13px; line-height: 1.6; color: var(--text2); }
   .term-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -5604,15 +5627,6 @@
     line-height: 1.55;
   }
   .lecture-points li::marker { color: var(--accent); }
-  .tutorial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-  .tutorial-card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg2);
-    padding: 14px;
-    display: grid;
-    gap: 7px;
-  }
   .tutorial-num {
     width: 28px;
     height: 28px;
@@ -5625,8 +5639,6 @@
     font-size: 12px;
     font-weight: 900;
   }
-  .tutorial-card h3 { font-size: 15px; font-weight: 900; }
-  .tutorial-card p { font-size: 13px; line-height: 1.55; color: var(--text2); }
 
   /* Search */
   .search-bar { display: flex; gap: 10px; }
@@ -7016,7 +7028,8 @@
     .tool-switch { width: 100%; }
     .tool-switch .seg-btn { min-width: 0; }
     .word-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-    .tutorial-grid, .term-grid { grid-template-columns: minmax(0, 1fr); }
+    .term-grid { grid-template-columns: minmax(0, 1fr); }
+    .lecture-body { padding-left: 16px; }
     .bottom-composer { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 8px; }
     .bottom-composer { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
     .input-zone { padding: 5px; gap: 8px; }
