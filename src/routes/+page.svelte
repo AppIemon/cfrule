@@ -86,87 +86,38 @@
     반장: ['담임의 가호', '교장의 가호']
   };
 
-  const TUTORIAL_CHAPTERS = [
+  // 사이트 사용법만 다룬다. 게임 전략·용어 설명은 여기 있지 않다.
+  const SITE_HELP_STEPS = [
     {
-      title: '채린룰이란?',
-      lead: '기본 끝말잇기 룰을 바탕으로, 단어 분류와 직업 능력으로 수 싸움을 만드는 채린룰식 끝말잇기입니다.',
-      points: [
-        '단어는 사전에 실린 표준어를 기준으로 사용하며, 사이트는 표준국어대사전 구버전 기반 단어 목록을 사용합니다.',
-        '표준 두음법칙을 적용합니다. 예를 들어 라/나, 래/내, 로/노, 루/누, 리/이처럼 이어질 수 있습니다.',
-        '채린룰은 검색 허용 게임입니다. 검색 탭과 게임 중 검색 서랍을 써서 가능한 단어, 공격 음절, 방어 수를 확인하세요.',
-        '첫 수에는 한방단어와 유도단어를 사용할 수 없으므로, 초반에는 안전한 일반단어로 판을 열고 이후 압박을 설계합니다.'
-      ]
+      title: '방 만들기 · 참가하기',
+      body: '게임 탭의 방 목록에서 방을 눌러 참가하거나, "방 만들기"로 새 방을 엽니다. 모드와 인원만 고르면 바로 만들 수 있고, 사전·타이머·비밀번호 같은 것은 "고급 설정"에 있습니다.'
     },
     {
-      title: '한방단어 이해하기',
-      lead: '핵심은 “상대가 받은 끝음절에서 이어갈 수 있는가”입니다. 음절의 위험도를 보면 단어의 역할이 보입니다.',
-      terms: [
-        ['한방음절', '그 음절로 시작하는 합법 단어가 사실상 없어 받으면 지기 쉬운 음절입니다. 예: 특정 희귀 끝음절로 끝내 상대의 다음 수를 막는 상황.'],
-        ['유도음절', '바로 끝내지는 않지만 상대가 대응하면 다시 한방음절로 몰리기 쉬운 음절입니다. 예: 상대가 몇 수 안에 위험 음절을 받을 가능성이 커지는 길목.'],
-        ['루트음절', '한방이나 유도로 이어지는 공격 루트의 출발점입니다. 즉시 치명타는 아니지만 공격 전개가 시작되는 음절입니다.'],
-        ['한방단어', '끝음절이 한방음절인 단어입니다. 상대에게 바로 패배 압박을 줍니다.'],
-        ['유도단어', '끝음절이 유도음절인 단어입니다. 상대의 선택지를 줄이고 다음 공격을 유도합니다.'],
-        ['루트단어', '끝음절이 루트음절인 단어입니다. 초중반 빌드업이나 능력 조건을 맞출 때 중요합니다.'],
-        ['돌림단어', '시작음절과 끝음절이 같거나 다시 자기에게 유리한 흐름으로 돌아오게 만드는 단어입니다. 막혔을 때 템포를 벌기 좋습니다.']
-      ],
-      points: [
-        '검색 결과의 K는 한방, I는 유도, R은 루트로 보면 됩니다. A는 주요 공격 음절 묶음으로, 한방 K와 완전히 같은 뜻은 아닙니다.',
-        '좋은 공격은 한방단어 하나를 외우는 것보다 루트단어에서 유도단어, 한방단어로 이어지는 길을 아는 것입니다.',
-        '상대가 직업 능력으로 한방/유도를 막을 수 있다면, 바로 치기보다 루트단어로 능력을 빼는 선택도 강합니다.'
-      ]
+      title: '혼자 연습하기',
+      body: '대기실의 빈 자리를 누르면 봇을 넣을 수 있습니다. 난이도는 쉬움부터 지옥까지 네 단계이고, "고급"을 켜면 수읽기 깊이를 D1~D20 으로 직접 정할 수 있습니다.'
     },
     {
-      title: '직업 시스템',
-      lead: '직업은 단어 실력 위에 얹히는 전술 카드입니다. 내 직업의 승리 조건과 상대 직업의 방해 수단을 함께 봐야 합니다.',
-      points: [
-        '직업 선택 전에는 직업 탭에서 패시브, 액티브, 쿨타임, 사용 횟수, 조건을 먼저 읽습니다.',
-        '밴 단계에서는 내가 싫어하는 직업보다 내 직업의 핵심 플랜을 끊는 직업을 우선으로 막는 편이 좋습니다.',
-        '능력은 “막혔을 때 탈출”뿐 아니라 “상대의 방어 능력을 먼저 빼기”, “한방 금지 턴 만들기”, “유도 루트 보존하기”에도 씁니다.',
-        '상태 패널의 한방불가, 유도금지, 두음금지, 능력불가 같은 디버프를 매턴 확인하면 실수를 크게 줄일 수 있습니다.'
-      ]
+      title: '친구와 하기',
+      body: '대기실의 방 코드를 복사해 전달하거나 "친구 초대"로 부릅니다. 친구는 설정에서 닉네임으로 추가합니다. 비밀번호를 걸면 코드를 아는 사람만 들어옵니다.'
     },
     {
-      title: '실전 운영 팁',
-      lead: '단어 검색을 많이 하는 게임일수록, 검색 결과를 “지금 둘 단어”가 아니라 “다음 세 턴의 모양”으로 읽는 습관이 중요합니다.',
-      points: [
-        '내가 낼 단어의 끝음절만 보지 말고, 상대가 그 음절에서 낼 수 있는 대표 대응 단어의 끝음절까지 확인합니다.',
-        '한방단어를 바로 낼 수 있어도 상대가 한방불가 능력을 가졌다면, 유도단어로 돌아가거나 직업 능력 사용을 기다립니다.',
-        '불리할 때는 긴 단어보다 안전한 돌림단어, 루트 회피 단어, 두음법칙으로 빠지는 단어가 더 가치 있을 수 있습니다.',
-        '팀전에서는 내가 공격을 못 해도 다음 팀원이 공격하기 좋은 음절을 넘기는 것이 강한 수가 됩니다.'
-      ]
+      title: '게임 진행',
+      body: '내 차례가 되면 화면 아래 입력창에 단어를 넣고 Enter 를 누릅니다. 상대 차례에 미리 입력해 두면 차례가 왔을 때 자동으로 제출됩니다. 직업 능력은 입력창 위 버튼으로 씁니다.'
+    },
+    {
+      title: '무효 · 항복',
+      body: '잘못 입력했을 때는 "무효"로 신청하고, 상대가 요청하면 동의 또는 거절합니다. 더 진행하기 어려우면 "항복"으로 끝냅니다.'
+    },
+    {
+      title: '단어 찾기',
+      body: '검색 탭에서 기*, *차, 기? 같은 식으로 단어를 찾습니다. 검색을 허용한 방이면 게임 중에도 쓸 수 있습니다. 같은 탭의 "수 분석"은 직업 대결을 미리 읽어 봅니다.'
+    },
+    {
+      title: '어디에 무엇이 있나',
+      body: '직업 설명과 직업별 랭킹은 직업 탭, 전체 랭킹과 레이팅 티어표는 랭킹 탭에 있습니다. 도움말·설정·로그아웃은 오른쪽 위 계정 이름을 누르면 나옵니다.'
     }
   ];
 
-  const SITE_HELP_STEPS = [
-    {
-      title: '시작하기',
-      body: '로그인 후 방 목록에서 참가하거나 새 방을 만듭니다. 인원·모드·사전 등을 설정할 수 있고, 대기실에서 봇을 추가할 수도 있습니다.'
-    },
-    {
-      title: '직업 선택',
-      body: '직업 선택 화면에서 직업을 고르면 게임에 참가합니다. 밴 단계가 뜨면 상대가 쓰기 까다로운 직업을 최대 개수만큼 막고 확정합니다.'
-    },
-    {
-      title: '단어 입력',
-      body: '내 차례에는 하단 입력창에 이을 음절로 시작하는 단어를 넣습니다. 첫 단어는 자유지만 첫 수에는 한방과 유도 단어가 제한됩니다.'
-    },
-    {
-      title: '능력 사용',
-      body: '내 직업의 액티브 능력은 입력창 위 버튼으로 사용합니다. 대상이 필요한 능력은 플레이어, 음절, 초성을 고르는 창이 먼저 열립니다.'
-    },
-    {
-      title: '단어 검색',
-      body: '검색 탭이나 게임 중 검색 서랍에서 기*, *차, 기? 같은 식으로 찾습니다. K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 수 있습니다. 같은 탭의 "수 분석"으로 직업 대결까지 읽어 볼 수 있습니다.'
-    },
-    {
-      title: '투표와 종료',
-      body: '잘못 입력했을 때는 무효 신청을 보내고, 상대가 요청한 투표에는 동의 또는 거절합니다. 더 진행하기 어렵다면 항복 버튼으로 게임을 끝낼 수 있습니다.'
-    },
-    {
-      title: '티어와 직업 정보',
-      body: '전체 랭킹과 레이팅 티어표는 랭킹 탭에서, 직업 설명·직업별 랭킹·직업 티어 메이커는 직업 탭에서 봅니다. 도움말과 설정은 오른쪽 위 계정 메뉴에 있습니다.'
-    }
-  ];
 
   let nickname = $state('');
   let username = $state('');
@@ -311,6 +262,8 @@
   // DM (Direct Message)
   let showDM = $state(false);
   let showAcctMenu = $state(false);
+  // 회원가입 직후 한 번만 도움말로 보낸다. 새로고침하면 다시 뜨지 않는다.
+  let justSignedUp = $state(false);
   let dmTarget = $state('');
   let dmInput = $state('');
   let dmMessages = $state([]);
@@ -1049,6 +1002,7 @@
   }
 
   async function auth() {
+    const wasSignup = authMode === 'signup';
     const data = await request('/api/auth', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -1058,6 +1012,11 @@
     if (user?.nickname) nickname = user.nickname;
     password = '';
     showAuthPanel = false;
+    // 처음 온 사람은 방 목록보다 사용법을 먼저 보는 편이 낫다.
+    if (wasSignup && user?.nickname) {
+      justSignedUp = true;
+      tab = 'help';
+    }
   }
 
   function openCreateWizard() {
@@ -3619,50 +3578,12 @@
   {:else if tab === 'help'}
     <div class="content-page help-page">
       <div class="help-header">
-        <span class="panel-kicker">TUTORIAL</span>
-        <h2>채린룰 입문 강의</h2>
-        <p>끝말잇기의 기본 룰은 아는 사람을 기준으로, 채린룰의 단어 분류와 직업 운영을 정리했습니다.</p>
-      </div>
-      <!-- 전에는 전부 펼쳐져 4000px 짜리 한 덩어리였다. 접어 두면 목차가 되고,
-           찾는 장만 열면 된다. 첫 장만 열어 둔다. -->
-      <div class="lecture-stack">
-        {#each TUTORIAL_CHAPTERS as chapter, index}
-          <details class="lecture-card" open={index === 0}>
-            <summary class="lecture-heading">
-              <span class="tutorial-num">{index + 1}</span>
-              <div>
-                <h3>{chapter.title}</h3>
-                <p>{chapter.lead}</p>
-              </div>
-            </summary>
-            <div class="lecture-body">
-              {#if chapter.terms}
-                <div class="term-grid">
-                  {#each chapter.terms as [term, desc]}
-                    <div class="term-row">
-                      <strong>{term}</strong>
-                      <span>{desc}</span>
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-              <ul class="lecture-points">
-                {#each chapter.points as point}
-                  <li>{point}</li>
-                {/each}
-              </ul>
-            </div>
-          </details>
-        {/each}
-      </div>
-      <div class="help-header help-subheader">
-        <span class="panel-kicker">SITE GUIDE</span>
-        <h2>사이트 조작 도움말</h2>
-        <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며 게임 명령은 사이트 UI로만 실행됩니다.</p>
+        <h2>채끄 사용법</h2>
+        <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며, 게임 조작은 전부 화면의 버튼으로 합니다.</p>
       </div>
       <div class="lecture-stack">
         {#each SITE_HELP_STEPS as step, index}
-          <details class="lecture-card">
+          <details class="lecture-card" open={index === 0}>
             <summary class="lecture-heading">
               <span class="tutorial-num">{index + 1}</span>
               <div><h3>{step.title}</h3></div>
@@ -3671,6 +3592,15 @@
           </details>
         {/each}
       </div>
+      {#if justSignedUp}
+        <!-- 회원가입 직후에만 나온다. 도움말을 읽고 나갈 문을 만들어 준다. -->
+        <div class="help-start">
+          <p>준비됐으면 방을 만들거나 열려 있는 방에 참가하세요.</p>
+          <button type="button" class="accent-btn" onclick={() => { justSignedUp = false; tab = 'game'; }}>
+            게임 시작하기
+          </button>
+        </div>
+      {/if}
     </div>
 
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
@@ -5514,10 +5444,17 @@
   .tier-range { color: var(--text3); font-weight: 700; }
 
   /* Help */
-  .help-page { max-width: 980px; }
+  .help-page { max-width: 820px; }
+  .help-start {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap;
+    margin-top: 6px; padding: 16px 18px;
+    border: 1px solid var(--accent-line); border-radius: var(--radius);
+    background: var(--accent-soft);
+  }
+  .help-start p { font-size: 13.5px; font-weight: 700; color: var(--text); }
   .help-header { display: flex; flex-direction: column; gap: 4px; }
   .help-header p { color: var(--text2); font-size: 14px; }
-  .help-subheader { margin-top: 10px; }
   .lecture-stack { display: grid; gap: 8px; }
   .lecture-card {
     border: 1px solid var(--border);
@@ -5542,36 +5479,11 @@
   .lecture-card[open] > .lecture-heading::after { transform: rotate(90deg); }
   .lecture-heading:hover { background: var(--bg3); }
   .lecture-heading h3 { font-size: 15.5px; font-weight: 900; }
-  .lecture-heading p { margin-top: 2px; color: var(--text2); font-size: 12.5px; line-height: 1.5; }
   .lecture-body {
     display: grid; gap: 13px;
     padding: 2px 16px 16px 54px;
   }
   .lecture-text { font-size: 13px; line-height: 1.6; color: var(--text2); }
-  .term-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 8px;
-  }
-  .term-row {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg2);
-    padding: 10px;
-    display: grid;
-    gap: 5px;
-  }
-  .term-row strong { font-size: 13px; font-weight: 900; color: var(--accent); }
-  .term-row span { font-size: 12px; line-height: 1.55; color: var(--text2); }
-  .lecture-points {
-    display: grid;
-    gap: 7px;
-    padding-left: 18px;
-    color: var(--text2);
-    font-size: 13px;
-    line-height: 1.55;
-  }
-  .lecture-points li::marker { color: var(--accent); }
   .tutorial-num {
     width: 28px;
     height: 28px;
@@ -6940,7 +6852,6 @@
     .tool-switch { width: 100%; }
     .tool-switch .seg-btn { min-width: 0; }
     .word-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-    .term-grid { grid-template-columns: minmax(0, 1fr); }
     .lecture-body { padding-left: 16px; }
     .bottom-composer { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 8px; }
     .bottom-composer { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
