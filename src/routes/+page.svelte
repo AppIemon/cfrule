@@ -2574,9 +2574,9 @@
                   <input class="count-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} />
                 </div>
                 {#if !String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')}
-                  <div class="wait-settings-row">
-                    <button class="mode-btn" class:mode-active={chainMode === 'end'} onclick={() => (chainMode = 'end')}>끝말잇기</button>
-                    <button class="mode-btn" class:mode-active={chainMode === 'start'} onclick={() => (chainMode = 'start')}>앞말잇기</button>
+                  <div class="seg">
+                    <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'end'} onclick={() => (chainMode = 'end')}>끝말잇기</button>
+                    <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'start'} onclick={() => (chainMode = 'start')}>앞말잇기</button>
                   </div>
                   <label class="wizard-field">
                     <span>사전</span>
@@ -2828,9 +2828,9 @@
                     <p class="bot-depth-hint">{botDepthHint}</p>
                   </div>
                 {:else}
-                  <div class="mode-row bot-preset-row">
+                  <div class="seg">
                     {#each BOT_PRESETS as level}
-                      <button type="button" class="mode-btn" class:mode-active={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
+                      <button type="button" class="seg-btn" class:seg-btn-on={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
                     {/each}
                   </div>
                 {/if}
@@ -2843,9 +2843,9 @@
               {#if isGueruleRoom}
                 <div class="bot-setup-field">
                   <span class="bot-setup-label">직업</span>
-                  <div class="mode-row bot-draft-row">
+                  <div class="seg">
                     {#each BOT_DRAFT_MODES as [value, label]}
-                      <button type="button" class="mode-btn" class:mode-active={botCpuJobMode === value} onclick={() => (botCpuJobMode = value)}>{label}</button>
+                      <button type="button" class="seg-btn" class:seg-btn-on={botCpuJobMode === value} onclick={() => (botCpuJobMode = value)}>{label}</button>
                     {/each}
                   </div>
                   <p class="bot-draft-hint">{botDraftHint}</p>
@@ -3321,9 +3321,9 @@
       {#if searchResults.length}
         <div class="search-meta">
           <span>총 <strong>{searchTotal}</strong>개 · 표시 <strong>{filteredSearch.length}</strong>개</span>
-          <div class="kind-pills">
+          <div class="seg">
             {#each ['전체','한방','유도','루트','일반'] as f}
-              <button class="kind-pill" class:kind-active={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
+              <button type="button" class="seg-btn" class:seg-btn-on={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
             {/each}
           </div>
         </div>
@@ -3457,9 +3457,9 @@
         </div>
       </div>
 
-      <div class="mode-tabs">
+      <div class="seg analysis-modes">
         {#each [['syllable','음절 분석'],['I','유도 전체'],['R','루트 전체'],['A','A급 전체'],['K','한방 전체']] as [m, label]}
-          <button class="mode-tab mt-{m}" class:mt-active={analysisMode === m} onclick={() => (analysisMode = m)}>{label}</button>
+          <button type="button" class="seg-btn" class:seg-btn-on={analysisMode === m} onclick={() => (analysisMode = m)}>{label}</button>
         {/each}
       </div>
 
@@ -4279,25 +4279,6 @@
   ═══════════════════════════════════════════ */
 
   .lobby-input { height: 48px; font-size: 15px; border-radius: var(--radius); }
-  .mode-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .mode-btn {
-    height: 42px;
-    padding: 0 16px;
-    border-radius: var(--radius-sm);
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text2);
-    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
-  }
-  .mode-btn:hover { border-color: var(--accent); color: var(--text); }
-  .mode-btn.mode-active {
-    background: var(--accent-fill);
-    border-color: var(--accent-fill);
-    color: var(--on-accent);
-    box-shadow: none;
-  }
   .practice-toggle {
     display: flex;
     align-items: center;
@@ -5621,18 +5602,6 @@
   .search-submit:hover { background: var(--accent2); }
   .search-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 13px; color: var(--text2); }
   .search-meta strong { color: var(--text); }
-  .kind-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .kind-pill {
-    height: 30px; padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--border2);
-    background: transparent;
-    font-size: 12px; font-weight: 700;
-    color: var(--text2);
-    transition: background .18s, border-color .18s, color .18s;
-  }
-  .kind-pill:hover { border-color: var(--accent); color: var(--text); }
-  .kind-pill.kind-active { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
   .word-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(212px,1fr));
@@ -6355,8 +6324,6 @@
     font-size: 12px; font-weight: 800; color: var(--accent);
   }
   .wait-settings-form { display: grid; gap: 10px; }
-  .wait-settings-row { display: flex; gap: 8px; }
-  .wait-settings-row .mode-btn { flex: 1; min-width: 0; }
   .wait-ready-group {
     display: inline-flex; padding: 4px; gap: 4px;
     border-radius: 12px; background: var(--bg3); border: 1px solid var(--border2);
@@ -6472,10 +6439,6 @@
     cursor: pointer; user-select: none;
   }
   .bot-adv-toggle input[type=checkbox] { display: none; }
-  .bot-preset-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .bot-preset-row .mode-btn { padding: 0 4px; font-size: 13px; white-space: nowrap; }
-  .bot-draft-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .bot-draft-row .mode-btn { padding: 0 4px; font-size: 13px; white-space: nowrap; }
   .bot-draft-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); }
   .bot-depth-block {
     display: grid; gap: 12px;
@@ -6735,20 +6698,8 @@
   .jp-select { width: 100%; height: 44px; }
   .jp-vs { font-size: 13px; font-weight: 900; color: var(--text3); padding-bottom: 12px; }
 
-  .mode-tabs {
-    display: flex; gap: 6px; flex-wrap: wrap;
-    padding: 5px; border-radius: 999px;
-    background: var(--bg3); border: 1px solid var(--border);
-    align-self: flex-start; max-width: 100%;
-  }
-  .mode-tab {
-    height: 34px; padding: 0 15px; border-radius: 999px;
-    font-size: 13px; font-weight: 800; color: var(--text2);
-    white-space: nowrap;
-    transition: background .16s, color .16s;
-  }
-  .mode-tab:hover { color: var(--text); }
-  .mode-tab.mt-active { background: var(--accent-fill); color: var(--on-accent); }
+  .analysis-modes { align-self: flex-start; max-width: 100%; }
+  .analysis-modes .seg-btn { flex: 0 0 auto; min-width: 0; padding: 0 14px; white-space: nowrap; }
 
   .syl-form-row { display: flex; gap: 10px; align-items: center; }
   .syl-inp { width: 92px; height: 48px; text-align: center; font-size: 22px; font-weight: 900; }
