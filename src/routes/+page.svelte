@@ -2172,8 +2172,8 @@
 <svelte:window onkeydown={handleGlobalKeydown} />
 
 <svelte:head>
-  <title>채린룰</title>
-  <meta name="description" content="채린룰 끝말잇기를 웹과 앱에서. 직업 능력, 단어 검색, 레이팅 랭킹까지 한 곳에서 즐기세요." />
+  <title>채끄</title>
+  <meta name="description" content="채끄 — 채린룰과 끄투 끝말잇기를 웹과 앱에서. 직업 능력, 단어 검색, 레이팅 랭킹까지 한 곳에서." />
 </svelte:head>
 
 <div class="app">
@@ -2201,7 +2201,7 @@
       <div class="auth-gate-card">
         <div class="auth-gate-brand">
           <span class="brand-gem">◆</span>
-          <h1>채린룰</h1>
+          <h1>채끄</h1>
           <p>로그인 후 이용할 수 있습니다</p>
         </div>
         <div class="auth-panel-tabs auth-gate-tabs">
@@ -2221,7 +2221,7 @@
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
     <button class="brand" onclick={() => (tab = 'game')} type="button">
-      <span class="brand-gem">◆</span>채린룰
+      <span class="brand-gem">◆</span>채끄
     </button>
     <nav class="top-nav" aria-label="주요 메뉴">
       <button type="button" class="nav-btn" class:nav-active={tab === 'game'} aria-current={tab === 'game' ? 'page' : undefined} onclick={() => (tab = 'game')}>
