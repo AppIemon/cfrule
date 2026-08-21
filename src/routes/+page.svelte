@@ -2330,7 +2330,6 @@
           {/if}
 
           <section class="lobby-section lobby-section-grow">
-            <h2 class="lobby-section-label">방 목록</h2>
             <div class="room-grid">
               {#if roomList.length}
                 {#each roomList as r}
@@ -3139,26 +3138,26 @@
             </div>
           {/if}
           {#if abilityButtons.length}
-            <div class="ability-bar">
-              <div class="ability-grid">
-                {#each abilityButtons as ab, ai}
-                  {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
-                  <button
-                    class="ab-btn"
-                    class:ab-not-ready={abStatus && !abStatus.isReady}
-                    style="--ai:{ai}"
-                    onclick={() => useAbility(ab)}
-                    disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
-                    title={abStatus?.text || '준비됨'}
-                  >
-                    <Sparkles size={13} />
-                    <span class="ab-name">{ab}</span>
-                    {#if abStatus}
-                      <span class="ab-status-val">{abStatus.text}</span>
-                    {/if}
-                  </button>
-                {/each}
-              </div>
+            <!-- 버튼 줄을 카드로 한 번 더 감싸고 있었다. 테두리 하나가 줄면
+                 입력창과 능력이 같은 묶음으로 읽힌다. -->
+            <div class="ability-grid">
+              {#each abilityButtons as ab, ai}
+                {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
+                <button
+                  class="ab-btn"
+                  class:ab-not-ready={abStatus && !abStatus.isReady}
+                  style="--ai:{ai}"
+                  onclick={() => useAbility(ab)}
+                  disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
+                  title={abStatus?.text || '준비됨'}
+                >
+                  <Sparkles size={13} />
+                  <span class="ab-name">{ab}</span>
+                  {#if abStatus}
+                    <span class="ab-status-val">{abStatus.text}</span>
+                  {/if}
+                </button>
+              {/each}
             </div>
           {/if}
           <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} onsubmit={sendWord}>
@@ -4279,7 +4278,6 @@
      LOBBY
   ═══════════════════════════════════════════ */
 
-  .login-required :global(svg) { color: var(--accent); }
   .lobby-input { height: 48px; font-size: 15px; border-radius: var(--radius); }
   .mode-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .mode-btn {
@@ -5054,24 +5052,6 @@
 
   /* 카드를 한 번 훑고 지나가는 빛. */
 
-  :global([data-theme="dark"]) .fx-card {
-    border-color: hsl(var(--fx-hue) 70% 55% / .55);
-    background: linear-gradient(135deg, hsl(var(--fx-hue) 70% 50% / .22), hsl(var(--fx-hue) 70% 50% / .05));
-    box-shadow: 0 0 0 1px hsl(var(--fx-hue) 70% 50% / .12), 0 6px 20px hsl(var(--fx-hue) 70% 30% / .35);
-  }
-  :global([data-theme="dark"]) .fx-name {
-    background: linear-gradient(100deg, hsl(var(--fx-hue) 90% 76%), hsl(var(--fx-hue2) 90% 80%));
-    -webkit-background-clip: text;
-    background-clip: text;
-    filter: drop-shadow(0 0 12px hsl(var(--fx-hue) 90% 60% / .5));
-  }
-  :global([data-theme="dark"]) .fx-kind {
-    border-color: hsl(var(--fx-hue) 70% 60% / .5);
-    color: hsl(var(--fx-hue) 70% 72%);
-  }
-  :global([data-theme="dark"]) .fx-flare {
-    background: linear-gradient(105deg, transparent 30%, hsl(var(--fx-hue) 90% 75% / .40) 50%, transparent 70%);
-  }
 
   @keyframes fxIn {
     from { opacity: 0; transform: translateY(10px) scale(.96); }
@@ -5082,8 +5062,6 @@
   }
   /* 애니메이션을 줄여 달라고 한 사용자에게는 정적으로 보여 준다. */
   @media (prefers-reduced-motion: reduce) {
-    .fx-card { animation: none; }
-    .fx-flare { display: none; }
   }
 
   /* Input zone */
@@ -5213,22 +5191,13 @@
   }
 
   /* Ability bar */
-  .ability-bar {
-    width: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    display: block;
-    padding: 8px;
-    border-radius: calc(var(--radius) + 8px);
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    animation: fadeUp .3s ease both;
+  .ability-grid {
+    width: 100%; max-width: 980px; margin: 0 auto;
+    display: flex; flex-wrap: wrap; gap: 7px;
   }
-  .ability-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .ab-btn {
-    height: 38px;
-    padding: 0 15px;
-    margin-top: 7px;
+    height: 36px;
+    padding: 0 13px;
     border-radius: var(--radius-sm);
     background: var(--bg3);
     border: 1px solid var(--border2);
@@ -5378,11 +5347,6 @@
   .jobs-list-panel,
   .job-detail-panel,
   .job-stat-card,
-  .command-card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg2);
-  }
   .jobs-list-panel {
     padding: 14px;
     display: flex;
@@ -6224,9 +6188,6 @@
     text-transform: uppercase; color: var(--text3);
     margin-bottom: 14px;
   }
-  .settings-section-desc {
-    font-size: 13px; color: var(--text2); margin: -6px 0 16px; line-height: 1.55;
-  }
   /* 라벨 + 컨트롤 한 줄. 설정 항목이 늘어도 세로로만 쌓인다. */
   .settings-row {
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
@@ -7047,6 +7008,4 @@
   :global([data-theme="dark"]) .wait-room-main { box-shadow: none; }
   :global([data-theme="dark"]) .wait-player-slot { background: var(--bg3); }
   :global([data-theme="dark"]) .auth-panel-input { background: var(--bg2); }
-  :global([data-theme="dark"]) .job-tooltip { background: #0d0f14; border-color: var(--border2); }
-  :global([data-theme="dark"]) .job-tooltip-text { color: #b8c4e0; }
 </style>
