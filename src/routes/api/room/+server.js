@@ -57,9 +57,10 @@ export async function POST({ request, locals }) {
       return json(await addRoomBot({
         room,
         nickname,
-        cpuLevel: String(body?.cpuLevel || '보통'),
+        cpuLevel: String(body?.cpuLevel || '보통').slice(0, 12),
         cpuThink: !!body?.cpuThink,
-        cpuJob: String(body?.cpuJob || '')
+        cpuJob: String(body?.cpuJob || ''),
+        cpuDraftMode: String(body?.cpuDraftMode || 'random')
       }));
     }
     if (action === 'updateSettings') {
@@ -80,7 +81,7 @@ export async function POST({ request, locals }) {
       dictSource: String(body?.dictSource || 'default'),
       gameMode: String(body?.gameMode || 'guerule'),
       searchAllowed: !!body?.searchAllowed,
-      cpuLevel: String(body?.cpuLevel || ''),
+      cpuLevel: String(body?.cpuLevel || '').slice(0, 12),
       cpuThink: !!body?.cpuThink,
       chainMode: body?.chainMode === 'start' ? 'start' : 'end',
       duEum: body?.duEum !== false,

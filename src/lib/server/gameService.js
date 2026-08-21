@@ -33,6 +33,30 @@ const commandHistory = new Map();
 // instead of racing against a half-replayed game object.
 const restoreInFlight = new Map();
 const restoredRooms = new Set();
+// room -> Promise. 한 방의 상태 변경은 한 번에 하나씩만 돈다.
+//
+// 아래 변경 함수들은 전부 await 를 여러 번 거치는 여러 단계짜리다. 같은 방에
+// 두 요청이 동시에 들어오면 그 await 마다 서로 끼어들어 반쯤 진행된 상태를
+// 덮어썼다 — 봇이 둘 붙거나, 낸 단어가 사라지거나, 멀쩡한 방이 "이미 시작된
+// 방입니다"로 튕기는 식이다. 사용자가 "서버가 불안정하다"고 느낀 정체가 이것.
+//
+// 방마다 약속 사슬을 만들어 순서대로 흘린다. 방이 다르면 서로 안 기다린다.
+const roomLocks = new Map();
+
+// 테스트에서 직렬화 성질을 직접 확인한다 (scripts/test-concurrency.js).
+export function withRoomLock(room, fn) {
+  const key = String(room || '');
+  if (!key) return fn();
+  const prev = roomLocks.get(key) || Promise.resolve();
+  // 앞 작업이 실패해도 사슬은 이어져야 한다 — 한 번 던지고 끊기면 그 방이 영영 잠긴다.
+  const run = prev.then(fn, fn);
+  const chain = run.then(() => {}, () => {});
+  roomLocks.set(key, chain);
+  // 이 작업이 그 방의 마지막이면 항목을 치운다. 방이 늘어도 맵이 자라지 않는다.
+  chain.then(() => { if (roomLocks.get(key) === chain) roomLocks.delete(key); });
+  return run;
+}
+
 // room -> timestamp. The bot deletes games[room] when a match is finalized, so the
 // game object itself can never report an "ended" phase; this is the durable marker.
 const finishedRooms = new Map();
@@ -569,7 +593,7 @@ export async function createRoom({
   commandHistory.set(room, []);
   await botSetRoomCombat(room, !!combat);
   if (practice) {
-    await sendCommand({ room, nickname: owner, command: startCommand(roomMeta.get(room)), internal: true });
+    await sendCommandImpl({ room, nickname: owner, command: startCommand(roomMeta.get(room)), internal: true });
   } else {
     await botCreateWebLobby(room, { owner, mode: cleanMode, combat: !!combat });
     append(room, 'system', '', [`[시스템]: ${owner}님이 방을 만들었습니다. 플레이어가 모이면 준비 후 시작하세요.`]);
@@ -578,7 +602,7 @@ export async function createRoom({
   return await getRoomSnapshot(room);
 }
 
-export async function joinRoom({ room, nickname, password = '' }) {
+async function joinRoomImpl({ room, nickname, password = '' }) {
   await restoreRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
@@ -607,10 +631,10 @@ export async function joinRoom({ room, nickname, password = '' }) {
     return state;
   }
   roomMeta.set(room, meta);
-  return sendCommand({ room, nickname, command: startCommand(meta), internal: true });
+  return sendCommandImpl({ room, nickname, command: startCommand(meta), internal: true });
 }
 
-export async function setRoomReady({ room, nickname, ready = true }) {
+async function setRoomReadyImpl({ room, nickname, ready = true }) {
   await restoreRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
@@ -628,7 +652,7 @@ export async function setRoomReady({ room, nickname, ready = true }) {
   return state;
 }
 
-export async function startRoomGame({ room, nickname }) {
+async function startRoomGameImpl({ room, nickname }) {
   await restoreRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
@@ -652,7 +676,7 @@ export async function startRoomGame({ room, nickname }) {
   return state;
 }
 
-export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '' }) {
+async function addRoomBotImpl({ room, nickname, cpuLevel = '보통', cpuThink = false, cpuJob = '', cpuDraftMode = 'random' }) {
   await restoreRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
@@ -661,7 +685,7 @@ export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink
   const game = await botRoomState(room);
   if (!game || game.phase !== 'waiting') throw new Error('대기 중인 방이 아닙니다.');
 
-  const { cpuName } = await botAddCpuToLobby(room, { cpuLevel, cpuThink, cpuJob });
+  const { cpuName } = await botAddCpuToLobby(room, { cpuLevel, cpuThink, cpuJob, cpuDraftMode });
   meta.ready = meta.ready || {};
   meta.ready[cpuName] = true;
   roomMeta.set(room, meta);
@@ -672,13 +696,13 @@ export async function addRoomBot({ room, nickname, cpuLevel = '보통', cpuThink
   return state;
 }
 
-export async function leaveRoom({ room, nickname }) {
+async function leaveRoomImpl({ room, nickname }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim();
   const meta = roomMeta.get(room);
   if (!meta) return { left: true, room: '' };
   if (meta.practice) {
-    return sendCommand({ room, nickname: sender, command: 'ㅈㅈ', internal: false });
+    return sendCommandImpl({ room, nickname: sender, command: 'ㅈㅈ', internal: false });
   }
   const game = await botRoomState(room);
   if (game?.phase === 'waiting') {
@@ -704,10 +728,10 @@ export async function leaveRoom({ room, nickname }) {
     publishRoom(room, state);
     return { left: true, room: '' };
   }
-  return sendCommand({ room, nickname: sender, command: 'ㅈㅈ' });
+  return sendCommandImpl({ room, nickname: sender, command: 'ㅈㅈ' });
 }
 
-export async function updateRoomSettings({ room, nickname, patch = {} }) {
+async function updateRoomSettingsImpl({ room, nickname, patch = {} }) {
   await restoreRoom(room);
   const meta = roomMeta.get(room);
   if (!meta) throw new Error('방을 찾을 수 없습니다.');
@@ -783,7 +807,7 @@ export async function updateRoomSettings({ room, nickname, patch = {} }) {
   return state;
 }
 
-export async function sendCommand({ room, nickname, command, internal = false }) {
+async function sendCommandImpl({ room, nickname, command, internal = false }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   updatePresence(room, sender, true);
@@ -819,7 +843,7 @@ export async function sendCommand({ room, nickname, command, internal = false })
   return state;
 }
 
-export async function addChatMessage({ room, nickname, text }) {
+async function addChatMessageImpl({ room, nickname, text }) {
   await restoreRoom(room);
   const sender = String(nickname || '').trim() || 'player';
   const list = roomChats.get(room) || [];
@@ -837,6 +861,20 @@ export async function addChatMessage({ room, nickname, text }) {
   return state;
 }
 
+/**
+ * 방 상태를 바꾸는 공개 함수들. 전부 방 단위로 줄을 세운다.
+ * 읽기(getRoomSnapshot 등)는 잠그지 않는다 — 폴링이 봇 수읽기 뒤에 밀리면
+ * 화면이 더 불안정해 보인다.
+ */
+export function joinRoom(args) { return withRoomLock(args?.room, () => joinRoomImpl(args)); }
+export function setRoomReady(args) { return withRoomLock(args?.room, () => setRoomReadyImpl(args)); }
+export function startRoomGame(args) { return withRoomLock(args?.room, () => startRoomGameImpl(args)); }
+export function addRoomBot(args) { return withRoomLock(args?.room, () => addRoomBotImpl(args)); }
+export function leaveRoom(args) { return withRoomLock(args?.room, () => leaveRoomImpl(args)); }
+export function updateRoomSettings(args) { return withRoomLock(args?.room, () => updateRoomSettingsImpl(args)); }
+export function sendCommand(args) { return withRoomLock(args?.room, () => sendCommandImpl(args)); }
+export function addChatMessage(args) { return withRoomLock(args?.room, () => addChatMessageImpl(args)); }
+
 export function updatePresence(room, nickname, online) {
   if (!room || !nickname) return;
   const roomPresence = presence.get(room) || {};
@@ -844,10 +882,25 @@ export function updatePresence(room, nickname, online) {
   presence.set(room, roomPresence);
 }
 
+/**
+ * 스냅샷마다 만들어진 시각을 붙인다.
+ *
+ * 클라이언트는 폴링(2.5초) · 웹소켓 푸시 · 명령 응답 세 갈래로 스냅샷을 받는다.
+ * 순서 보장이 없어서, 명령을 보내기 전에 출발한 폴링이 뒤늦게 도착하면 방금 반영한
+ * 결과를 옛 상태로 덮어썼다. 화면이 되돌아가니 "서버가 불안정하다"고 느껴진다.
+ * rev 를 보고 더 오래된 스냅샷은 버리면 된다.
+ *
+ * 서버가 여러 인스턴스로 뜰 수 있으므로 프로세스 카운터가 아니라 시각을 쓴다.
+ */
+function snapshotRev() {
+  return Date.now();
+}
+
 async function buildRoomSnapshot(room, allowPersistedFallback = true) {
   const game = await botRoomState(room);
   const state = {
     room,
+    rev: snapshotRev(),
     meta: metaForSnapshot(room),
     status: await botBootStatus(),
     game,
@@ -861,6 +914,7 @@ async function buildRoomSnapshot(room, allowPersistedFallback = true) {
       return {
         ...persisted.snapshot,
         room,
+        rev: state.rev,
         meta: state.meta || persisted.snapshot.meta || persisted.meta || null,
         game: state.game || persisted.snapshot.game || persisted.lastGame || null,
         log: state.log.length ? state.log : (persisted.snapshot.log || persisted.log || [])

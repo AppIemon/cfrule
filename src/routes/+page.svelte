@@ -2,8 +2,8 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
-    Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
+    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, ChevronDown, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare,
+    Moon, Plus, Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
   import { jobImageSrc } from '$lib/jobImages';
@@ -86,87 +86,38 @@
     반장: ['담임의 가호', '교장의 가호']
   };
 
-  const TUTORIAL_CHAPTERS = [
+  // 사이트 사용법만 다룬다. 게임 전략·용어 설명은 여기 있지 않다.
+  const SITE_HELP_STEPS = [
     {
-      title: '채린룰이란?',
-      lead: '기본 끝말잇기 룰을 바탕으로, 단어 분류와 직업 능력으로 수 싸움을 만드는 채린룰식 끝말잇기입니다.',
-      points: [
-        '단어는 사전에 실린 표준어를 기준으로 사용하며, 사이트는 표준국어대사전 구버전 기반 단어 목록을 사용합니다.',
-        '표준 두음법칙을 적용합니다. 예를 들어 라/나, 래/내, 로/노, 루/누, 리/이처럼 이어질 수 있습니다.',
-        '채린룰은 검색 허용 게임입니다. 검색 탭과 게임 중 검색 서랍을 써서 가능한 단어, 공격 음절, 방어 수를 확인하세요.',
-        '첫 수에는 한방단어와 유도단어를 사용할 수 없으므로, 초반에는 안전한 일반단어로 판을 열고 이후 압박을 설계합니다.'
-      ]
+      title: '방 만들기 · 참가하기',
+      body: '게임 탭의 방 목록에서 방을 눌러 참가하거나, "방 만들기"로 새 방을 엽니다. 모드와 인원만 고르면 바로 만들 수 있고, 사전·타이머·비밀번호 같은 것은 "고급 설정"에 있습니다.'
     },
     {
-      title: '한방단어 이해하기',
-      lead: '핵심은 “상대가 받은 끝음절에서 이어갈 수 있는가”입니다. 음절의 위험도를 보면 단어의 역할이 보입니다.',
-      terms: [
-        ['한방음절', '그 음절로 시작하는 합법 단어가 사실상 없어 받으면 지기 쉬운 음절입니다. 예: 특정 희귀 끝음절로 끝내 상대의 다음 수를 막는 상황.'],
-        ['유도음절', '바로 끝내지는 않지만 상대가 대응하면 다시 한방음절로 몰리기 쉬운 음절입니다. 예: 상대가 몇 수 안에 위험 음절을 받을 가능성이 커지는 길목.'],
-        ['루트음절', '한방이나 유도로 이어지는 공격 루트의 출발점입니다. 즉시 치명타는 아니지만 공격 전개가 시작되는 음절입니다.'],
-        ['한방단어', '끝음절이 한방음절인 단어입니다. 상대에게 바로 패배 압박을 줍니다.'],
-        ['유도단어', '끝음절이 유도음절인 단어입니다. 상대의 선택지를 줄이고 다음 공격을 유도합니다.'],
-        ['루트단어', '끝음절이 루트음절인 단어입니다. 초중반 빌드업이나 능력 조건을 맞출 때 중요합니다.'],
-        ['돌림단어', '시작음절과 끝음절이 같거나 다시 자기에게 유리한 흐름으로 돌아오게 만드는 단어입니다. 막혔을 때 템포를 벌기 좋습니다.']
-      ],
-      points: [
-        '검색 결과의 K는 한방, I는 유도, R은 루트로 보면 됩니다. A는 주요 공격 음절 묶음으로, 한방 K와 완전히 같은 뜻은 아닙니다.',
-        '좋은 공격은 한방단어 하나를 외우는 것보다 루트단어에서 유도단어, 한방단어로 이어지는 길을 아는 것입니다.',
-        '상대가 직업 능력으로 한방/유도를 막을 수 있다면, 바로 치기보다 루트단어로 능력을 빼는 선택도 강합니다.'
-      ]
+      title: '혼자 연습하기',
+      body: '대기실의 빈 자리를 누르면 봇을 넣을 수 있습니다. 난이도는 쉬움부터 지옥까지 네 단계이고, "고급"을 켜면 수읽기 깊이를 D1~D20 으로 직접 정할 수 있습니다.'
     },
     {
-      title: '직업 시스템',
-      lead: '직업은 단어 실력 위에 얹히는 전술 카드입니다. 내 직업의 승리 조건과 상대 직업의 방해 수단을 함께 봐야 합니다.',
-      points: [
-        '직업 선택 전에는 직업 탭에서 패시브, 액티브, 쿨타임, 사용 횟수, 조건을 먼저 읽습니다.',
-        '밴 단계에서는 내가 싫어하는 직업보다 내 직업의 핵심 플랜을 끊는 직업을 우선으로 막는 편이 좋습니다.',
-        '능력은 “막혔을 때 탈출”뿐 아니라 “상대의 방어 능력을 먼저 빼기”, “한방 금지 턴 만들기”, “유도 루트 보존하기”에도 씁니다.',
-        '상태 패널의 한방불가, 유도금지, 두음금지, 능력불가 같은 디버프를 매턴 확인하면 실수를 크게 줄일 수 있습니다.'
-      ]
+      title: '친구와 하기',
+      body: '대기실의 방 코드를 복사해 전달하거나 "친구 초대"로 부릅니다. 친구는 설정에서 닉네임으로 추가합니다. 비밀번호를 걸면 코드를 아는 사람만 들어옵니다.'
     },
     {
-      title: '실전 운영 팁',
-      lead: '단어 검색을 많이 하는 게임일수록, 검색 결과를 “지금 둘 단어”가 아니라 “다음 세 턴의 모양”으로 읽는 습관이 중요합니다.',
-      points: [
-        '내가 낼 단어의 끝음절만 보지 말고, 상대가 그 음절에서 낼 수 있는 대표 대응 단어의 끝음절까지 확인합니다.',
-        '한방단어를 바로 낼 수 있어도 상대가 한방불가 능력을 가졌다면, 유도단어로 돌아가거나 직업 능력 사용을 기다립니다.',
-        '불리할 때는 긴 단어보다 안전한 돌림단어, 루트 회피 단어, 두음법칙으로 빠지는 단어가 더 가치 있을 수 있습니다.',
-        '팀전에서는 내가 공격을 못 해도 다음 팀원이 공격하기 좋은 음절을 넘기는 것이 강한 수가 됩니다.'
-      ]
+      title: '게임 진행',
+      body: '내 차례가 되면 화면 아래 입력창에 단어를 넣고 Enter 를 누릅니다. 상대 차례에 미리 입력해 두면 차례가 왔을 때 자동으로 제출됩니다. 직업 능력은 입력창 위 버튼으로 씁니다.'
+    },
+    {
+      title: '무효 · 항복',
+      body: '잘못 입력했을 때는 "무효"로 신청하고, 상대가 요청하면 동의 또는 거절합니다. 더 진행하기 어려우면 "항복"으로 끝냅니다.'
+    },
+    {
+      title: '단어 찾기',
+      body: '검색 탭에서 기*, *차, 기? 같은 식으로 단어를 찾습니다. 검색을 허용한 방이면 게임 중에도 쓸 수 있습니다. 같은 탭의 "수 분석"은 직업 대결을 미리 읽어 봅니다.'
+    },
+    {
+      title: '어디에 무엇이 있나',
+      body: '직업 설명과 직업별 랭킹은 직업 탭, 전체 랭킹과 레이팅 티어표는 랭킹 탭에 있습니다. 도움말·설정·로그아웃은 오른쪽 위 계정 이름을 누르면 나옵니다.'
     }
   ];
 
-  const SITE_HELP_STEPS = [
-    {
-      title: '시작하기',
-      body: '로그인 후 방 목록에서 참가하거나 새 방을 만듭니다. 인원·모드·사전 등을 설정할 수 있고, 대기실에서 봇을 추가할 수도 있습니다.'
-    },
-    {
-      title: '직업 선택',
-      body: '직업 선택 화면에서 직업을 고르면 게임에 참가합니다. 밴 단계가 뜨면 상대가 쓰기 까다로운 직업을 최대 개수만큼 막고 확정합니다.'
-    },
-    {
-      title: '단어 입력',
-      body: '내 차례에는 하단 입력창에 이을 음절로 시작하는 단어를 넣습니다. 첫 단어는 자유지만 첫 수에는 한방과 유도 단어가 제한됩니다.'
-    },
-    {
-      title: '능력 사용',
-      body: '내 직업의 액티브 능력은 입력창 위 버튼으로 사용합니다. 대상이 필요한 능력은 플레이어, 음절, 초성을 고르는 창이 먼저 열립니다.'
-    },
-    {
-      title: '단어 검색',
-      body: '검색 탭이나 게임 중 검색 서랍에서 기*, *차, 기? 같은 식으로 찾습니다. K는 한방, I는 유도, R은 루트, A는 주요 공격 음절 묶음으로 검색할 수 있습니다.'
-    },
-    {
-      title: '투표와 종료',
-      body: '잘못 입력했을 때는 무효 신청을 보내고, 상대가 요청한 투표에는 동의 또는 거절합니다. 더 진행하기 어렵다면 항복 버튼으로 게임을 끝낼 수 있습니다.'
-    },
-    {
-      title: '티어와 직업 정보',
-      body: '전체 랭킹은 랭킹 탭에서 보고, 직업 설명·직업별 랭킹·레이팅 티어표·직업 티어 메이커는 직업 탭에서 확인합니다.'
-    }
-  ];
 
   let nickname = $state('');
   let username = $state('');
@@ -175,7 +126,7 @@
   let showAuthPanel = $state(false);
   let authReady = $state(false);
   let showCreateWizard = $state(false);
-  let wizardStep = $state(0);
+  let createAdvOpen = $state(false);
   let chainMode = $state('end');
   let ruleMode = $state('guerule');
   let duEum = $state(true);
@@ -187,6 +138,7 @@
   let showJoinPassword = $state(false);
   let pendingJoinRoom = $state('');
   let joinPasswordInput = $state('');
+  let joinPasswordEl = $state();
   let showBotSetup = $state(false);
   let showInviteModal = $state(false);
   let waitSettingsOpen = $state(false);
@@ -197,6 +149,8 @@
   let friendAddInput = $state('');
   let friendsBusy = $state(false);
   let botCpuLevel = $state('보통');
+  let botCpuAdvanced = $state(false);
+  let botCpuDepth = $state(5);
   let botCpuThink = $state(false);
   let botCpuJobMode = $state('random');
   let botCpuJob = $state('');
@@ -223,6 +177,9 @@
   let premoveSending = $state(false);
   let premoveAttemptKey = $state('');
   let ability = $state('');
+  /* 서버가 확정한 직업이 진실이고(myJob), selectedJob 은 요청이 오가는 동안만
+     쓰는 임시 표시다. 예전에는 클릭 즉시 selectedJob 을 바꿔 놓고 서버가
+     "이미 직업을 선택하셨습니다"로 거절해, 화면과 실제 상태가 어긋났다. */
   let selectedJob = $state('');
   let selectedBans = $state([]);
   let searchText = $state('');
@@ -230,6 +187,12 @@
   let searchTotal = $state(0);
   let searchFilter = $state('전체');
   let snapshot = $state(null);
+  /* 지금까지 반영한 스냅샷 중 가장 최신의 rev. 이보다 오래된 것은 버린다. */
+  let snapshotRev = 0;
+  /* 마지막으로 서버 상태를 받은 시각. 폴링·웹소켓 어느 쪽이든 갱신한다.
+     끊긴 걸 화면에 알려 주지 않으면 그냥 멈춘 것처럼 보인다. */
+  let lastSyncAt = $state(0);
+  let syncFailed = $state(false);
   let ranking = $state(null);
   let rankMode = $state('overall');
   let rankJob = $state('');
@@ -298,6 +261,9 @@
 
   // DM (Direct Message)
   let showDM = $state(false);
+  let showAcctMenu = $state(false);
+  // 회원가입 직후 한 번만 도움말로 보낸다. 새로고침하면 다시 뜨지 않는다.
+  let justSignedUp = $state(false);
   let dmTarget = $state('');
   let dmInput = $state('');
   let dmMessages = $state([]);
@@ -469,6 +435,11 @@
 
   const notices = $derived(log.filter((item) => item.type === 'system' && !isGuiOnlyNotice(item.text)).slice(-4).reverse());
   const abilityButtons = $derived(ACTIVE_BY_JOB[myState?.job] || []);
+  const visibleHistory = $derived.by(() => {
+    const all = game?.history || [];
+    const offset = Math.max(0, all.length - 14);
+    return all.slice(offset).map((word, i) => ({ word, index: offset + i, key: `${offset + i}:${word}` }));
+  });
   const myAbilityStatuses = $derived(getPlayerAbilitiesStatus(myState?.job, myState));
   const cpuThinkLog = $derived(
     log.filter(item => item.type === 'system' && (
@@ -798,18 +769,37 @@
   const isGeonmatMode = $derived(String(ruleMode).startsWith('geonmat:'));
   const supportsChainPick = $derived(!isGeonmatMode && ['guerule', 'combat', 'card', 'pyohan', 'kkutu'].includes(ruleMode));
   const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
-  const wizardSteps = $derived.by(() => {
-    const steps = ['room', 'mode'];
-    if (supportsChainPick) steps.push('chain');
-    steps.push('dict');
-    if (supportsDuEum) steps.push('dueum');
-    steps.push('options');
-    if (ruleMode === 'guerule') steps.push('jobs');
-    return steps;
+  // 미니게임만 홀수·다인원이 되므로 프리셋도 그때만 넓게 연다.
+  const playerPresets = $derived(isGeonmatMode ? [2, 3, 4, 6, 10, 20] : [2, 4, 6]);
+  // 고급 설정을 접어 둔 채로도 지금 무엇이 걸려 있는지 한 줄로 보인다.
+  const advancedSummary = $derived.by(() => {
+    const bits = [];
+    if (chainMode === 'start') bits.push('앞말잇기');
+    if (dictSource !== 'default') bits.push(dictLabel(dictSource));
+    if (supportsDuEum && !duEum) bits.push('두음 끔');
+    if (!searchAllowed) bits.push('검색 잠금');
+    if (!rated && !isGuest) bits.push('레이팅 미반영');
+    if (timerEnabled) bits.push(`${timerMinutes}분+${timerIncrement}초`);
+    if (roomPassword) bits.push('비밀번호');
+    if (disabledJobs.length) bits.push(`직업 ${disabledJobs.length}개 제한`);
+    return bits.length ? bits.join(' · ') : '기본값';
   });
   const isGuest = $derived(!!user?.isGuest);
+  const connectionStale = $derived(!!room && (syncFailed || (lastSyncAt > 0 && now - lastSyncAt > 8000)));
   const isGueruleRoom = $derived(['guerule', 'combat'].includes(snapshot?.meta?.gameMode || 'guerule'));
   const isRoomHost = $derived(snapshot?.meta?.owner === nickname);
+  // 대기실에 걸린 규칙 요약. 기본값과 다른 것만 눈에 띄게 앞에 온다.
+  const roomRuleChips = $derived.by(() => {
+    const meta = snapshot?.meta || {};
+    const out = [`${requiredPlayers}명`];
+    out.push(meta.chainMode === 'start' ? '앞말잇기' : '끝말잇기');
+    out.push(dictLabel(meta.dictSource || 'default'));
+    if (meta.duEum === false) out.push('두음 끔');
+    out.push(meta.searchAllowed ? '검색 허용' : '검색 불가');
+    out.push(meta.rated === false ? '레이팅 미반영' : '레이팅 반영');
+    out.push(timerState?.enabled ? `${formatClock(timerState.initialSeconds)}+${timerState.incrementSeconds}초` : '타이머 없음');
+    return out;
+  });
   const roomReadyMap = $derived(snapshot?.meta?.ready || {});
   const requiredPlayers = $derived(
     Number(snapshot?.meta?.geonmatPlayerCap) >= 1
@@ -817,6 +807,20 @@
       : Number(snapshot?.meta?.mode || game?.teamMode || mode || 1) * 2
   );
   const isWaitPhase = $derived(!practice && !hasMatched && (!game || game.phase === 'waiting'));
+  let roomCodeCopied = $state(false);
+  let roomCodeTimer;
+  async function copyRoomCode() {
+    if (!room) return;
+    try {
+      await navigator.clipboard.writeText(room);
+      roomCodeCopied = true;
+      clearTimeout(roomCodeTimer);
+      roomCodeTimer = setTimeout(() => { roomCodeCopied = false; }, 1600);
+    } catch {
+      showError('방 코드를 복사하지 못했습니다.');
+    }
+  }
+
   function isCpuPlayerName(name) {
     return /^채린컴퓨터\d*$/.test(String(name || ''));
   }
@@ -836,6 +840,45 @@
   );
   const myReady = $derived(!!roomReadyMap[nickname]);
   const maxBanCount = 6;
+  /* 확정된 내 직업. 이게 있으면 직업 선택은 끝난 것이다. */
+  const myJob = $derived(myState?.job || '');
+  const jobLocked = $derived(!!myJob);
+  const shownJob = $derived(myJob || selectedJob);
+
+  $effect(() => {
+    // 서버가 직업을 확정하면 임시 표시는 지운다.
+    if (myJob && selectedJob && selectedJob !== myJob) selectedJob = '';
+  });
+
+  /* 봇 난이도. 이름 프리셋이 기본이고, 고급을 켜면 D1~D20 을 직접 준다.
+     PRESET_DEPTH 는 서버 src/lib/server/botDifficulty.js 와 같은 값이어야 한다. */
+  const BOT_PRESETS = ['쉬움', '보통', '어려움', '지옥'];
+  /* 봇이 직업을 언제/어떻게 고르는가. 선픽은 먼저 골라 밴 권한을 쓰고,
+     후픽은 내 직업을 보고 대응한다 (원본 드래프트 규칙 그대로). */
+  const BOT_DRAFT_MODES = [
+    ['random', '랜덤'],
+    ['pick', '지정'],
+    ['first', '선픽'],
+    ['last', '후픽']
+  ];
+  const BOT_DRAFT_HINTS = {
+    random: '밴되지 않은 직업 중에서 아무거나 고릅니다.',
+    pick: '지정한 직업으로 고정합니다.',
+    first: '봇이 먼저 고르고 밴 권한을 씁니다. 내 선택지가 좁아집니다.',
+    last: '내 직업을 보고 상성이 좋은 직업으로 맞받습니다.'
+  };
+  const botDraftHint = $derived(BOT_DRAFT_HINTS[botCpuJobMode] || '');
+  const BOT_PRESET_DEPTH = { 쉬움: 1, 보통: 1, 어려움: 3, 지옥: 5 };
+  const BOT_MAX_DEPTH = 20;
+  const botDifficultyValue = $derived(botCpuAdvanced ? `D${botCpuDepth}` : botCpuLevel);
+  const botDepthHint = $derived.by(() => {
+    const d = botCpuDepth;
+    if (d <= 2) return '짧은 단어만 알고 공격 개념이 거의 없습니다';
+    if (d <= 4) return '기본적인 공격 음절을 알아봅니다';
+    if (d <= 7) return '루트단어로 수순을 만듭니다';
+    if (d <= 12) return '강제 승리 수순을 찾아냅니다';
+    return '사전 전체를 알고 깊게 읽습니다';
+  });
 
   $effect(() => {
     const phase = game?.phase ?? '';
@@ -881,9 +924,6 @@
   });
 
   $effect(() => {
-    if (showCreateWizard && wizardStep >= wizardSteps.length) {
-      wizardStep = Math.max(0, wizardSteps.length - 1);
-    }
   });
 
   $effect(() => {
@@ -954,7 +994,6 @@
     }
   }
 
-  const wizardStepKey = $derived(wizardSteps[wizardStep] || 'chain');
 
   function requireLogin() {
     if (user?.nickname && !user.isGuest) return user;
@@ -963,6 +1002,7 @@
   }
 
   async function auth() {
+    const wasSignup = authMode === 'signup';
     const data = await request('/api/auth', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -972,26 +1012,21 @@
     if (user?.nickname) nickname = user.nickname;
     password = '';
     showAuthPanel = false;
+    // 처음 온 사람은 방 목록보다 사용법을 먼저 보는 편이 낫다.
+    if (wasSignup && user?.nickname) {
+      justSignedUp = true;
+      tab = 'help';
+    }
   }
 
   function openCreateWizard() {
     if (!user?.nickname) return;
-    wizardStep = 0;
+    createAdvOpen = false;
     showCreateWizard = true;
   }
 
   function closeCreateWizard() {
     showCreateWizard = false;
-    wizardStep = 0;
-  }
-
-  function wizardNext() {
-    if (wizardStep < wizardSteps.length - 1) wizardStep += 1;
-    else finishCreateWizard();
-  }
-
-  function wizardBack() {
-    if (wizardStep > 0) wizardStep -= 1;
   }
 
   function selectRuleMode(value) {
@@ -1004,19 +1039,6 @@
   function selectChainMode(value) {
     chainMode = value;
     if (value === 'start' && isGeonmatMode) ruleMode = 'guerule';
-  }
-
-  function wizardStepTitle(key) {
-    const map = {
-      room: '방 설정',
-      mode: '게임 모드',
-      chain: '잇기 방향',
-      dict: '사전',
-      dueum: '두음법칙',
-      options: '게임 옵션',
-      jobs: '직업 제한'
-    };
-    return map[key] || '';
   }
 
   function dictLabel(value) {
@@ -1061,11 +1083,11 @@
 
   async function setReadyState(ready) {
     if (!room || !nickname || isRoomHost) return;
-    snapshot = await request('/api/room', {
+    applySnapshot(await request('/api/room', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ action: 'ready', room, ready })
-    });
+    }));
     hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
   }
 
@@ -1118,11 +1140,11 @@
       if (snapshot?.meta?.gameMode === 'pyohan') {
         patch.pyohanLives = Number(pyohanLives);
       }
-      snapshot = await request('/api/room', {
+      applySnapshot(await request('/api/room', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'updateSettings', room, patch })
-      });
+      }));
       roomPassword = '';
       waitSettingsOpen = false;
       hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
@@ -1131,19 +1153,22 @@
     }
   }
 
+  /* 스냅샷이 올 때마다 방 설정을 폼에 복사하면, 방장이 설정 패널을 열어 두고
+     입력하는 중에 2.5초마다 오는 폴링이 입력을 되돌려 버린다. 패널이 닫혀 있을
+     때만 동기화한다 — 열려 있는 동안은 방장의 입력이 진실이다. */
   $effect(() => {
-    if (isWaitPhase && snapshot?.meta) syncWaitSettingsFromSnapshot();
+    if (isWaitPhase && snapshot?.meta && !waitSettingsOpen) syncWaitSettingsFromSnapshot();
   });
 
   async function startGameRoom() {
     if (!room || !isRoomHost) return;
     busy = true;
     try {
-      snapshot = await request('/api/room', {
+      applySnapshot(await request('/api/room', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'start', room })
-      });
+      }));
       hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
     } finally {
       busy = false;
@@ -1163,7 +1188,7 @@
       });
     } catch {}
     room = '';
-    snapshot = null;
+    resetSnapshot();
     hasMatched = false;
     waitSettingsOpen = false;
     tab = 'game';
@@ -1186,7 +1211,7 @@
     user = null;
     nickname = '';
     room = '';
-    snapshot = null;
+    resetSnapshot();
     hasMatched = false;
   }
 
@@ -1222,7 +1247,8 @@
       })
     });
     room = data.room;
-    snapshot = data;
+    snapshotRev = 0;
+    applySnapshot(data, { force: true });
     hasMatched = !!data.game && data.game.phase !== 'waiting';
     startLiveUpdates();
     fetchRoomList();
@@ -1239,7 +1265,8 @@
       body: JSON.stringify({ action: 'join', room: target, password: password || joinPasswordInput })
     });
     room = data.room;
-    snapshot = data;
+    snapshotRev = 0;
+    applySnapshot(data, { force: true });
     hasMatched = !!data.game && data.game.phase !== 'waiting';
     showJoinPassword = false;
     pendingJoinRoom = '';
@@ -1421,6 +1448,8 @@
   function openBotSetup() {
     if (!isRoomHost) return;
     botCpuLevel = '보통';
+    botCpuAdvanced = false;
+    botCpuDepth = BOT_PRESET_DEPTH['보통'];
     botCpuThink = false;
     botCpuJobMode = 'random';
     botCpuJob = '';
@@ -1431,17 +1460,18 @@
     if (!room || !isRoomHost) return;
     busy = true;
     try {
-      snapshot = await request('/api/room', {
+      applySnapshot(await request('/api/room', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           action: 'addBot',
           room,
-          cpuLevel: botCpuLevel,
+          cpuLevel: botDifficultyValue,
           cpuThink: botCpuThink,
-          cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : ''
+          cpuJob: isGueruleRoom && botCpuJobMode === 'pick' ? botCpuJob : '',
+          cpuDraftMode: isGueruleRoom ? botCpuJobMode : 'random'
         })
-      });
+      }));
       showBotSetup = false;
     } finally {
       busy = false;
@@ -1452,9 +1482,11 @@
     if (!targetRoom) return;
     try {
       const res = await fetch(apiUrl(`/api/room?room=${encodeURIComponent(targetRoom)}`), { cache: 'no-store', credentials: 'include' });
-      if (!res.ok || targetRoom !== room) return;
-      snapshot = await res.json();
-    } catch {}
+      if (!res.ok || targetRoom !== room) { syncFailed = !res.ok; return; }
+      applySnapshot(await res.json());
+    } catch {
+      syncFailed = true;
+    }
   }
 
   function startPolling() {
@@ -1467,7 +1499,7 @@
     if (!targetRoom) return;
     room = targetRoom;
     hasMatched = false;
-    snapshot = null;
+    resetSnapshot();
     await refresh(targetRoom);
     hasMatched = !!snapshot?.game && snapshot.game.phase !== 'waiting';
     startLiveUpdates();
@@ -1494,8 +1526,7 @@
         socket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data?.room && data.room !== room) return;
-            snapshot = data;
+            applySnapshot(data);
           } catch {}
         };
         socket.onerror = () => {};
@@ -1562,13 +1593,53 @@
     }
   });
 
+  /**
+   * 스냅샷 반영. 폴링(2.5초) · 웹소켓 푸시 · 명령 응답이 각각 도착하는데
+   * 순서 보장이 없다. 명령을 보내기 전에 출발한 폴링이 뒤늦게 오면 방금 반영한
+   * 결과를 옛 상태로 덮어써 화면이 되돌아갔다 — "서버가 불안정하다"의 큰 몫이다.
+   * 더 오래된 rev 는 버린다. 방을 옮겼을 때는 rev 를 리셋한다.
+   */
+  function applySnapshot(next, { force = false } = {}) {
+    if (!next) return false;
+    if (next.room && room && next.room !== room) return false;
+    const rev = Number(next.rev) || 0;
+    if (!force && rev && snapshotRev && rev < snapshotRev) return false;
+    if (rev) snapshotRev = rev;
+    snapshot = next;
+    lastSyncAt = Date.now();
+    syncFailed = false;
+    return true;
+  }
+
+  function resetSnapshot() {
+    snapshot = null;
+    snapshotRev = 0;
+  }
+
   async function send(commandText) {
     if (!room || !commandText.trim() || !user?.nickname) return;
-    snapshot = await request('/api/action', {
+    applySnapshot(await request('/api/action', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ room, command: commandText.trim() })
-    });
+    }));
+  }
+
+  /**
+   * 직업 선택. job 이 비면 랜덤.
+   * 이미 확정된 직업이 있으면 아예 보내지 않는다 — 보내 봐야 서버가
+   * "이미 직업을 선택하셨습니다"로 거절하고, 그 사이 화면만 바뀌어
+   * 눌리는 것처럼 보였다가 되돌아간다.
+   */
+  async function pickJob(job) {
+    if (busy || jobLocked || isBanWaiting) return;
+    const target = String(job || '').trim();
+    selectedJob = target;
+    try {
+      await send(target ? `1ㅈㅅ ${target}` : '1ㅈㅅㄹㄷ');
+    } finally {
+      selectedJob = '';
+    }
   }
 
   // 왜 지금 둘 수 없는지 한 줄로 설명한다. 이유를 안 알려주면 입력이
@@ -1700,11 +1771,6 @@
       tick().then(() => { chatEl.scrollTop = chatEl.scrollHeight; });
     }
   });
-
-  async function sendAbility() {
-    await send(`2${ability}`);
-    ability = '';
-  }
 
   function isGuiOnlyNotice(text) {
     const value = String(text || '');
@@ -1870,7 +1936,7 @@
   async function startPractice() {
     showPracticeBar = false;
     room = '';
-    snapshot = null;
+    resetSnapshot();
     hasMatched = false;
     practice = true;
     await create();
@@ -2024,6 +2090,31 @@
     return cards.length ? cards : [{ name: '직업 설명', meta: [], lines: withoutTitle.split(/\n+/).map((line) => line.trim()).filter(Boolean) }];
   }
 
+  $effect(() => {
+    if (showJoinPassword && joinPasswordEl) tick().then(() => joinPasswordEl?.focus());
+  });
+
+  // Escape closes the top-most overlay, in the order they stack.
+  function handleGlobalKeydown(event) {
+    if (event.key !== 'Escape') return;
+    if (showTargetSelector) { showTargetSelector = null; return; }
+    if (matchResult) { matchResult = null; return; }
+    if (showBotSetup) { showBotSetup = false; return; }
+    if (showInviteModal) { showInviteModal = false; return; }
+    if (showJoinPassword) { showJoinPassword = false; pendingJoinRoom = ''; return; }
+    if (showCreateWizard) { closeCreateWizard(); return; }
+    if (showAcctMenu) { showAcctMenu = false; return; }
+    if (showDM) { showDM = false; return; }
+    if (showChat) { showChat = false; }
+  }
+
+  // 계정 메뉴는 바깥을 누르면 닫힌다. 안 그러면 열어 놓고 다른 걸 누를 때 걸리적거린다.
+  function handleGlobalPointerDown(event) {
+    if (!showAcctMenu) return;
+    if (event.target?.closest?.('.acct')) return;
+    showAcctMenu = false;
+  }
+
   function hideBrokenImage(event) {
     event.currentTarget.hidden = true;
   }
@@ -2037,14 +2128,23 @@
   if (browser) loadMe();
 </script>
 
+<svelte:window onkeydown={handleGlobalKeydown} onpointerdown={handleGlobalPointerDown} />
+
 <svelte:head>
-  <title>채린룰</title>
+  <title>채끄</title>
+  <meta name="description" content="채끄 — 채린룰과 끄투 끝말잇기를 웹과 앱에서. 직업 능력, 단어 검색, 레이팅 랭킹까지 한 곳에서." />
 </svelte:head>
 
 <div class="app">
   {#if error}
     <div class="toast-error" role="alert">
       <span class="toast-dot"></span>{error}
+    </div>
+  {/if}
+
+  {#if connectionStale}
+    <div class="toast-offline" role="status">
+      <span class="toast-dot"></span>연결이 끊겼습니다 · 다시 연결하는 중
     </div>
   {/if}
 
@@ -2060,7 +2160,7 @@
       <div class="auth-gate-card">
         <div class="auth-gate-brand">
           <span class="brand-gem">◆</span>
-          <h1>채린룰</h1>
+          <h1>채끄</h1>
           <p>로그인 후 이용할 수 있습니다</p>
         </div>
         <div class="auth-panel-tabs auth-gate-tabs">
@@ -2080,41 +2180,65 @@
   <!-- ══════════════════════ TOPBAR ══════════════════════ -->
   <header class="topbar">
     <button class="brand" onclick={() => (tab = 'game')} type="button">
-      <span class="brand-gem">◆</span>채린룰
+      <span class="brand-gem">◆</span>채끄
     </button>
-    <nav class="top-nav top-nav-primary">
-      <button class="nav-btn" class:nav-active={tab === 'game'} onclick={() => (tab = 'game')}>
-        <Swords size={15} />게임
+    <nav class="top-nav" aria-label="주요 메뉴">
+      <button type="button" class="nav-btn" class:nav-active={tab === 'game'} aria-current={tab === 'game' ? 'page' : undefined} onclick={() => (tab = 'game')}>
+        <Swords size={15} /><span>게임</span>
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'search'} onclick={() => (tab = 'search')}>
-        <Search size={15} />검색
+      <button type="button" class="nav-btn" class:nav-active={tab === 'search' || tab === 'analysis'} aria-current={tab === 'search' || tab === 'analysis' ? 'page' : undefined} onclick={() => (tab = 'search')}>
+        <Search size={15} /><span>검색</span>
       </button>
-      <button class="nav-btn" class:nav-active={tab === 'jobs'} onclick={() => openJobsTab()}>
-        <BriefcaseBusiness size={15} />직업
+      <button type="button" class="nav-btn" class:nav-active={tab === 'jobs'} aria-current={tab === 'jobs' ? 'page' : undefined} onclick={() => openJobsTab()}>
+        <BriefcaseBusiness size={15} /><span>직업</span>
       </button>
       {#if !isGuest}
-        <button class="nav-btn" class:nav-active={tab === 'rank'} onclick={() => { tab = 'rank'; loadRanking(); }}>
-          <BarChart3 size={15} />랭킹
+        <button type="button" class="nav-btn" class:nav-active={tab === 'rank'} aria-current={tab === 'rank' ? 'page' : undefined} onclick={() => { tab = 'rank'; loadRanking(); }}>
+          <BarChart3 size={15} /><span>랭킹</span>
         </button>
       {/if}
     </nav>
-    <nav class="top-nav top-nav-secondary">
-      <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'help'} onclick={() => (tab = 'help')}>
-        <BookOpen size={15} /><span class="nav-label">도움말</span>
-      </button>
-      <button class="nav-btn nav-btn-ghost" class:nav-active={tab === 'settings'} onclick={() => { tab = 'settings'; fetchFriends(); }}>
-        <Settings size={15} /><span class="nav-label">설정</span>
-      </button>
-    </nav>
     <div class="top-auth">
+      {#if room && !isGuest}
+        <button type="button" class="icon-btn" class:icon-btn-on={showChat} onclick={() => (showChat = !showChat)} title="방 채팅" aria-label="방 채팅" aria-pressed={showChat}>
+          <MessageSquare size={16} />
+        </button>
+      {/if}
       {#if !isGuest}
-        <button class="icon-btn" class:dm-unread={dmInbox.length > 0} onclick={() => (showDM = !showDM)} title="쪽지">
+        <button type="button" class="icon-btn" class:dm-unread={dmInbox.length > 0} onclick={() => (showDM = !showDM)} title="쪽지" aria-label={dmInbox.length ? `쪽지 ${dmInbox.length}건` : '쪽지'}>
           <Mail size={16} />
           {#if dmInbox.length > 0}<span class="dm-badge">{dmInbox.length}</span>{/if}
         </button>
       {/if}
-      <span class="auth-name">{user.nickname}</span>
-      <button class="icon-btn" onclick={signout} title="로그아웃"><LogOut size={16} /></button>
+      <!-- 계정 메뉴. 도움말·설정·로그아웃처럼 자주 안 쓰는 것을 여기 모은다. -->
+      <div class="acct">
+        <button
+          type="button"
+          class="auth-chip"
+          class:auth-chip-on={showAcctMenu}
+          onclick={() => (showAcctMenu = !showAcctMenu)}
+          aria-haspopup="menu"
+          aria-expanded={showAcctMenu}
+          title={user.nickname}
+        >
+          <span class="auth-avatar" aria-hidden="true">{user.nickname?.[0] ?? '?'}</span>
+          <span class="auth-name">{user.nickname}</span>
+          <ChevronDown size={14} />
+        </button>
+        {#if showAcctMenu}
+          <div class="acct-menu" role="menu">
+            <button type="button" role="menuitem" class="acct-item" onclick={() => { tab = 'help'; showAcctMenu = false; }}>
+              <BookOpen size={15} />도움말
+            </button>
+            <button type="button" role="menuitem" class="acct-item" onclick={() => { tab = 'settings'; fetchFriends(); showAcctMenu = false; }}>
+              <Settings size={15} />설정
+            </button>
+            <button type="button" role="menuitem" class="acct-item acct-item-danger" onclick={() => { showAcctMenu = false; signout(); }}>
+              <LogOut size={15} />로그아웃
+            </button>
+          </div>
+        {/if}
+      </div>
     </div>
   </header>
 
@@ -2124,61 +2248,85 @@
     {#if !room}
       <!-- ─── LOBBY ─── -->
       <div class="lobby-hub">
-        <div class="lobby-bar">
-          <button class="lobby-create-btn" onclick={openCreateWizard} disabled={busy}>
-            <Plus size={16} />방 만들기
-          </button>
-        </div>
-
-        {#if roomInvites.length > 0}
-          <div class="lobby-chips">
-            {#each roomInvites as inv}
-              <div class="lobby-chip lobby-chip-invite">
-                <span>{inv.from} · {inv.roomName || '방'}</span>
-                <button class="chip-btn" onclick={() => joinFromInvite(inv)} disabled={busy}>참가</button>
-                <button class="chip-btn chip-btn-ghost" onclick={() => dismissRoomInvite(inv)} disabled={busy}>×</button>
-              </div>
-            {/each}
-          </div>
-        {/if}
-
-        {#if ongoingGames.length > 0}
-          <div class="lobby-chips">
-            {#each ongoingGames as g}
-              <button class="lobby-chip" onclick={() => openExistingRoom(g.room)}>
-                {g.room} · {g.phase === 'playing' ? '게임 중' : '대기'}
-              </button>
-            {/each}
-          </div>
-        {/if}
-
-        <div class="room-grid">
-          {#if roomList.length}
-            {#each roomList as r}
-              {@const mode = r.meta?.gameMode || 'guerule'}
-              <button class="room-tile" onclick={() => openListedRoom(r)} disabled={busy}>
-                <div class="room-tile-row">
-                  <span class="room-tile-name">{r.name || ruleModeLabel(mode)}</span>
-                  {#if r.hasPassword}<span>🔒</span>{/if}
-                  <span class="room-tile-count">{(r.players || []).length}/{r.requiredPlayers || 2}</span>
-                </div>
-                <div class="room-tile-row room-tile-sub">
-                  <span>{ruleModeLabel(mode)}</span>
-                  <span>{roomPhaseLabel(r.phase)}</span>
-                </div>
-              </button>
-            {/each}
-          {:else}
-            <div class="room-empty-state">
-              <p>열린 방 없음</p>
-              <button class="accent-btn" onclick={openCreateWizard}>방 만들기</button>
+        <div class="lobby-inner">
+          <div class="lobby-bar">
+            <div class="lobby-heading">
+              <h1>게임 방</h1>
+              <p>{roomList.length ? `${roomList.length}개의 방이 열려 있습니다` : '아직 열린 방이 없습니다'}</p>
             </div>
+            <button type="button" class="lobby-create-btn" onclick={openCreateWizard} disabled={busy}>
+              <Plus size={16} />방 만들기
+            </button>
+          </div>
+
+          {#if roomInvites.length > 0}
+            <section class="lobby-section">
+              <h2 class="lobby-section-label">받은 초대</h2>
+              <div class="lobby-chips">
+                {#each roomInvites as inv}
+                  <div class="lobby-chip lobby-chip-invite">
+                    <span class="lobby-chip-text">{inv.from} · {inv.roomName || '방'}</span>
+                    <button type="button" class="chip-btn" onclick={() => joinFromInvite(inv)} disabled={busy}>참가</button>
+                    <button type="button" class="chip-btn chip-btn-ghost" onclick={() => dismissRoomInvite(inv)} disabled={busy} aria-label="초대 지우기">×</button>
+                  </div>
+                {/each}
+              </div>
+            </section>
           {/if}
+
+          {#if ongoingGames.length > 0}
+            <section class="lobby-section">
+              <h2 class="lobby-section-label">참여 중인 게임</h2>
+              <div class="lobby-chips">
+                {#each ongoingGames as g}
+                  <button type="button" class="lobby-chip lobby-chip-action" onclick={() => openExistingRoom(g.room)}>
+                    <span class="lobby-chip-text">{g.room}</span>
+                    <span class="lobby-chip-tag" class:is-live={g.phase === 'playing'}>{g.phase === 'playing' ? '게임 중' : '대기'}</span>
+                  </button>
+                {/each}
+              </div>
+            </section>
+          {/if}
+
+          <section class="lobby-section lobby-section-grow">
+            <div class="room-grid">
+              {#if roomList.length}
+                {#each roomList as r}
+                  {@const mode = r.meta?.gameMode || 'guerule'}
+                  {@const count = (r.players || []).length}
+                  {@const cap = r.requiredPlayers || 2}
+                  <button type="button" class="room-tile" onclick={() => openListedRoom(r)} disabled={busy}>
+                    <span class="room-tile-head">
+                      <span class="room-tile-name">{r.name || ruleModeLabel(mode)}</span>
+                      {#if r.hasPassword}<span class="room-tile-lock" title="비밀번호 필요" aria-label="비밀번호 필요">🔒</span>{/if}
+                    </span>
+                    <span class="room-tile-meta">
+                      <span class="room-tile-mode">{ruleModeLabel(mode)}</span>
+                      <span class="room-tile-phase" class:is-live={r.phase === 'playing'}>{roomPhaseLabel(r.phase)}</span>
+                    </span>
+                    <span class="room-tile-foot">
+                      <span class="room-tile-bar" aria-hidden="true">
+                        <span class="room-tile-bar-fill" style={`width:${Math.min(100, Math.round((count / cap) * 100))}%`}></span>
+                      </span>
+                      <span class="room-tile-count">{count}<span>/{cap}</span></span>
+                    </span>
+                  </button>
+                {/each}
+              {:else}
+                <div class="room-empty-state">
+                  <span class="room-empty-gem">◆</span>
+                  <p>열려 있는 방이 없습니다.</p>
+                  <small>새 방을 만들어 친구를 초대해 보세요.</small>
+                  <button type="button" class="accent-btn" onclick={openCreateWizard}>방 만들기</button>
+                </div>
+              {/if}
+            </div>
+          </section>
         </div>
       </div>
 
       {#if showJoinPassword}
-        <div class="wizard-overlay" role="dialog" aria-label="비밀번호 입력">
+        <div class="wizard-overlay" role="dialog" aria-modal="true" aria-label="비밀번호 입력">
           <div class="wizard-card wizard-card-sm">
             <div class="wizard-head">
               <div class="wizard-head-main">
@@ -2186,10 +2334,10 @@
                 <h2>입장 비밀번호</h2>
                 <p class="wizard-join-hint">선택한 방에 입장하려면 비밀번호를 입력하세요.</p>
               </div>
-              <button class="wizard-close" onclick={() => { showJoinPassword = false; pendingJoinRoom = ''; }}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={() => { showJoinPassword = false; pendingJoinRoom = ''; }} aria-label="닫기"><X size={18} /></button>
             </div>
             <form class="wizard-body wizard-join-form" onsubmit={(e) => { e.preventDefault(); confirmJoinPassword(); }}>
-              <input class="auth-panel-input" type="password" bind:value={joinPasswordInput} placeholder="비밀번호" autofocus />
+              <input class="auth-panel-input" type="password" bind:this={joinPasswordEl} bind:value={joinPasswordInput} placeholder="비밀번호" />
               <button class="accent-btn" type="submit" disabled={busy || !joinPasswordInput.trim()}>입장</button>
             </form>
           </div>
@@ -2197,54 +2345,17 @@
       {/if}
 
       {#if showCreateWizard}
-        <div class="wizard-overlay" role="dialog" aria-label="방 만들기">
+        <div class="wizard-overlay" role="dialog" aria-modal="true" aria-label="방 만들기">
           <div class="wizard-card">
             <div class="wizard-head">
-              <div class="wizard-head-main">
-                <span class="panel-kicker">STEP {wizardStep + 1} / {wizardSteps.length}</span>
-                <h2>{wizardStepTitle(wizardStepKey)}</h2>
-                <div class="wizard-progress" aria-hidden="true">
-                  {#each wizardSteps as step, i}
-                    <span class="wizard-progress-dot" class:wizard-progress-done={i < wizardStep} class:wizard-progress-current={i === wizardStep}></span>
-                  {/each}
-                </div>
-              </div>
-              <button class="wizard-close" onclick={closeCreateWizard}><X size={18} /></button>
+              <h2>방 만들기</h2>
+              <button type="button" class="wizard-close" onclick={closeCreateWizard} aria-label="닫기"><X size={18} /></button>
             </div>
 
             <div class="wizard-body">
-              {#if wizardStepKey === 'room'}
-                <div class="wizard-extras">
-                  <label class="wizard-field">
-                    <span>방 이름</span>
-                    <input class="lobby-input" bind:value={roomName} placeholder="예: 친선전, 연습방" maxlength="32" />
-                  </label>
-                  <label class="wizard-field">
-                    <span>비밀번호 (선택)</span>
-                    <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
-                  </label>
-                  <div class="wizard-field">
-                    <span>인원</span>
-                    <div class="player-slider-block">
-                      <div class="player-slider-value">
-                        <strong>{playerCount}</strong>
-                        <span>명</span>
-                      </div>
-                      <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}`} />
-                      <div class="player-slider-quick">
-                        {#each [2, 4, 6, 10, 20] as preset}
-                          <button type="button" class="player-slider-preset" class:player-slider-preset-active={playerCount === preset} onclick={() => (playerCount = preset)}>
-                            {preset}
-                          </button>
-                        {/each}
-                      </div>
-                    </div>
-                    <span class="wizard-field-hint">일반 모드는 짝수(2·4·6)로 맞춰지고, 미니게임은 홀수도 가능합니다.</span>
-                  </div>
-                </div>
-              {:else if wizardStepKey === 'mode'}
-                <p class="wizard-hint">미니게임은 끝말잇기만 지원합니다.</p>
-                <div class="wizard-choice-grid wizard-choice-grid-3">
+              <div class="create-field">
+                <span class="create-label">게임 모드</span>
+                <div class="mode-grid">
                   {#each [
                     ['guerule', '채린룰', '직업·능력'],
                     ['combat', '조합', '능력 드래프트'],
@@ -2256,110 +2367,128 @@
                     ['geonmat:bingo', '빙고맞', '3×3 빙고'],
                     ['geonmat:relay', '이어달리기', '다단 경로']
                   ] as [value, title, desc]}
-                    <button class="wizard-choice" class:wizard-choice-active={ruleMode === value} onclick={() => selectRuleMode(value)}>
+                    <button type="button" class="mode-tile" class:mode-tile-on={ruleMode === value} onclick={() => selectRuleMode(value)}>
                       <strong>{title}</strong>
                       <span>{desc}</span>
                     </button>
                   {/each}
                 </div>
-              {:else if wizardStepKey === 'chain'}
-                <div class="wizard-choice-grid">
-                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'end'} onclick={() => selectChainMode('end')}>
-                    <strong>끝말잇기</strong>
-                    <span>마지막 글자로 이어 말합니다</span>
-                  </button>
-                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'start'} onclick={() => selectChainMode('start')}>
-                    <strong>앞말잇기</strong>
-                    <span>첫 글자로 끝나는 단어를 냅니다</span>
-                  </button>
+              </div>
+
+              <div class="create-row">
+                <label class="create-field">
+                  <span class="create-label">방 이름</span>
+                  <input class="lobby-input" bind:value={roomName} placeholder="예: 친선전, 연습방" maxlength="32" />
+                </label>
+                <div class="create-field">
+                  <span class="create-label">인원 · <b>{playerCount}명</b></span>
+                  <div class="count-row">
+                    {#each playerPresets as preset}
+                      <button type="button" class="count-btn" class:count-btn-on={playerCount === preset} onclick={() => (playerCount = preset)}>{preset}</button>
+                    {/each}
+                    {#if isGeonmatMode}
+                      <input class="count-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} aria-label="인원" />
+                    {/if}
+                  </div>
                 </div>
-              {:else if wizardStepKey === 'dict'}
-                <div class="wizard-choice-grid wizard-choice-grid-3">
-                  {#each [
-                    ['default', '구엜룰'],
-                    ['urimalsam', '우리말샘'],
-                    ['roble', '로블'],
-                    ['jime', '지메'],
-                    ['kkutu', '끄투']
-                  ] as [value, title]}
-                    {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
-                    <button
-                      class="wizard-choice"
-                      class:wizard-choice-active={dictSource === value}
-                      class:wizard-choice-disabled={locked}
-                      onclick={() => { if (!locked) dictSource = value; }}
-                      disabled={locked}
-                    >
-                      <strong>{title}</strong>
-                      {#if locked}<span>끄투 모드 전용</span>{/if}
-                    </button>
-                  {/each}
-                </div>
-              {:else if wizardStepKey === 'dueum'}
-                <div class="wizard-choice-grid">
-                  <button class="wizard-choice" class:wizard-choice-active={duEum} onclick={() => (duEum = true)}>
-                    <strong>두음법칙 켬</strong>
-                    <span>라→나, 로→노 등 허용</span>
-                  </button>
-                  <button class="wizard-choice" class:wizard-choice-active={!duEum} onclick={() => (duEum = false)}>
-                    <strong>두음법칙 끔</strong>
-                    <span>표기 그대로만 이어갑니다</span>
-                  </button>
-                </div>
-              {:else if wizardStepKey === 'options'}
-                <div class="wizard-extras">
-                  <label class="practice-toggle">
-                    <input type="checkbox" bind:checked={searchAllowed} />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    게임 중 검색 허용
+              </div>
+
+              <details class="create-adv" bind:open={createAdvOpen}>
+                <summary>
+                  <span>고급 설정</span>
+                  <span class="create-adv-sum">{advancedSummary}</span>
+                </summary>
+
+                <div class="create-adv-body">
+                  <label class="create-field">
+                    <span class="create-label">비밀번호 (선택)</span>
+                    <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
                   </label>
-                  {#if !isGuest}
-                    <label class="practice-toggle">
-                      <input type="checkbox" bind:checked={rated} />
-                      <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                      레이팅 반영
-                    </label>
-                  {/if}
-                  <label class="practice-toggle">
-                    <input type="checkbox" bind:checked={timerEnabled} />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    체스식 타이머
-                  </label>
-                  {#if timerEnabled}
-                    <div class="timer-row">
-                      <label><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
-                      <label><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+
+                  {#if supportsChainPick}
+                    <div class="create-field">
+                      <span class="create-label">잇기 방향</span>
+                      <div class="seg">
+                        <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'end'} onclick={() => selectChainMode('end')}>끝말잇기</button>
+                        <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'start'} onclick={() => selectChainMode('start')}>앞말잇기</button>
+                      </div>
                     </div>
                   {/if}
-                  {#if ruleMode === 'pyohan'}
-                    <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
+
+                  <div class="create-field">
+                    <span class="create-label">사전</span>
+                    <div class="seg">
+                      {#each [['default', '구엜룰'], ['urimalsam', '우리말샘'], ['roble', '로블'], ['jime', '지메'], ['kkutu', '끄투']] as [value, title]}
+                        {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
+                        <button type="button" class="seg-btn" class:seg-btn-on={dictSource === value} disabled={locked} onclick={() => (dictSource = value)}>{title}</button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <div class="create-toggles">
+                    {#if supportsDuEum}
+                      <label class="practice-toggle">
+                        <input type="checkbox" bind:checked={duEum} />
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        두음법칙 (라→나)
+                      </label>
+                    {/if}
+                    <label class="practice-toggle">
+                      <input type="checkbox" bind:checked={searchAllowed} />
+                      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                      게임 중 검색 허용
+                    </label>
+                    {#if !isGuest}
+                      <label class="practice-toggle">
+                        <input type="checkbox" bind:checked={rated} />
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        레이팅 반영
+                      </label>
+                    {/if}
+                    <label class="practice-toggle">
+                      <input type="checkbox" bind:checked={timerEnabled} />
+                      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                      체스식 타이머
+                    </label>
+                  </div>
+
+                  {#if timerEnabled || ruleMode === 'pyohan' || isGeonmatMode}
+                    <div class="create-nums">
+                      {#if timerEnabled}
+                        <label class="setting-inline"><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
+                        <label class="setting-inline"><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+                      {/if}
+                      {#if ruleMode === 'pyohan'}
+                        <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
+                      {/if}
+                      {#if isGeonmatMode}
+                        <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
+                      {/if}
+                    </div>
                   {/if}
-                  {#if isGeonmatMode}
-                    <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
+
+                  {#if ruleMode === 'guerule'}
+                    <div class="disabled-job-box">
+                      <div class="disabled-job-head">
+                        <span><Ban size={14} />선택 불가 직업</span>
+                        {#if disabledJobs.length}<button class="tiny-btn" onclick={() => (disabledJobs = [])}>초기화</button>{/if}
+                      </div>
+                      <div class="disabled-job-grid">
+                        {#each availableJobs as job}
+                          <button class="disable-job-chip" class:djc-active={disabledJobs.includes(job)} onclick={() => toggleDisabledJob(job)}>
+                            {job}
+                          </button>
+                        {/each}
+                      </div>
+                    </div>
                   {/if}
                 </div>
-              {:else}
-                <div class="disabled-job-box">
-                  <div class="disabled-job-head">
-                    <span><Ban size={14} />선택 불가 직업</span>
-                    {#if disabledJobs.length}<button class="tiny-btn" onclick={() => (disabledJobs = [])}>초기화</button>{/if}
-                  </div>
-                  <div class="disabled-job-grid">
-                    {#each availableJobs as job}
-                      <button class="disable-job-chip" class:djc-active={disabledJobs.includes(job)} onclick={() => toggleDisabledJob(job)}>
-                        {job}
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
+              </details>
             </div>
 
             <div class="wizard-foot">
-              <button class="ghost-btn" onclick={wizardBack} disabled={wizardStep === 0}>이전</button>
-              <button class="accent-btn" onclick={wizardNext}>
-                {wizardStep >= wizardSteps.length - 1 ? '방 만들기' : '다음'}
-              </button>
+              <button class="ghost-btn" onclick={closeCreateWizard}>취소</button>
+              <button class="accent-btn" onclick={finishCreateWizard} disabled={busy}>방 만들기</button>
             </div>
           </div>
         </div>
@@ -2373,12 +2502,17 @@
             <span class="wait-room-kicker">대기실</span>
             <h2 class="wait-room-title">{snapshot?.meta?.name || '게임 방'}</h2>
             <span class="wait-room-mode">{ruleModeLabel(snapshot?.meta?.gameMode || 'guerule')}</span>
+            <button type="button" class="wait-room-code" onclick={copyRoomCode} title="방 코드 복사">
+              <span>방 코드</span>
+              <strong>{room}</strong>
+              <span class="wait-room-copy">{roomCodeCopied ? '복사됨' : '복사'}</span>
+            </button>
           </div>
           <div class="wait-room-rules">
             <div class="wait-rules-head">
               <h3>방 설정</h3>
               {#if isRoomHost}
-                <button class="wait-settings-toggle" onclick={() => (waitSettingsOpen = !waitSettingsOpen)}>
+                <button type="button" class="wait-settings-toggle" onclick={() => { if (!waitSettingsOpen) syncWaitSettingsFromSnapshot(); waitSettingsOpen = !waitSettingsOpen; }}>
                   {waitSettingsOpen ? '닫기' : '변경'}
                 </button>
               {/if}
@@ -2396,12 +2530,12 @@
                 </label>
                 <div class="wizard-field">
                   <span>인원 ({playerCount}명)</span>
-                  <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}`} />
+                  <input class="count-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} />
                 </div>
                 {#if !String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')}
-                  <div class="wait-settings-row">
-                    <button class="mode-btn" class:mode-active={chainMode === 'end'} onclick={() => (chainMode = 'end')}>끝말잇기</button>
-                    <button class="mode-btn" class:mode-active={chainMode === 'start'} onclick={() => (chainMode = 'start')}>앞말잇기</button>
+                  <div class="seg">
+                    <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'end'} onclick={() => (chainMode = 'end')}>끝말잇기</button>
+                    <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'start'} onclick={() => (chainMode = 'start')}>앞말잇기</button>
                   </div>
                   <label class="wizard-field">
                     <span>사전</span>
@@ -2466,15 +2600,10 @@
                 <button class="accent-btn" onclick={saveWaitSettings} disabled={busy}>설정 저장</button>
               </div>
             {:else}
-              <ul>
-                <li><span>잇기</span><strong>{snapshot?.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</strong></li>
-                <li><span>사전</span><strong>{dictLabel(snapshot?.meta?.dictSource || 'default')}</strong></li>
-                <li><span>두음</span><strong>{snapshot?.meta?.duEum === false ? '끔' : '켬'}</strong></li>
-                <li><span>인원</span><strong>{requiredPlayers}명</strong></li>
-                <li><span>검색</span><strong>{snapshot?.meta?.searchAllowed ? '허용' : '불가'}</strong></li>
-                <li><span>레이팅</span><strong>{snapshot?.meta?.rated === false ? '미반영' : '반영'}</strong></li>
-                <li><span>타이머</span><strong>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '없음'}</strong></li>
-              </ul>
+              <!-- 7줄짜리 표였다. 읽기만 하는 값이라 칩 한 뭉치로 충분하다. -->
+              <div class="wait-rule-chips">
+                {#each roomRuleChips as chip}<span class="wait-rule-chip">{chip}</span>{/each}
+              </div>
             {/if}
           </div>
           {#if isRoomHost}
@@ -2505,22 +2634,22 @@
                   </div>
                   <div class="wait-player-status" class:ready={roomReadyMap[player] || snapshot?.meta?.owner === player} class:cpu={isCpuPlayerName(player)}>
                     {#if isCpuPlayerName(player)}
-                      봇
+                      봇 참가 완료
                     {:else if snapshot?.meta?.owner === player}
-                      방장
+                      시작 대기 중
                     {:else if roomReadyMap[player]}
-                      준비
+                      준비 완료
                     {:else}
-                      대기
+                      준비 중
                     {/if}
                   </div>
                 {:else if isRoomHost}
                   <div class="wait-slot-actions">
-                    <button class="wait-slot-primary" onclick={openInviteModal} disabled={busy}>
+                    <button type="button" class="wait-slot-primary" onclick={openInviteModal} disabled={busy}>
                       <UserRoundPlus size={20} />
                       <span>플레이어 초대</span>
                     </button>
-                    <button class="wait-slot-secondary" onclick={openBotSetup} disabled={busy}>
+                    <button type="button" class="wait-slot-secondary" onclick={openBotSetup} disabled={busy}>
                       <Bot size={16} />
                       <span>봇 추가</span>
                     </button>
@@ -2537,43 +2666,28 @@
 
           <div class="wait-room-actions">
             {#if isRoomHost}
-              <button class="accent-btn wait-start" onclick={startGameRoom} disabled={busy || !canStartGame}>
+              <button type="button" class="accent-btn wait-start" onclick={startGameRoom} disabled={busy || !canStartGame}>
                 시작
               </button>
+              {#if !canStartGame}
+                <span class="wait-start-hint">모든 인원이 모이고 준비해야 시작할 수 있습니다</span>
+              {/if}
             {:else if (game?.players || []).includes(nickname)}
-              <div class="wait-ready-group">
-                <button class="wait-ready-btn" class:wait-ready-active={myReady} onclick={() => setReadyState(true)} disabled={busy || myReady}>
+              <div class="wait-ready-group" role="group" aria-label="준비 상태">
+                <button type="button" class="wait-ready-btn" class:wait-ready-active={myReady} onclick={() => setReadyState(true)} disabled={busy || myReady}>
                   준비
                 </button>
-                <button class="wait-ready-btn" class:wait-ready-active={!myReady} onclick={() => setReadyState(false)} disabled={busy || !myReady}>
+                <button type="button" class="wait-ready-btn" class:wait-ready-active={!myReady} onclick={() => setReadyState(false)} disabled={busy || !myReady}>
                   대기
                 </button>
               </div>
             {/if}
-            <button class="ghost-btn wait-leave-inline" onclick={leaveCurrentRoom} disabled={busy}>방 나가기</button>
-            <button class="ghost-btn" onclick={() => (showChat = !showChat)} disabled={isGuest}>
-              <MessageSquare size={15} />{showChat ? '채팅 닫기' : '채팅'}
-            </button>
           </div>
-
-          {#if showChat && !isGuest}
-            <div class="wait-chat">
-              <div class="wait-chat-log" bind:this={chatEl}>
-                {#each chats as c (c.id)}
-                  <div class="wait-chat-line"><strong>{c.sender}</strong> {c.text}</div>
-                {/each}
-              </div>
-              <form class="wait-chat-form" onsubmit={sendChat}>
-                <input bind:value={chatInput} placeholder="대기실 채팅..." />
-                <button type="submit"><Send size={14} /></button>
-              </form>
-            </div>
-          {/if}
         </main>
       </div>
 
       {#if showInviteModal}
-        <div class="wizard-overlay" role="dialog" aria-label="플레이어 초대">
+        <div class="wizard-overlay" role="dialog" aria-modal="true" aria-label="플레이어 초대">
           <div class="wizard-card wizard-card-sm invite-modal">
             <div class="wizard-head">
               <div class="wizard-head-main">
@@ -2581,7 +2695,7 @@
                 <h2>플레이어 초대</h2>
                 <p class="wizard-join-hint">친구에게 초대를 보내거나 새 친구를 추가하세요.</p>
               </div>
-              <button class="wizard-close" onclick={() => (showInviteModal = false)}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={() => (showInviteModal = false)} aria-label="닫기"><X size={18} /></button>
             </div>
             <div class="wizard-body invite-modal-body">
               <form class="friend-add-row" onsubmit={(e) => { e.preventDefault(); addFriend(); }}>
@@ -2631,23 +2745,54 @@
       {/if}
 
       {#if showBotSetup}
-        <div class="wizard-overlay" role="dialog" aria-label="봇 설정">
+        <div class="wizard-overlay" role="dialog" aria-modal="true" aria-label="봇 설정">
           <div class="wizard-card wizard-card-sm">
             <div class="wizard-head">
               <div>
                 <h2>봇 추가</h2>
                 <p>채린컴퓨터를 빈 자리에 넣습니다</p>
               </div>
-              <button class="wizard-close" onclick={() => (showBotSetup = false)}><X size={18} /></button>
+              <button type="button" class="wizard-close" onclick={() => (showBotSetup = false)} aria-label="닫기"><X size={18} /></button>
             </div>
             <div class="wizard-body bot-setup-body">
               <div class="bot-setup-field">
-                <span class="bot-setup-label">난이도</span>
-                <div class="mode-row">
-                  {#each ['쉬움', '보통', '어려움', '지옥'] as level}
-                    <button class="mode-btn" class:mode-active={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
-                  {/each}
+                <div class="bot-setup-head">
+                  <span class="bot-setup-label">난이도</span>
+                  <label class="bot-adv-toggle">
+                    <input
+                      type="checkbox"
+                      bind:checked={botCpuAdvanced}
+                      onchange={() => { if (botCpuAdvanced) botCpuDepth = BOT_PRESET_DEPTH[botCpuLevel] ?? 5; }}
+                    />
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    고급
+                  </label>
                 </div>
+
+                {#if botCpuAdvanced}
+                  <div class="bot-depth-block">
+                    <div class="bot-depth-value">
+                      <strong>D{botCpuDepth}</strong>
+                      <span>수읽기 깊이</span>
+                    </div>
+                    <input
+                      class="count-slider"
+                      type="range"
+                      min="1"
+                      max={BOT_MAX_DEPTH}
+                      step="1"
+                      bind:value={botCpuDepth}
+                      aria-label="수읽기 깊이"
+                    />
+                    <p class="bot-depth-hint">{botDepthHint}</p>
+                  </div>
+                {:else}
+                  <div class="seg">
+                    {#each BOT_PRESETS as level}
+                      <button type="button" class="seg-btn" class:seg-btn-on={botCpuLevel === level} onclick={() => (botCpuLevel = level)}>{level}</button>
+                    {/each}
+                  </div>
+                {/if}
               </div>
               <label class="practice-toggle">
                 <input type="checkbox" bind:checked={botCpuThink} />
@@ -2657,10 +2802,12 @@
               {#if isGueruleRoom}
                 <div class="bot-setup-field">
                   <span class="bot-setup-label">직업</span>
-                  <div class="mode-row">
-                    <button class="mode-btn" class:mode-active={botCpuJobMode === 'random'} onclick={() => (botCpuJobMode = 'random')}>랜덤</button>
-                    <button class="mode-btn" class:mode-active={botCpuJobMode === 'pick'} onclick={() => (botCpuJobMode = 'pick')}>지정</button>
+                  <div class="seg">
+                    {#each BOT_DRAFT_MODES as [value, label]}
+                      <button type="button" class="seg-btn" class:seg-btn-on={botCpuJobMode === value} onclick={() => (botCpuJobMode = value)}>{label}</button>
+                    {/each}
                   </div>
+                  <p class="bot-draft-hint">{botDraftHint}</p>
                   {#if botCpuJobMode === 'pick'}
                     <select class="lobby-input" bind:value={botCpuJob}>
                       <option value="">직업 선택</option>
@@ -2673,8 +2820,9 @@
               {/if}
             </div>
             <div class="wizard-foot">
-              <button class="ghost-btn" onclick={() => (showBotSetup = false)}>취소</button>
+              <button type="button" class="ghost-btn" onclick={() => (showBotSetup = false)}>취소</button>
               <button
+                type="button"
                 class="accent-btn"
                 onclick={confirmBotSetup}
                 disabled={busy || (isGueruleRoom && botCpuJobMode === 'pick' && !botCpuJob)}
@@ -2735,7 +2883,7 @@
                 <span class="jc-initial">{jobInitial(card.homeJob)}</span>
               </span>
               <span class="jc-name">{card.ability}</span>
-              <span class="jc-check">{card.homeJob} · {card.kind === 'passive' ? '패시브' : '액티브'}</span>
+              <span class="jc-sub">{card.homeJob} · {card.kind === 'passive' ? '패시브' : '액티브'}</span>
             </button>
           {/each}
         </div>
@@ -2753,9 +2901,10 @@
               <p>{game.firstPicker}님의 밴 선택이 끝나면 직업을 고를 수 있어요</p>
             {/if}
           </div>
-          {#if selectedJob}
-            <div class="selected-pill">
-              <span class="sel-gem">◆</span>{selectedJob}
+          {#if shownJob}
+            <div class="selected-pill" class:selected-pill-pending={!myJob}>
+              <span class="sel-gem">◆</span>{shownJob}
+              <span class="sel-state">{myJob ? '선택 완료' : '전송 중'}</span>
             </div>
           {/if}
         </div>
@@ -2786,27 +2935,31 @@
             {/if}
           </div>
         {:else if bannedJobs.length}
-          <div class="ban-panel compact">
-            <span class="panel-kicker">BANNED</span>
-            <div class="selected-ban-row">
-              {#each bannedJobs as job}
-                <span class="ban-chip locked">{job}</span>
-              {/each}
-            </div>
+          <!-- 밴 결과는 읽기만 하면 되므로 카드 대신 한 줄. -->
+          <div class="banned-line">
+            <span class="banned-line-label">밴</span>
+            {#each bannedJobs as job}
+              <span class="ban-chip locked">{job}</span>
+            {/each}
           </div>
         {/if}
 
         <div class="job-grid">
           {#each availableJobs as job, i}
             <button
+              type="button"
               class="job-card"
-              class:job-selected={selectedJob === job}
+              class:job-selected={shownJob === job}
               class:job-ban-pick={isBanPicker && selectedBans.includes(job)}
               class:job-banned={bannedJobs.includes(job)}
               class:job-unavailable={roomDisabledJobs.includes(job)}
+              onclick={() => isBanPicker ? toggleBan(job) : pickJob(job)}
+              disabled={busy
+                || isBanWaiting
+                || (!isBanPicker && (jobLocked || unavailableJobs.includes(job)))
+                || (isBanPicker && (myJob === job || unavailableJobs.includes(job)))}
+              title={!isBanPicker && jobLocked && myJob !== job ? '이미 직업을 선택했습니다' : job}
               style="--i:{i}"
-              onclick={() => isBanPicker ? toggleBan(job) : (selectedJob = job, send(`1ㅈㅅ ${job}`))}
-              disabled={busy || isBanWaiting || (!isBanPicker && unavailableJobs.includes(job)) || (isBanPicker && (myState?.job === job || unavailableJobs.includes(job)))}
             >
               <span class="jc-portrait">
                 <img src={jobImageSrc(job)} alt="" loading="lazy" onerror={hideBrokenImage} />
@@ -2819,21 +2972,27 @@
                 <span class="jc-check">밴</span>
               {:else if bannedJobs.includes(job)}
                 <span class="jc-check">잠김</span>
+              {:else if myJob === job}
+                <span class="jc-check">선택함</span>
               {:else if selectedJob === job}
-                <span class="jc-check">✓</span>
+                <span class="jc-check">전송 중</span>
               {/if}
             </button>
           {/each}
         </div>
         {#if !isBanPicker}
           <div class="job-actions">
-            <button class="action-btn" onclick={() => send('1ㅈㅅㄹㄷ')} disabled={busy || isBanWaiting}>
+            <button type="button" class="action-btn" onclick={() => pickJob('')} disabled={busy || isBanWaiting || jobLocked}>
               <Shuffle size={16} />랜덤
             </button>
             <div class="job-count">
-              선택 가능 <strong>{selectableJobs.length}</strong>개
+              {#if jobLocked}
+                <strong>{myJob}</strong> 선택 완료 · 상대를 기다리는 중
+              {:else}
+                선택 가능 <strong>{selectableJobs.length}</strong>개
+              {/if}
             </div>
-            <button class="action-btn" onclick={() => openJobsTab(selectedJob || selectableJobs[0])}>
+            <button type="button" class="action-btn" onclick={() => openJobsTab(shownJob || selectableJobs[0])}>
               <BriefcaseBusiness size={16} />직업 정보
             </button>
           </div>
@@ -2876,57 +3035,59 @@
       <!-- ─── IN-GAME (심플) ─── -->
       <div class="ingame ingame-simple" class:board-hit={!!castFx}>
 
-        <div class="simple-hero" class:my-turn={canPlay}>
-          <div class="simple-syl">{nextSyllable}</div>
-          <div class="simple-turn">
-            {#if canPlay}
-              <strong>내 차례</strong>
-            {:else}
-              <span>{currentPlayer || '—'} 차례</span>
-            {/if}
-            {#if timerState?.enabled}
-              <span class="simple-clock">{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</span>
-            {/if}
+        <div class="simple-stage">
+          <!-- 음절 · 차례 · 참가자 · 조작을 한 줄로. 예전에는 카드 두 장을
+               위아래로 쌓아 화면 위쪽을 다 먹었고, 내 직업은 참가자 칩과 중복이었다. -->
+          <div class="simple-head" class:my-turn={canPlay}>
+            <div class="simple-syl">{nextSyllable}</div>
+            <div class="simple-head-meta">
+              <div class="simple-turn">
+                {#if canPlay}
+                  <strong>내 차례</strong>
+                {:else}
+                  <span>{currentPlayer || '—'} 차례</span>
+                {/if}
+                {#if timerState?.enabled}
+                  <span class="simple-clock">{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</span>
+                {/if}
+              </div>
+              <div class="simple-players">
+                {#each game.players || [] as player}
+                  <span class="simple-player" class:active={player === currentPlayer} class:me={player === nickname}>
+                    <span class="simple-player-name">{player}</span>
+                    {#if game.playerStates?.[player]?.job}<span class="simple-player-job">{game.playerStates[player].job}</span>{/if}
+                  </span>
+                {/each}
+              </div>
+            </div>
+            <div class="simple-actions">
+              <button type="button" class="ctrl-btn" onclick={() => send('1무효')} disabled={busy}>무효</button>
+              <button type="button" class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={busy}>항복</button>
+            </div>
           </div>
-          {#if myState?.job}
-            <div class="simple-job">{myState.job}</div>
-          {/if}
-        </div>
 
-        {#if game.isWaitingVote}
-          <div class="simple-vote">
-            <span>{game.requester} · {game.voteType}</span>
-            <button class="vote-yes" onclick={() => send('1동의')}>동의</button>
-            <button class="vote-no" onclick={() => send('1거절')}>거절</button>
-          </div>
-        {/if}
-
-        <div class="simple-players">
-          {#each game.players || [] as player}
-            <span class="simple-player" class:active={player === currentPlayer} class:me={player === nickname}>
-              {player}{#if game.playerStates?.[player]?.job} · {game.playerStates[player].job}{/if}
-            </span>
-          {/each}
-        </div>
-
-        <div class="simple-history" bind:this={historyEl}>
-          {#if !(game.history || []).length}
-            <div class="history-empty">첫 단어를 입력하세요</div>
-          {/if}
-          {#each (game.history || []).slice(-12) as item}
-            <div class="simple-word">{item}</div>
-          {/each}
-          {#if cpuThinking}
-            <div class="cpu-thinking-row">
-              <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
-              <span class="think-label">생각 중...</span>
+          {#if game.isWaitingVote}
+            <div class="simple-vote" role="status">
+              <span class="simple-vote-text">{game.requester} · {game.voteType}</span>
+              <button type="button" class="vote-yes" onclick={() => send('1동의')}>동의</button>
+              <button type="button" class="vote-no" onclick={() => send('1거절')}>거절</button>
             </div>
           {/if}
-        </div>
 
-        <div class="simple-actions">
-          <button class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={busy}>항복</button>
-          <button class="ctrl-btn" onclick={() => send('1무효')} disabled={busy}>무효</button>
+          <div class="simple-history" bind:this={historyEl}>
+            {#if !(game.history || []).length}
+              <div class="history-empty">첫 단어를 입력하세요</div>
+            {/if}
+            {#each visibleHistory as item (item.key)}
+              <div class="simple-word" class:simple-word-alt={item.index % 2 === 1}>{item.word}</div>
+            {/each}
+            {#if cpuThinking}
+              <div class="cpu-thinking-row">
+                <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
+                <span class="think-label">생각 중...</span>
+              </div>
+            {/if}
+          </div>
         </div>
 
         <div class="bottom-composer" class:composer-active={canPlay}>
@@ -2936,26 +3097,26 @@
             </div>
           {/if}
           {#if abilityButtons.length}
-            <div class="ability-bar">
-              <div class="ability-grid">
-                {#each abilityButtons as ab, ai}
-                  {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
-                  <button
-                    class="ab-btn"
-                    class:ab-not-ready={abStatus && !abStatus.isReady}
-                    style="--ai:{ai}"
-                    onclick={() => useAbility(ab)}
-                    disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
-                    title={abStatus?.text || '준비됨'}
-                  >
-                    <Sparkles size={13} />
-                    <span class="ab-name">{ab}</span>
-                    {#if abStatus}
-                      <span class="ab-status-val">{abStatus.text}</span>
-                    {/if}
-                  </button>
-                {/each}
-              </div>
+            <!-- 버튼 줄을 카드로 한 번 더 감싸고 있었다. 테두리 하나가 줄면
+                 입력창과 능력이 같은 묶음으로 읽힌다. -->
+            <div class="ability-grid">
+              {#each abilityButtons as ab, ai}
+                {@const abStatus = myAbilityStatuses.find((item) => item.name === ab)}
+                <button
+                  class="ab-btn"
+                  class:ab-not-ready={abStatus && !abStatus.isReady}
+                  style="--ai:{ai}"
+                  onclick={() => useAbility(ab)}
+                  disabled={!canUseAbility || busy || (abStatus && !abStatus.isReady)}
+                  title={abStatus?.text || '준비됨'}
+                >
+                  <Sparkles size={13} />
+                  <span class="ab-name">{ab}</span>
+                  {#if abStatus}
+                    <span class="ab-status-val">{abStatus.text}</span>
+                  {/if}
+                </button>
+              {/each}
             </div>
           {/if}
           <form class="input-zone" class:input-active={canPlay} class:premove-input={!canPlay} onsubmit={sendWord}>
@@ -3108,6 +3269,10 @@
   <!-- ══════════════════════ SEARCH TAB ══════════════════════ -->
   {:else if tab === 'search'}
     <div class="content-page">
+      <div class="tool-switch" role="tablist" aria-label="단어 도구">
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'search'} aria-selected={tab === 'search'} onclick={() => (tab = 'search')}>단어 검색</button>
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'analysis'} aria-selected={tab === 'analysis'} onclick={() => (tab = 'analysis')}>수 분석</button>
+      </div>
       <form class="search-bar" onsubmit={submitSearch}>
         <input class="search-input" bind:value={searchText} placeholder="기* · *차 · 기*차 · 기차" />
         <button class="search-submit"><Search size={16} />검색</button>
@@ -3115,9 +3280,9 @@
       {#if searchResults.length}
         <div class="search-meta">
           <span>총 <strong>{searchTotal}</strong>개 · 표시 <strong>{filteredSearch.length}</strong>개</span>
-          <div class="kind-pills">
+          <div class="seg">
             {#each ['전체','한방','유도','루트','일반'] as f}
-              <button class="kind-pill" class:kind-active={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
+              <button type="button" class="seg-btn" class:seg-btn-on={searchFilter === f} onclick={() => (searchFilter = f)}>{f}</button>
             {/each}
           </div>
         </div>
@@ -3180,11 +3345,6 @@
                 <h2>{jobTabJob}</h2>
               </div>
             </div>
-            {#if jobTabAbilities.length}
-              <div class="job-ability-strip">
-                {#each jobTabAbilities as ab}<span>{ab}</span>{/each}
-              </div>
-            {/if}
           </div>
 
           <div class="job-info-gui">
@@ -3209,7 +3369,7 @@
             {/each}
           </div>
 
-          <div class="job-side-grid">
+          <div class="job-side-grid job-side-grid-single">
             <section class="job-stat-card">
               <div class="job-section-title">직업별 랭킹</div>
               {#if jobTabRanking.length}
@@ -3226,19 +3386,6 @@
                 <div class="rank-empty small">이 직업은 아직 표시할 전적이 없습니다.</div>
               {/if}
             </section>
-
-            <section class="job-stat-card">
-              <div class="job-section-title">레이팅 티어표</div>
-              <div class="tier-table">
-                {#each TIER_INFO as tier}
-                  <div class="tier-row" style="--tc:{tier.color};--tc-glow:{tier.color}26">
-                    <span class="tier-dot"></span>
-                    <span class="tier-name">{tier.name}</span>
-                    <span class="tier-range">{tier.min} - {tier.max === Infinity ? '∞' : tier.max}</span>
-                  </div>
-                {/each}
-              </div>
-            </section>
           </div>
         </section>
       </div>
@@ -3249,6 +3396,10 @@
   <!-- ══════════════════════ ANALYSIS TAB ══════════════════════ -->
   {:else if tab === 'analysis'}
     <div class="content-page">
+      <div class="tool-switch" role="tablist" aria-label="단어 도구">
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'search'} aria-selected={tab === 'search'} onclick={() => (tab = 'search')}>단어 검색</button>
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'analysis'} aria-selected={tab === 'analysis'} onclick={() => (tab = 'analysis')}>수 분석</button>
+      </div>
       <div class="job-pair-row">
         <div class="jp-side atk">
           <span class="jp-label">⚔ 공격</span>
@@ -3265,9 +3416,9 @@
         </div>
       </div>
 
-      <div class="mode-tabs">
+      <div class="seg analysis-modes">
         {#each [['syllable','음절 분석'],['I','유도 전체'],['R','루트 전체'],['A','A급 전체'],['K','한방 전체']] as [m, label]}
-          <button class="mode-tab mt-{m}" class:mt-active={analysisMode === m} onclick={() => (analysisMode = m)}>{label}</button>
+          <button type="button" class="seg-btn" class:seg-btn-on={analysisMode === m} onclick={() => (analysisMode = m)}>{label}</button>
         {/each}
       </div>
 
@@ -3427,52 +3578,29 @@
   {:else if tab === 'help'}
     <div class="content-page help-page">
       <div class="help-header">
-        <span class="panel-kicker">TUTORIAL</span>
-        <h2>채린룰 입문 강의</h2>
-        <p>끝말잇기의 기본 룰은 아는 사람을 기준으로, 채린룰의 단어 분류와 직업 운영을 정리했습니다.</p>
+        <h2>채끄 사용법</h2>
+        <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며, 게임 조작은 전부 화면의 버튼으로 합니다.</p>
       </div>
       <div class="lecture-stack">
-        {#each TUTORIAL_CHAPTERS as chapter, index}
-          <section class="lecture-card">
-            <div class="lecture-heading">
-              <span class="tutorial-num">{index + 1}</span>
-              <div>
-                <h3>{chapter.title}</h3>
-                <p>{chapter.lead}</p>
-              </div>
-            </div>
-            {#if chapter.terms}
-              <div class="term-grid">
-                {#each chapter.terms as [term, desc]}
-                  <div class="term-row">
-                    <strong>{term}</strong>
-                    <span>{desc}</span>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-            <ul class="lecture-points">
-              {#each chapter.points as point}
-                <li>{point}</li>
-              {/each}
-            </ul>
-          </section>
-        {/each}
-      </div>
-      <div class="help-header help-subheader">
-        <span class="panel-kicker">SITE GUIDE</span>
-        <h2>사이트 조작 도움말</h2>
-        <p>버튼과 입력창만으로 게임을 진행할 수 있습니다. 채팅창은 대화용이며 게임 명령은 사이트 UI로만 실행됩니다.</p>
-      </div>
-      <div class="tutorial-grid">
         {#each SITE_HELP_STEPS as step, index}
-          <section class="tutorial-card">
-            <span class="tutorial-num">{index + 1}</span>
-            <h3>{step.title}</h3>
-            <p>{step.body}</p>
-          </section>
+          <details class="lecture-card" open={index === 0}>
+            <summary class="lecture-heading">
+              <span class="tutorial-num">{index + 1}</span>
+              <div><h3>{step.title}</h3></div>
+            </summary>
+            <div class="lecture-body"><p class="lecture-text">{step.body}</p></div>
+          </details>
         {/each}
       </div>
+      {#if justSignedUp}
+        <!-- 회원가입 직후에만 나온다. 도움말을 읽고 나갈 문을 만들어 준다. -->
+        <div class="help-start">
+          <p>준비됐으면 방을 만들거나 열려 있는 방에 참가하세요.</p>
+          <button type="button" class="accent-btn" onclick={() => { justSignedUp = false; tab = 'game'; }}>
+            게임 시작하기
+          </button>
+        </div>
+      {/if}
     </div>
 
   <!-- ══════════════════════ RANKING TAB ══════════════════════ -->
@@ -3486,83 +3614,86 @@
       </div>
 
       {#if ranking?.ranking?.length}
-        {#each ranking.ranking || [] as row, index}
-          {@const ti = getTierInfo(row.rating)}
-          <div class="rank-row" style="--ri:{index};--tc:{ti.color};--tc-glow:{ti.color}33">
-            <div class="rank-num" class:rank-top={index < 3}>
-              {#if index === 0}1{:else if index === 1}2{:else if index === 2}3{:else}{index + 1}{/if}
-            </div>
-            <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66);box-shadow:0 4px 14px {ti.color}55">{row.name[0]}</div>
-            <div class="rank-info">
-              <span class="rank-name">{row.name}</span>
-              <span class="rank-record">{row.wins || 0}승 {row.losses || 0}패</span>
-            </div>
-            <div class="rank-tier-col">
-              <span class="rank-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{ti.name}</span>
-              <span class="rank-rating">{row.rating || 1000}</span>
-            </div>
-          </div>
-        {/each}
+        <ol class="rank-list">
+          {#each ranking.ranking || [] as row, index}
+            {@const ti = getTierInfo(row.rating)}
+            <li class="rank-row" class:rank-podium={index < 3} style="--ri:{Math.min(index, 12)};--tc:{ti.color};--tc-glow:{ti.color}33">
+              <div class="rank-num" class:rank-top={index < 3}>{index + 1}</div>
+              <div class="rank-avatar" style="background:linear-gradient(135deg,{ti.color}cc,{ti.color}66)">{row.name[0]}</div>
+              <div class="rank-info">
+                <span class="rank-name">{row.name}</span>
+                <span class="rank-record">{row.wins || 0}승 {row.losses || 0}패</span>
+              </div>
+              <div class="rank-tier-col">
+                <span class="rank-tier-badge" style="--tc:{ti.color};--tc-glow:{ti.color}44">{ti.name}</span>
+                <span class="rank-rating">{row.rating || 1000}</span>
+              </div>
+            </li>
+          {/each}
+        </ol>
       {:else}
         <div class="rank-empty">랭킹 데이터를 불러오고 있습니다.</div>
       {/if}
+
+      <!-- 티어표는 레이팅 이야기지 직업 이야기가 아니다. 직업 탭에서 옮겨 왔고,
+           한 번 보면 되는 표라 접어 둔다. -->
+      <details class="rank-tiers">
+        <summary>레이팅 티어표</summary>
+        <div class="tier-table">
+          {#each TIER_INFO as tier}
+            <div class="tier-row" style="--tc:{tier.color};--tc-glow:{tier.color}26">
+              <span class="tier-dot"></span>
+              <span class="tier-name">{tier.name}</span>
+              <span class="tier-range">{tier.min} - {tier.max === Infinity ? '∞' : tier.max}</span>
+            </div>
+          {/each}
+        </div>
+      </details>
     </div>
 
   <!-- ══════════════════════ SETTINGS TAB ══════════════════════ -->
   {:else if tab === 'settings'}
     <div class="content-page settings-page">
-      <h2 class="settings-title"><Settings size={18} />설정</h2>
+      <h2 class="settings-title"><Settings size={20} />설정</h2>
 
-      <!-- 테마 섹션 -->
+      <!-- 화면 — 테마와 강조색은 같은 결정이라 한 칸에 둔다.
+           계정/로그아웃은 상단 계정 메뉴에 있으므로 여기서 중복하지 않는다. -->
       <div class="settings-section">
-        <div class="settings-section-label">테마</div>
-        <div class="theme-options">
-          <button
-            class="theme-option-btn"
-            class:theme-opt-active={theme === 'light'}
-            onclick={() => { theme = 'light'; if (browser) { localStorage.setItem('theme', 'light'); document.documentElement.setAttribute('data-theme', 'light'); } }}
-          >
-            <Sun size={20} />
-            <span>라이트</span>
-          </button>
-          <button
-            class="theme-option-btn"
-            class:theme-opt-active={theme === 'dark'}
-            onclick={() => { theme = 'dark'; if (browser) { localStorage.setItem('theme', 'dark'); document.documentElement.setAttribute('data-theme', 'dark'); } }}
-          >
-            <Moon size={20} />
-            <span>다크</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 강조 색상 섹션 -->
-      <div class="settings-section">
-        <div class="settings-section-label">강조 색상</div>
-        <p class="settings-section-desc">버튼·팀 마커·단어 버블 등 UI 강조색을 변경합니다.</p>
-        <div class="settings-color-row">
-          {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
+        <div class="settings-section-label">화면</div>
+        <div class="settings-row">
+          <span class="settings-row-label">테마</span>
+          <div class="seg">
             <button
-              class="color-chip"
-              class:color-chip-sel={lineColor === c}
-              style="background: {c}"
-              onclick={() => (lineColor = c)}
-              title={c}
-            ></button>
-          {/each}
-          <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" />
+              type="button" class="seg-btn" class:seg-btn-on={theme === 'light'}
+              onclick={() => { theme = 'light'; if (browser) { localStorage.setItem('theme', 'light'); document.documentElement.setAttribute('data-theme', 'light'); } }}
+            ><Sun size={14} />라이트</button>
+            <button
+              type="button" class="seg-btn" class:seg-btn-on={theme === 'dark'}
+              onclick={() => { theme = 'dark'; if (browser) { localStorage.setItem('theme', 'dark'); document.documentElement.setAttribute('data-theme', 'dark'); } }}
+            ><Moon size={14} />다크</button>
+          </div>
         </div>
-        <div class="settings-color-preview">
-          <span class="scp-label">미리보기</span>
-          <span class="scp-dot" style="background: {lineColor}; box-shadow: 0 0 8px {lineColor}88"></span>
-          <span class="scp-btn" style="background: {lineColor}">버튼 예시</span>
+        <div class="settings-row">
+          <span class="settings-row-label">강조 색상</span>
+          <div class="settings-color-row">
+            {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
+              <button
+                class="color-chip"
+                class:color-chip-sel={lineColor === c}
+                style="background: {c}"
+                onclick={() => (lineColor = c)}
+                title={c}
+                aria-label={`강조 색상 ${c}`}
+              ></button>
+            {/each}
+            <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" aria-label="강조 색상 직접 선택" />
+          </div>
         </div>
       </div>
 
       {#if !isGuest}
         <div class="settings-section">
           <div class="settings-section-label"><Users size={15} />친구</div>
-          <p class="settings-section-desc">닉네임으로 친구를 추가하고 대기실에서 초대할 수 있습니다.</p>
           <form class="friend-add-row" onsubmit={(e) => { e.preventDefault(); addFriend(); }}>
             <input class="lobby-input" bind:value={friendAddInput} placeholder="닉네임" maxlength="24" />
             <button class="accent-btn" type="submit" disabled={friendsBusy || !friendAddInput.trim()}>친구 추가</button>
@@ -3660,16 +3791,15 @@
   {/if}
 
   <!-- ══════════════════════ FLOATING CHAT ══════════════════════ -->
-  {#if room}
+  {#if room && showChat && !isGuest}
     <div class="floating-chat-container">
-      {#if showChat}
-        <div class="chat-window">
+        <div class="chat-window" role="dialog" aria-label="방 채팅">
           <div class="chat-header">
             <div class="chat-header-info">
               <MessageSquare size={14} />
               <span>채팅</span>
             </div>
-            <button class="chat-close" onclick={() => (showChat = false)}><X size={16} /></button>
+            <button type="button" class="chat-close" onclick={() => (showChat = false)} aria-label="채팅 닫기"><X size={16} /></button>
           </div>
           <div class="chat-messages" bind:this={chatEl}>
             {#each chats as c (c.id)}
@@ -3685,17 +3815,9 @@
           </div>
           <form class="chat-form" onsubmit={sendChat}>
             <input class="chat-input" bind:value={chatInput} placeholder="메시지 입력..." autocomplete="off" />
-            <button class="chat-send" type="submit" disabled={!chatInput.trim()}><Send size={14} /></button>
+            <button class="chat-send" type="submit" disabled={!chatInput.trim()} aria-label="보내기"><Send size={14} /></button>
           </form>
         </div>
-      {/if}
-      <button class="chat-toggle-btn" class:chat-open={showChat} onclick={() => (showChat = !showChat)}>
-        {#if showChat}
-          <X size={24} />
-        {:else}
-          <MessageSquare size={24} />
-        {/if}
-      </button>
     </div>
   {/if}
   {/if}
@@ -3724,55 +3846,100 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  :root {
-    --bg:       #f7f8fb;
+  :global(:root) {
+    color-scheme: light;
+    /* surfaces */
+    --bg:       #f5f7fb;
     --bg2:      #ffffff;
-    --bg3:      #f2f4f8;
-    --border:   #e6e9ef;
-    --border2:  #d8dde7;
+    --bg3:      #eef1f7;
+    --card:     #ffffff;
+    --border:   #e4e8ef;
+    --border2:  #d4dae5;
+    /* brand + status */
     --accent:   #2563eb;
     --accent2:  #1d4ed8;
+    --on-accent:#ffffff;
+    --accent-fill: #2563eb;
+    --accent-soft: rgba(37,99,235,.10);
+    --accent-line: rgba(37,99,235,.28);
+    --focus-ring:  rgba(37,99,235,.38);
     --red:      #dc2626;
-    --orange:   #f97316;
+    --orange:   #ea580c;
     --blue:     #3b82f6;
-    --green:    #22c55e;
-    --gold:     #f59e0b;
-    --text:     #151922;
-    --text2:    #596273;
+    --green:    #16a34a;
+    --gold:     #d97706;
+    /* tinted status surfaces (theme-aware) */
+    --danger-bg:  rgba(220,38,38,.09);
+    --danger-line:rgba(220,38,38,.24);
+    --danger-fg:  #b91c1c;
+    --warn-bg:    rgba(217,119,6,.11);
+    --warn-line:  rgba(217,119,6,.26);
+    --warn-fg:    #b45309;
+    --ok-bg:      rgba(22,163,74,.10);
+    --ok-line:    rgba(22,163,74,.26);
+    --ok-fg:      #15803d;
+    /* text */
+    --text:     #141821;
+    --text2:    #566072;
     --text3:    #8a93a3;
+    --muted:    #8a93a3;
+    /* shape */
     --radius:   12px;
     --radius-sm:10px;
-    --topbar-bg: rgba(255,255,255,.92);
-    --card:     #ffffff;
-    --card-shadow: 0 2px 12px rgba(15,23,42,.06);
+    --radius-lg:18px;
+    /* elevation */
+    --topbar-bg: rgba(255,255,255,.88);
+    --overlay:   rgba(15,23,42,.42);
+    --shadow:      0 1px 2px rgba(15,23,42,.05), 0 4px 12px rgba(15,23,42,.05);
+    --shadow-md:   0 2px 4px rgba(15,23,42,.05), 0 10px 24px rgba(15,23,42,.07);
+    --shadow-lg:   0 8px 20px rgba(15,23,42,.08), 0 24px 60px rgba(15,23,42,.12);
+    --card-shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 14px rgba(15,23,42,.05);
   }
   :global([data-theme="dark"]) {
-    --bg:       #111318;
-    --bg2:      #1a1d24;
-    --bg3:      #22262f;
-    --border:   #2a2f3a;
-    --border2:  #333848;
-    --accent:   #3b82f6;
-    --accent2:  #2563eb;
+    color-scheme: dark;
+    --bg:       #0f1116;
+    --bg2:      #171a21;
+    --bg3:      #21252e;
+    --card:     #171a21;
+    --border:   #272c37;
+    --border2:  #333a48;
+    --accent:   #4b8bf5;
+    --accent2:  #6ba1f8;
+    --on-accent:#ffffff;
+    --accent-fill: #2f6fe0;
+    --accent-soft: rgba(75,139,245,.16);
+    --accent-line: rgba(75,139,245,.34);
+    --focus-ring:  rgba(107,161,248,.48);
     --red:      #f87171;
     --orange:   #fb923c;
     --blue:     #60a5fa;
     --green:    #4ade80;
     --gold:     #fbbf24;
-    --text:     #e8eaf0;
-    --text2:    #9aa3b5;
-    --text3:    #5e6a7e;
-    --radius:   12px;
-    --radius-sm:10px;
-    --topbar-bg: rgba(17,19,24,.92);
-    --card:     #1a1d24;
-    --card-shadow: 0 2px 16px rgba(0,0,0,.3);
+    --danger-bg:  rgba(248,113,113,.14);
+    --danger-line:rgba(248,113,113,.30);
+    --danger-fg:  #fca5a5;
+    --warn-bg:    rgba(251,191,36,.14);
+    --warn-line:  rgba(251,191,36,.30);
+    --warn-fg:    #fcd34d;
+    --ok-bg:      rgba(74,222,128,.13);
+    --ok-line:    rgba(74,222,128,.28);
+    --ok-fg:      #86efac;
+    --text:     #e7eaf1;
+    --text2:    #99a2b4;
+    --text3:    #6a7488;
+    --muted:    #6a7488;
+    --topbar-bg: rgba(15,17,22,.86);
+    --overlay:   rgba(3,6,14,.62);
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.32);
+    --shadow-md:   0 2px 6px rgba(0,0,0,.42), 0 12px 28px rgba(0,0,0,.38);
+    --shadow-lg:   0 10px 24px rgba(0,0,0,.45), 0 28px 64px rgba(0,0,0,.5);
+    --card-shadow: 0 1px 2px rgba(0,0,0,.34), 0 4px 14px rgba(0,0,0,.28);
   }
 
-  button, input, select { font: inherit; color: inherit; }
+  button, input, select, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; border: none; background: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-  button:disabled { opacity: .4; cursor: default; }
-  input, select {
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input, select, textarea {
     background: var(--bg3);
     border: 1.5px solid var(--border2);
     border-radius: var(--radius-sm);
@@ -3780,13 +3947,37 @@
     outline: none;
     transition: border-color .18s, box-shadow .18s, background .18s;
   }
-  input:focus, select:focus {
+  input::placeholder, textarea::placeholder { color: var(--text3); }
+  input:focus, select:focus, textarea:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+    box-shadow: 0 0 0 3px var(--focus-ring);
     background: var(--bg2);
   }
   input, select { height: 42px; padding: 0 14px; font-size: 16px; }
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 34px;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% + 1px), calc(100% - 13px) calc(50% + 1px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
   select option { background: var(--bg2); color: var(--text); }
+  :global(:where(button, a, input, select, textarea, [tabindex])):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  :global(::-webkit-scrollbar) { width: 10px; height: 10px; }
+  :global(::-webkit-scrollbar-track) { background: transparent; }
+  :global(::-webkit-scrollbar-thumb) {
+    background: color-mix(in srgb, var(--text3) 40%, transparent);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  :global(::-webkit-scrollbar-thumb:hover) { background: color-mix(in srgb, var(--text3) 65%, transparent); background-clip: padding-box; }
   .app {
     width: 100%;
     height: 100dvh;
@@ -3801,66 +3992,61 @@
      TOPBAR
   ═══════════════════════════════════════════ */
   .topbar {
-    height: 56px;
+    min-height: 58px;
     background: var(--topbar-bg);
-    backdrop-filter: blur(14px) saturate(1.4);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    padding: 0 20px;
-    padding-left: max(20px, env(safe-area-inset-left));
-    padding-right: max(20px, env(safe-area-inset-right));
-    gap: 12px;
+    padding: 0 18px;
+    padding-left: max(18px, env(safe-area-inset-left));
+    padding-right: max(18px, env(safe-area-inset-right));
+    gap: 14px;
     position: relative;
     flex: 0 0 auto;
     z-index: 100;
-    will-change: transform;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    animation: slideDown .3s ease both;
   }
   .brand {
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 900;
-    letter-spacing: -.5px;
-    display: flex;
+    letter-spacing: -.4px;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     color: var(--text);
     white-space: nowrap;
-    background: none;
-    border: none;
+    flex: 0 0 auto;
     padding: 0;
-    cursor: pointer;
   }
-  .top-nav-primary { flex: 1; }
-  .top-nav-secondary { gap: 2px; }
-  .nav-btn-ghost { color: var(--text3); }
-  .nav-label { margin-left: 2px; }
-  .auth-tab-btn {
-    height: 34px;
-    padding: 0 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text2);
-    background: var(--bg3);
-    border: 1px solid var(--border);
+  .brand:hover { color: var(--accent); }
+  /* ── 계정 메뉴 ── */
+  .acct { position: relative; flex: 0 0 auto; }
+  .acct-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 120;
+    min-width: 168px; padding: 5px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow-lg);
+    display: grid; gap: 2px;
+    animation: popIn .14s cubic-bezier(.22,1,.36,1) both;
   }
-  .auth-tab-btn.auth-tab-active,
-  .auth-tab-btn:hover { color: var(--text); background: #fff; }
-  .auth-tab-signup.auth-tab-active,
-  .auth-tab-signup:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .auth-panel {
-    margin: 0 20px 12px;
-    padding: 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--card);
-    box-shadow: var(--shadow);
-    animation: slideDown .25s ease both;
+  .acct-item {
+    display: flex; align-items: center; gap: 9px;
+    height: 36px; padding: 0 10px; border-radius: 8px;
+    font-size: 13px; font-weight: 700; color: var(--text);
+    background: transparent; text-align: left;
   }
+  .acct-item:hover { background: var(--bg3); }
+  .acct-item-danger { color: var(--danger); }
+  .acct-item-danger:hover { background: var(--danger-bg); }
+
+  /* ── 단어 도구 전환 (검색 ↔ 분석) ── */
+  .tool-switch {
+    display: flex; gap: 4px; padding: 4px; margin-bottom: 14px;
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px;
+    width: fit-content;
+  }
+  .tool-switch .seg-btn { min-width: 92px; }
   .auth-panel-tabs { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
   .auth-panel-tab {
     height: 34px;
@@ -3871,48 +4057,87 @@
     color: var(--text2);
     background: var(--bg3);
   }
-  .auth-panel-tab-active { background: var(--accent); color: #fff; }
-  .auth-panel-close { margin-left: auto; color: var(--text3); }
-  .auth-panel-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+  .auth-panel-tab-active { background: var(--accent-fill); color: var(--on-accent); }
+  .auth-panel-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .auth-panel-input {
-    height: 40px;
-    border: 1px solid var(--border);
+    height: 44px;
+    border: 1.5px solid var(--border2);
     border-radius: var(--radius-sm);
-    padding: 0 12px;
-    background: #fff;
+    padding: 0 14px;
+    background: var(--bg3);
   }
   .auth-panel-submit {
-    height: 40px;
+    height: 46px;
     padding: 0 18px;
     border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: #fff;
-    font-weight: 700;
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    font-weight: 800;
+    font-size: 15px;
+    transition: background .16s;
   }
-  .brand-gem { color: var(--accent); font-size: 14px; }
-  .top-nav { display: flex; gap: 4px; flex: 1; }
+  .auth-panel-submit:hover:not(:disabled) { background: var(--accent2); }
+  .brand-gem { color: var(--accent); font-size: 13px; }
+  .top-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .top-nav::-webkit-scrollbar { display: none; }
   .nav-btn {
     height: 36px;
-    padding: 0 14px;
+    padding: 0 13px;
     border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 13.5px;
+    font-weight: 700;
     color: var(--text2);
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    transition: background .18s, color .18s;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    transition: background .16s, color .16s;
   }
   .nav-btn:hover { background: var(--bg3); color: var(--text); }
   .nav-btn.nav-active {
-    background: var(--accent);
-    color: #fff;
-    box-shadow: none;
+    background: var(--accent-fill);
+    color: var(--on-accent);
   }
-  .top-auth { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-  .auth-name { font-size: 13px; font-weight: 700; color: var(--text2); white-space: nowrap; }
-  .auth-input { width: 130px; height: 34px; font-size: 13px; }
-  .auth-select { height: 34px; width: 90px; font-size: 13px; }
+  .top-auth { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: 0 0 auto; }
+  .auth-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px 0 5px;
+    border-radius: 999px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    min-width: 0;
+    color: var(--text3);
+    transition: border-color .15s, background .15s;
+  }
+  .auth-chip:hover { border-color: var(--accent); }
+  .auth-chip-on { border-color: var(--accent); background: var(--bg2); }
+  .auth-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    font-size: 13px; font-weight: 900;
+    flex: 0 0 auto;
+  }
+  .auth-name {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 120px;
+  }
   .icon-btn {
     width: 36px; height: 36px;
     border-radius: var(--radius-sm);
@@ -3922,9 +4147,10 @@
     color: var(--text2);
     transition: background .18s, color .18s, border-color .18s;
   }
-  .icon-btn:hover:not(:disabled) { background: var(--bg2); color: var(--text); border-color: var(--border2); }
-  .icon-btn.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .icon-btn.accent:hover:not(:disabled) { background: var(--accent2); border-color: var(--accent2); }
+  .icon-btn:hover:not(:disabled) { background: var(--bg2); color: var(--text); border-color: var(--accent); }
+  .icon-btn.icon-btn-on { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
+  .icon-btn.icon-btn-on:hover:not(:disabled) { background: var(--accent2); border-color: var(--accent2); color: var(--on-accent); }
+  .icon-btn { position: relative; }
 
   /* ═══════════════════════════════════════════
      ERROR TOAST
@@ -3939,18 +4165,39 @@
     align-items: center;
     gap: 10px;
     padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--card);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--danger-line);
+    box-shadow: var(--shadow-lg);
     border-radius: 12px;
     font-size: 14px;
     font-weight: 700;
-    color: #e11d48;
+    color: var(--danger-fg);
     animation: toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
     pointer-events: none;
   }
   .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: pulse 1.4s ease-in-out infinite; }
+  .toast-offline {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    background: var(--card);
+    border: 1px solid var(--warn-line);
+    box-shadow: var(--shadow-lg);
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--warn-fg);
+    animation: toastSlideIn .3s cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+    pointer-events: none;
+  }
+  .toast-offline .toast-dot { background: var(--warn-fg); }
 
   @keyframes toastSlideIn {
     from { opacity: 0; transform: translate(-50%, -20px); }
@@ -3960,123 +4207,8 @@
   /* ═══════════════════════════════════════════
      LOBBY
   ═══════════════════════════════════════════ */
-  .lobby {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    position: relative;
-    overflow: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-  .lobby-card {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    background: var(--bg2);
-    border: 1.5px solid var(--border);
-    border-radius: 20px;
-    padding: 40px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    box-shadow: var(--card-shadow), 0 18px 50px rgba(15,23,42,.08);
-    animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both;
-  }
-  .lobby-title { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .lobby-gem { font-size: 28px; color: var(--accent); }
-  .lobby-title h1 { font-size: 36px; font-weight: 900; letter-spacing: 0; }
-  .lobby-title p { font-size: 14px; color: var(--text2); }
-  .lobby-fields { display: flex; flex-direction: column; gap: 12px; }
-  .login-required {
-    min-height: 150px;
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    background: var(--bg3);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 24px;
-    text-align: center;
-    color: var(--text2);
-  }
-  .login-required :global(svg) { color: var(--accent); }
-  .login-required strong {
-    font-size: 17px;
-    color: var(--text);
-  }
-  .login-required span {
-    font-size: 13px;
-    line-height: 1.45;
-  }
-  .player-badge {
-    height: 44px;
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-sm);
-    background: var(--bg2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: var(--accent2);
-    font-weight: 800;
-  }
+
   .lobby-input { height: 48px; font-size: 15px; border-radius: var(--radius); }
-  .mode-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .mode-btn {
-    height: 42px;
-    border-radius: var(--radius-sm);
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text2);
-    transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
-  }
-  .mode-btn:hover { border-color: var(--accent); color: var(--text); }
-  .mode-btn.mode-active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    box-shadow: none;
-  }
-  .lobby-cta {
-    height: 52px;
-    border-radius: var(--radius);
-    background: var(--accent);
-    color: #fff;
-    font-size: 16px;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: background .18s, box-shadow .18s, transform .16s;
-    box-shadow: none;
-  }
-  .lobby-cta:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); box-shadow: none; }
-  .lobby-cta:active:not(:disabled) { transform: translateY(0); }
-  .lobby-sep { display: flex; align-items: center; gap: 12px; color: var(--text3); font-size: 12px; }
-  .lobby-sep::before, .lobby-sep::after { content:''; flex:1; height:1px; background: var(--border); }
-  .join-row { display: flex; gap: 8px; }
-  .join-input { flex: 1; height: 44px; font-size: 14px; border-radius: var(--radius-sm); }
-  .join-btn {
-    height: 44px;
-    padding: 0 20px;
-    border-radius: var(--radius-sm);
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    font-weight: 700;
-    font-size: 14px;
-    color: var(--text);
-    transition: background .18s, border-color .18s;
-  }
-  .join-btn:hover:not(:disabled) { background: var(--bg2); border-color: var(--accent); }
   .practice-toggle {
     display: flex;
     align-items: center;
@@ -4106,17 +4238,7 @@
     background: var(--text2);
     transition: transform .2s, background .2s;
   }
-  .practice-toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); background: #fff; }
-  .create-settings {
-    display: grid;
-    gap: 10px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg3);
-  }
-  .setting-row { display: grid; gap: 6px; }
-  .setting-row label { font-size: 12px; color: var(--muted); }
+  .practice-toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); background: var(--on-accent); }
   .timer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .timer-row label {
     min-height: 38px;
@@ -4126,7 +4248,7 @@
     padding: 0 10px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    background: #fff;
+    background: var(--bg2);
     font-size: 12px;
     font-weight: 800;
     color: var(--text2);
@@ -4147,7 +4269,7 @@
     height: 26px;
     padding: 0 9px;
     border-radius: var(--radius-sm);
-    background: #fff;
+    background: var(--bg2);
     border: 1px solid var(--border2);
     font-size: 11px;
     font-weight: 800;
@@ -4158,34 +4280,15 @@
     min-height: 28px;
     padding: 0 9px;
     border-radius: var(--radius-sm);
-    background: #fff;
+    background: var(--bg2);
     border: 1px solid var(--border2);
     color: var(--text2);
     font-size: 12px;
     font-weight: 800;
   }
-  .disable-job-chip.djc-active { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
-
-  .color-setting-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 4px 0;
-  }
-  .color-setting-label {
-    font-size: 13px;
-    color: var(--text2);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .color-chips {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
+  .disable-job-chip.djc-active { background: var(--danger-bg); border-color: var(--danger-line); color: var(--danger-fg); }
   .color-chip {
-    width: 22px; height: 22px;
+    width: 26px; height: 26px;
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
@@ -4195,9 +4298,9 @@
   .color-chip:hover { transform: scale(1.15); }
   .color-chip.color-chip-sel { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg2); }
   .color-picker-input {
-    width: 22px; height: 22px;
+    width: 26px; height: 26px;
     border-radius: 50%;
-    border: 2px solid var(--border2);
+    border: 2px dashed var(--border2);
     padding: 0;
     cursor: pointer;
     background: none;
@@ -4223,57 +4326,14 @@
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
-  .room-wait-screen { justify-content: flex-start; padding-top: 48px; }
-  .room-wait-card {
-    width: min(620px, 100%);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg2);
-    padding: 20px;
-    display: grid;
-    gap: 14px;
-    box-shadow: 0 16px 34px rgba(15,23,42,.07);
-  }
-  .room-wait-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .room-wait-head h2 { font-size: 22px; font-weight: 900; }
-  .room-rule-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .room-rule-row span {
-    min-height: 30px;
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0 11px;
-    background: #fff;
-    color: var(--text2);
-    font-size: 12px;
-    font-weight: 800;
-  }
-  .wait-room-list { width: min(620px, 100%); }
-  .matching-bg { position: absolute; inset: 0; pointer-events: none; }
-  .radar {
-    position: relative;
-    width: 140px; height: 140px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .radar-ring {
-    position: absolute;
-    border-radius: 50%;
-    border: 1.5px solid rgba(99,102,241,.3);
-    animation: radarExpand 3s ease-out infinite;
-  }
-  .rr1 { width: 56px; height: 56px; }
-  .rr2 { width: 56px; height: 56px; animation-delay: .75s; }
-  .rr3 { width: 56px; height: 56px; animation-delay: 1.5s; }
-  .rr4 { width: 56px; height: 56px; animation-delay: 2.25s; }
   .radar-core {
     width: 60px; height: 60px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--accent-fill);
     display: flex; align-items: center; justify-content: center;
-    color: #fff;
+    color: var(--on-accent);
     z-index: 1;
-    box-shadow: 0 8px 32px rgba(99,102,241,.5);
+    box-shadow: 0 8px 32px var(--accent-soft);
     animation: corePulse 2s ease-in-out infinite;
   }
   .matching-label {
@@ -4295,17 +4355,6 @@
     background: var(--bg3);
   }
   .room-code-pill strong { color: var(--accent2); margin-left: 6px; letter-spacing: 1px; }
-  .players-found { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  .found-chip {
-    border: 1.5px solid var(--accent);
-    border-radius: 999px;
-    padding: 8px 20px;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--accent2);
-    background: rgba(99,102,241,.1);
-    animation: popIn .35s cubic-bezier(.34,1.56,.64,1) both;
-  }
   .ghost-btn {
     height: 40px;
     padding: 0 18px;
@@ -4324,20 +4373,17 @@
     height: 42px;
     padding: 0 20px;
     border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
     font-size: 14px;
     font-weight: 700;
     display: inline-flex;
     align-items: center;
     gap: 7px;
     transition: background .18s, box-shadow .18s;
-    box-shadow: 0 4px 16px rgba(99,102,241,.35);
+    box-shadow: 0 4px 16px var(--accent-soft);
   }
   .accent-btn:hover:not(:disabled) { background: var(--accent2); }
-  .practice-setup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; animation: fadeUp .2s ease both; }
-  .combat-hint { margin: 0; font-size: .78rem; line-height: 1.5; color: var(--muted); text-align: center; }
-  .prac-select { height: 40px; min-width: 160px; }
 
   /* ═══════════════════════════════════════════
      JOB SELECTION
@@ -4373,6 +4419,12 @@
     font-weight: 900;
     letter-spacing: -.5px;
   }
+  .selected-pill-pending { opacity: .7; }
+  .sel-state {
+    margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 800;
+    background: var(--bg3); color: var(--text2);
+  }
   .selected-pill {
     display: flex;
     align-items: center;
@@ -4383,7 +4435,7 @@
     font-size: 13px;
     font-weight: 700;
     color: var(--accent2);
-    background: #eff6ff;
+    background: var(--accent-soft);
     animation: popIn .25s cubic-bezier(.34,1.56,.64,1) both;
   }
   .sel-gem { font-size: 11px; }
@@ -4395,11 +4447,15 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    box-shadow: 0 12px 30px rgba(15,23,42,.06);
+    box-shadow: var(--shadow-md);
   }
-  .ban-panel.compact {
-    box-shadow: none;
-    padding: 12px 14px;
+  .banned-line {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .banned-line-label {
+    font-size: 11px; font-weight: 800; letter-spacing: .06em;
+    color: var(--text3); text-transform: uppercase;
   }
   .ban-panel-top {
     display: flex;
@@ -4449,9 +4505,9 @@
     font-weight: 800;
   }
   .ban-chip.selected {
-    background: #fee2e2;
-    border-color: #fecaca;
-    color: #b91c1c;
+    background: var(--danger-bg);
+    border-color: var(--danger-line);
+    color: var(--danger-fg);
   }
   .ban-chip.locked {
     display: inline-flex;
@@ -4461,11 +4517,12 @@
   }
   .job-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px;
   }
   .job-card {
-    height: 92px;
+    min-height: 78px;
+    padding: 8px 6px;
     border-radius: var(--radius);
     background: var(--bg2);
     border: 1px solid var(--border2);
@@ -4485,29 +4542,29 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: #eff6ff;
+    background: var(--accent-soft);
     opacity: 0;
     transition: opacity .18s;
   }
   .job-card:hover:not(:disabled):not(.job-selected) {
     border-color: var(--accent);
     transform: translateY(-3px) scale(1.03);
-    box-shadow: 0 10px 22px rgba(15,23,42,.08);
+    box-shadow: var(--shadow-md);
   }
   .job-card:hover:not(:disabled)::before { opacity: 1; }
   .job-card.job-selected {
-    background: var(--accent);
-    border-color: var(--accent);
-    box-shadow: 0 12px 28px rgba(37,99,235,.22);
+    background: var(--accent-fill);
+    border-color: var(--accent-fill);
+    box-shadow: 0 12px 28px var(--accent-soft);
     transform: scale(1.06);
     animation: jobIn .5s cubic-bezier(.22,1,.36,1) both, selectedGlow 2s ease-in-out infinite;
   }
   .jc-portrait {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: #e0ecff;
-    border: 2px solid rgba(37,99,235,.18);
+    background: linear-gradient(140deg, var(--accent-soft), var(--bg3));
+    border: 2px solid var(--accent-line);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4542,20 +4599,21 @@
     position: relative;
     z-index: 1;
   }
-  .job-card.job-selected .jc-name { color: #fff; }
+  .job-card.job-selected .jc-name { color: var(--on-accent); }
   .job-card.job-ban-pick {
-    background: #fee2e2;
-    border-color: #ef4444;
-    box-shadow: 0 12px 28px rgba(220,38,38,.16);
+    background: var(--danger-bg);
+    border-color: var(--red);
+    box-shadow: 0 12px 28px var(--danger-bg);
   }
   .job-card.job-ban-pick .jc-initial,
   .job-card.job-ban-pick .jc-name,
   .job-card.job-ban-pick .jc-check {
-    color: #b91c1c;
+    background: var(--red);
+    color: #fff;
   }
   .job-card.job-ban-pick .jc-portrait {
-    border-color: #ef4444;
-    background: #fecaca;
+    border-color: var(--red);
+    background: var(--danger-bg);
   }
   .job-card.job-banned {
     background: var(--bg3);
@@ -4563,35 +4621,48 @@
     color: var(--text3);
   }
   .job-card.job-banned .jc-initial,
-  .job-card.job-banned .jc-name,
-  .job-card.job-banned .jc-check {
-    color: #94a3b8;
-  }
+  .job-card.job-banned .jc-name { color: var(--text3); }
+  .job-card.job-banned .jc-check { background: var(--text3); color: var(--bg2); }
   .job-card.job-banned .jc-portrait {
     filter: grayscale(.8);
     opacity: .55;
   }
   .job-card.job-unavailable {
-    background: #fff1f2;
-    border-color: #fecdd3;
+    background: var(--danger-bg);
+    border-color: var(--danger-line);
     cursor: not-allowed;
   }
   .job-card.job-unavailable .jc-initial,
-  .job-card.job-unavailable .jc-name,
-  .job-card.job-unavailable .jc-check {
-    color: #be123c;
-  }
+  .job-card.job-unavailable .jc-name { color: var(--danger-fg); }
+  .job-card.job-unavailable .jc-check { background: var(--red); color: #fff; }
   .job-card.job-unavailable .jc-portrait {
     filter: grayscale(.85);
     opacity: .5;
   }
   .jc-check {
     position: absolute;
-    top: 7px; right: 9px;
-    font-size: 12px;
-    color: rgba(255,255,255,.8);
+    top: 6px; right: 6px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1.4;
+    color: var(--on-accent);
+    background: color-mix(in srgb, var(--text) 72%, transparent);
     animation: popIn .2s ease both;
     z-index: 2;
+  }
+  .job-card.job-selected .jc-check { background: rgba(255,255,255,.24); }
+  .jc-sub {
+    max-width: 100%;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    z-index: 1;
   }
   .job-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .job-count {
@@ -4619,9 +4690,9 @@
     height: 40px;
     padding: 0 14px;
     border-radius: var(--radius-sm);
-    background: #fee2e2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-line);
+    color: var(--danger-fg);
     font-size: 13px;
     font-weight: 700;
     display: inline-flex;
@@ -4632,10 +4703,10 @@
   .ban-btn.primary {
     background: var(--red);
     border-color: var(--red);
-    color: #fff;
+    color: var(--on-accent);
   }
-  .ban-btn:hover:not(:disabled) { background: #fecaca; }
-  .ban-btn.primary:hover:not(:disabled) { background: #b91c1c; }
+  .ban-btn:hover:not(:disabled) { background: var(--danger-bg); }
+  .ban-btn.primary:hover:not(:disabled) { filter: brightness(.92); }
   .notice-list { display: flex; flex-direction: column; gap: 6px; }
   .notice-item {
     display: flex;
@@ -4664,224 +4735,13 @@
   }
 
   /* Syllable Hero */
-  .syl-hero {
-    padding: 14px 24px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 20px;
-    transition: background .3s;
-  }
-  .syl-hero.my-turn-hero { background: rgba(99,102,241,.08); border-bottom-color: rgba(99,102,241,.25); }
-  .syl-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text3); }
-  .syl-meta-item strong { color: var(--text2); margin-left: 4px; font-size: 13px; }
-  .syl-meta-sep { color: var(--border2); }
-  .syl-display { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .syl-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; }
-  .syl-main {
-    font-size: 48px;
-    font-weight: 900;
-    letter-spacing: -2px;
-    line-height: 1;
-    color: var(--text);
-    transition: color .3s, text-shadow .3s;
-  }
-  .syl-main.syl-free { color: var(--text3); }
-  .syl-main.syl-glow {
-    color: var(--accent2);
-    text-shadow: 0 0 24px rgba(99,102,241,.6), 0 0 48px rgba(99,102,241,.3);
-    animation: sylPulse 1.6s ease-in-out infinite;
-  }
-  .syl-player { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-  .syl-player-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; }
-  .syl-player-name { font-size: 16px; font-weight: 800; color: var(--text2); transition: color .2s; }
-  .syl-player-name.syl-myturn { color: var(--accent2); animation: namePulse 1.4s ease-in-out infinite; }
 
   /* Game columns */
-  .game-columns {
-    display: grid;
-    grid-template-columns: 220px minmax(0,1fr) 260px;
-    min-height: 0;
-    height: 100%;
-    overflow: hidden;
-  }
-  .col-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: var(--text3);
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
 
   /* Players column */
-  .col-players {
-    padding: 16px 14px;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
-    background: var(--bg2);
-  }
-  .player-card {
-    position: relative;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    background: var(--bg3);
-    transition: border-color .2s, box-shadow .2s;
-    overflow: hidden;
-    animation: fadeUp .22s ease both;
-  }
-  .player-card.player-active {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(99,102,241,.2), 0 8px 24px rgba(99,102,241,.15);
-  }
-  .player-avatar {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: var(--bg2);
-    border: 1.5px solid var(--border2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px; font-weight: 800;
-    flex-shrink: 0;
-    color: var(--text2);
-    transition: background .2s, border-color .2s, color .2s;
-    overflow: hidden;
-    position: relative;
-  }
-  .player-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .player-avatar img:not([hidden]) + span { display: none; }
-  .player-avatar span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-  .player-avatar.avatar-active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    box-shadow: 0 4px 16px rgba(99,102,241,.4);
-  }
-  .player-body { flex: 1; min-width: 0; }
-  .player-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
-  .player-job { font-size: 11px; color: var(--text3); margin-top: 2px; }
-  .player-clock {
-    width: fit-content;
-    min-height: 24px;
-    margin-top: 6px;
-    padding: 0 8px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: #fff;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    font-weight: 900;
-    color: var(--text2);
-  }
-  .player-clock.clock-active {
-    border-color: rgba(37,99,235,.35);
-    color: var(--accent2);
-    background: #eff6ff;
-  }
-  .player-ability-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; width: 100%; }
-  .pa-item { display: flex; justify-content: space-between; align-items: center; background: #fff; border-radius: 4px; padding: 3px 6px; font-size: 11px; border-left: 2px solid #cbd5e1; }
-  .pa-item.pa-ready { border-left-color: var(--accent); }
-  .pa-item.pa-exhausted { opacity: 0.5; border-left-color: var(--red); }
-  .pa-name { font-weight: 700; color: var(--text); }
-  .pa-status { color: var(--text3); font-size: 10px; }
-  .pa-item.pa-ready .pa-status { color: var(--accent); }
-  .pa-item.pa-exhausted .pa-status { color: var(--red); }
-  .effect-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
-  .effect-tag {
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: var(--bg3);
-    border: 1px solid var(--border2);
-    color: var(--text2);
-    animation: popIn .18s ease both;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-  }
-  .effect-tag.effect-debuff {
-    background: rgba(239,68,68,.1);
-    border-color: rgba(239,68,68,.3);
-    color: #ef4444;
-  }
-  .effect-tag.effect-danger {
-    background: #1a1a1a;
-    border-color: #f59e0b;
-    color: #f59e0b;
-    box-shadow: 0 0 10px rgba(245,158,11,.4);
-    font-weight: 900;
-  }
-  .effect-tag.effect-rule {
-    background: rgba(59,130,246,.1);
-    border-color: rgba(59,130,246,.3);
-    color: #3b82f6;
-  }
-  .effect-tag.effect-length {
-    background: rgba(168,85,247,.1);
-    border-color: rgba(168,85,247,.3);
-    color: #a855f7;
-  }
-  .team-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-top: 4px;
-  }
-  .team-dot.team-1 { background: var(--my-color); box-shadow: 0 0 6px var(--my-color); }
-  .team-dot.team-2 { background: var(--red); box-shadow: 0 0 6px var(--red); }
-  .turn-indicator {
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: var(--my-color);
-    border-radius: 0 2px 2px 0;
-    animation: turnBar 1.6s ease-in-out infinite;
-  }
 
   /* Board column */
-  .col-board {
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    overflow: hidden;
-  }
-  .word-history {
-    flex: 1;
-    min-height: 200px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg2);
-    padding: 14px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
+
   .history-empty {
     flex: 1;
     display: flex;
@@ -5096,77 +4956,13 @@
 
   /* ── 능력 기록 카드 ────────────────────────────────
      --fx-hue 는 능력 이름에서 뽑아 능력마다 색이 고정된다. */
-  .fx-feed { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-  /* 기본값은 밝은 테마 기준이다. 어두운 테마는 아래에서 따로 덮는다. */
-  .fx-card {
-    position: relative;
-    overflow: hidden;
-    padding: 10px 14px;
-    border-radius: 12px;
-    border: 1px solid hsl(var(--fx-hue) 60% 48% / .45);
-    background:
-      linear-gradient(115deg, hsl(var(--fx-hue) 75% 55% / .20), hsl(var(--fx-hue2) 75% 55% / .10) 62%, transparent);
-    box-shadow: 0 6px 18px hsl(var(--fx-hue) 50% 40% / .16);
-    animation: fxIn .42s cubic-bezier(.16,1,.3,1) both;
-  }
-  /* 왼쪽 색 띠로 능력마다 첫인상이 다르게 */
-  .fx-card::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 4px;
-    background: linear-gradient(hsl(var(--fx-hue) 90% 55%), hsl(var(--fx-hue2) 90% 60%));
-  }
-  /* 카드를 한 번 훑고 지나가는 빛. */
-  .fx-flare {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(105deg, transparent 30%, hsl(var(--fx-hue) 90% 70% / .26) 50%, transparent 70%);
-    transform: translateX(-120%);
-    animation: fxSweep .9s cubic-bezier(.3,.8,.3,1) .1s both;
-    pointer-events: none;
-  }
-  .fx-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .fx-name {
-    font-size: 1.15rem;
-    font-weight: 800;
-    letter-spacing: .06em;
-    background: linear-gradient(100deg, hsl(var(--fx-hue) 80% 32%), hsl(var(--fx-hue2) 80% 38%));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .fx-kind {
-    font-size: .58rem;
-    font-weight: 700;
-    letter-spacing: .14em;
-    padding: 2px 6px;
-    border-radius: 999px;
-    border: 1px solid hsl(var(--fx-hue) 55% 45% / .5);
-    color: hsl(var(--fx-hue) 60% 36%);
-  }
-  .fx-passive .fx-kind { border-style: dashed; }
 
-  :global([data-theme="dark"]) .fx-card {
-    border-color: hsl(var(--fx-hue) 70% 55% / .55);
-    background: linear-gradient(135deg, hsl(var(--fx-hue) 70% 50% / .22), hsl(var(--fx-hue) 70% 50% / .05));
-    box-shadow: 0 0 0 1px hsl(var(--fx-hue) 70% 50% / .12), 0 6px 20px hsl(var(--fx-hue) 70% 30% / .35);
-  }
-  :global([data-theme="dark"]) .fx-name {
-    background: linear-gradient(100deg, hsl(var(--fx-hue) 90% 76%), hsl(var(--fx-hue2) 90% 80%));
-    -webkit-background-clip: text;
-    background-clip: text;
-    filter: drop-shadow(0 0 12px hsl(var(--fx-hue) 90% 60% / .5));
-  }
-  :global([data-theme="dark"]) .fx-kind {
-    border-color: hsl(var(--fx-hue) 70% 60% / .5);
-    color: hsl(var(--fx-hue) 70% 72%);
-  }
-  :global([data-theme="dark"]) .fx-flare {
-    background: linear-gradient(105deg, transparent 30%, hsl(var(--fx-hue) 90% 75% / .40) 50%, transparent 70%);
-  }
-  .fx-job { margin-top: 1px; font-size: .68rem; letter-spacing: .05em; color: var(--text2); }
-  .fx-body { margin-top: 5px; font-size: .82rem; line-height: 1.5; color: var(--text); }
+  /* 기본값은 밝은 테마 기준이다. 어두운 테마는 아래에서 따로 덮는다. */
+
+  /* 왼쪽 색 띠로 능력마다 첫인상이 다르게 */
+
+  /* 카드를 한 번 훑고 지나가는 빛. */
+
 
   @keyframes fxIn {
     from { opacity: 0; transform: translateY(10px) scale(.96); }
@@ -5177,36 +4973,7 @@
   }
   /* 애니메이션을 줄여 달라고 한 사용자에게는 정적으로 보여 준다. */
   @media (prefers-reduced-motion: reduce) {
-    .fx-card { animation: none; }
-    .fx-flare { display: none; }
   }
-
-  .word-bubble {
-    display: flex;
-    justify-content: calc(var(--bi) * 100%);
-    animation: bubbleIn .3s cubic-bezier(.22,1,.36,1) both;
-  }
-  .word-bubble:nth-child(odd) { justify-content: flex-start; }
-  .word-bubble:nth-child(even) { justify-content: flex-end; }
-  .bubble-text {
-    display: inline-block;
-    padding: 7px 14px;
-    border-radius: 18px;
-    font-size: 15px;
-    font-weight: 600;
-    max-width: 75%;
-    word-break: break-all;
-    border: 1px solid var(--border2);
-    background: var(--bg3);
-    color: var(--text);
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .word-bubble:nth-child(even) .bubble-text {
-    background: color-mix(in srgb, var(--my-color) 12%, transparent);
-    border-color: color-mix(in srgb, var(--my-color) 25%, transparent);
-    color: var(--my-color);
-  }
-  .bubble-text:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(99,102,241,.15); }
 
   /* Input zone */
   .bottom-composer {
@@ -5220,13 +4987,13 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
     z-index: 40;
-    box-shadow: 0 -8px 24px rgba(15,23,42,.06);
+    box-shadow: 0 -8px 24px rgba(0,0,0,.05);
     will-change: transform;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
   }
   .bottom-composer.composer-active {
-    border-top-color: rgba(37,99,235,.25);
+    border-top-color: var(--accent-line);
   }
   .input-zone {
     display: flex;
@@ -5236,10 +5003,10 @@
     max-width: 980px;
     margin: 0 auto;
     padding: 6px;
-    border: 1.5px solid rgba(59,130,246,.2);
+    border: 1.5px solid var(--accent-line);
     border-radius: calc(var(--radius) + 8px);
     background: var(--bg2);
-    box-shadow: 0 4px 16px rgba(15,23,42,.06);
+    box-shadow: var(--shadow);
   }
   .word-input {
     flex: 1;
@@ -5252,9 +5019,8 @@
     transition: border-color .18s, box-shadow .18s;
   }
   .input-zone.input-active .word-input {
-    border-color: rgba(37,99,235,.35);
-    background: rgba(239,246,255,.72);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
   }
   .input-zone.premove-input {
     border-color: rgba(245,158,11,.25);
@@ -5274,10 +5040,10 @@
     flex-shrink: 0;
   }
   .send-btn.send-ready {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    box-shadow: 0 4px 20px rgba(99,102,241,.45);
+    background: var(--accent-fill);
+    border-color: var(--accent-fill);
+    color: var(--on-accent);
+    box-shadow: 0 6px 20px var(--accent-soft);
     animation: sendPulse 1.8s ease-in-out infinite;
   }
   .send-btn.premove-ready {
@@ -5299,7 +5065,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    box-shadow: 0 6px 18px rgba(15,23,42,.06);
+    box-shadow: var(--shadow);
   }
   .premove-kicker {
     display: block;
@@ -5336,25 +5102,13 @@
   }
 
   /* Ability bar */
-  .ability-bar {
-    width: 100%;
-    max-width: 980px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
-    align-items: start;
-    gap: 10px;
-    padding: 8px;
-    border-radius: calc(var(--radius) + 8px);
-    background: rgba(15,23,42,.035);
-    border: 1px solid rgba(37,99,235,.10);
-    animation: fadeUp .3s ease both;
+  .ability-grid {
+    width: 100%; max-width: 980px; margin: 0 auto;
+    display: flex; flex-wrap: wrap; gap: 7px;
   }
-  .ability-target { height: 40px; font-size: 13px; border-radius: var(--radius-sm); background: rgba(255,255,255,.9); }
-  .ability-grid { display: flex; flex-wrap: wrap; gap: 7px; }
   .ab-btn {
-    height: 38px;
-    padding: 0 14px;
+    height: 36px;
+    padding: 0 13px;
     border-radius: var(--radius-sm);
     background: var(--bg3);
     border: 1px solid var(--border2);
@@ -5373,85 +5127,21 @@
   .ab-btn:not(:disabled):hover {
     border-color: var(--accent);
     color: var(--accent2);
-    background: rgba(99,102,241,.1);
-    box-shadow: 0 4px 14px rgba(99,102,241,.2);
+    background: var(--accent-soft);
+    box-shadow: 0 4px 14px var(--accent-soft);
   }
   .ab-btn.ab-not-ready {
     color: var(--text3);
     background: rgba(148,163,184,.1);
   }
-  .ab-btn::after {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 60%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
-    animation: shimmer 3.5s ease-in-out infinite;
-  }
 
   /* Control column */
-  .col-control {
-    border-left: 1px solid var(--border);
-    padding: 16px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    overflow-y: auto;
-    background: var(--bg2);
-  }
-  .my-job-panel {
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    padding: 16px;
-    background: var(--bg3);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    animation: fadeUp .22s ease both;
-    position: relative;
-    overflow: hidden;
-  }
-  .my-job-panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(135deg, rgba(99,102,241,.08), transparent);
-    pointer-events: none;
-  }
-  .mj-badge {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    color: var(--accent2);
-    text-transform: uppercase;
-  }
-  .mj-icon {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    background: var(--accent);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; font-weight: 900;
-    color: #fff;
-    box-shadow: 0 8px 24px rgba(99,102,241,.4);
-    overflow: hidden;
-    position: relative;
-  }
-  .mj-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .mj-icon img:not([hidden]) + span {
-    display: none;
-  }
-  .mj-name { font-size: 20px; font-weight: 900; letter-spacing: -.5px; }
-  .mj-effects { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-  .ctrl-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
   .ctrl-btn {
-    height: 40px;
+    height: 38px;
+    min-width: 76px;
+    padding: 0 16px;
+    flex: 0 0 auto;
     border-radius: var(--radius-sm);
     background: var(--bg3);
     border: 1px solid var(--border2);
@@ -5462,26 +5152,12 @@
     transition: background .18s, border-color .18s, color .18s;
   }
   .ctrl-btn:hover:not(:disabled) { background: var(--bg2); border-color: var(--accent); color: var(--text); }
-  .ctrl-btn.danger:hover:not(:disabled) { border-color: var(--red); color: #fca5a5; background: rgba(239,68,68,.1); }
-  .vote-panel {
-    border: 1.5px solid var(--accent);
-    border-radius: var(--radius);
-    padding: 16px;
-    background: rgba(99,102,241,.1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    animation: voteIn .3s cubic-bezier(.34,1.56,.64,1) both;
-  }
-  .vote-icon { color: var(--accent2); }
-  .vote-type { font-size: 16px; font-weight: 800; }
-  .vote-req { font-size: 12px; color: var(--text2); }
-  .vote-btns { display: flex; gap: 8px; width: 100%; }
+  .ctrl-btn.danger { color: var(--danger-fg); }
+  .ctrl-btn.danger:hover:not(:disabled) { border-color: var(--red); color: var(--danger-fg); background: var(--danger-bg); }
   .vote-yes {
     flex: 1; height: 38px;
     border-radius: var(--radius-sm);
-    background: var(--accent); color: #fff;
+    background: var(--accent-fill); color: var(--on-accent);
     font-weight: 800; font-size: 14px;
     transition: background .18s;
   }
@@ -5496,65 +5172,6 @@
     transition: background .18s, border-color .18s;
   }
   .vote-no:hover { background: var(--bg3); border-color: var(--red); color: #fca5a5; }
-  .notice-panel { display: flex; flex-direction: column; gap: 6px; }
-  .notice-panel .notice-item { padding: 8px 10px; font-size: 12px; }
-  .notice-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
-  .game-status-panel {
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    background: var(--bg3);
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    animation: fadeUp .22s ease both;
-  }
-  .status-content { display: flex; flex-direction: column; gap: 10px; }
-  .status-player-row {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px;
-    border-radius: var(--radius-sm);
-    background: var(--bg2);
-    border: 1px solid transparent;
-    transition: border-color .2s;
-  }
-  .status-player-row.spr-active {
-    border-color: var(--accent);
-    box-shadow: 0 4px 12px rgba(99,102,241,.1);
-  }
-  .spr-info { display: flex; align-items: center; gap: 6px; }
-  .spr-team { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .spr-team.team-1 { background: var(--my-color); }
-  .spr-team.team-2 { background: var(--red); }
-  .spr-name { font-size: 13px; font-weight: 800; color: var(--text); }
-  .spr-job { font-size: 11px; color: var(--text3); }
-  .spr-effects { display: flex; flex-wrap: wrap; gap: 4px; }
-  .spr-empty { font-size: 11px; color: var(--text3); font-style: italic; }
-
-  .game-guide-panel {
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    background: var(--bg3);
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .guide-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 12px;
-    color: var(--text2);
-  }
-  .guide-row strong {
-    color: var(--text);
-    font-size: 12px;
-    text-align: right;
-  }
 
   /* ═══════════════════════════════════════════
      MATCH OVERLAY
@@ -5634,22 +5251,21 @@
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
     gap: 16px;
-    min-height: 0;
-    flex: 1;
+    align-items: start;
+    flex: 0 0 auto;
   }
+  .jobs-page :global(.tier-maker) { flex: 0 0 auto; }
   .jobs-list-panel,
   .job-detail-panel,
   .job-stat-card,
-  .command-card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg2);
-  }
   .jobs-list-panel {
     padding: 14px;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    position: sticky;
+    top: 0;
+    max-height: calc(100dvh - 130px);
   }
   .jobs-panel-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
   .jobs-panel-head h2,
@@ -5659,8 +5275,9 @@
   .jobs-list {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 4px;
     overflow-y: auto;
+    min-height: 0;
     padding-right: 2px;
   }
   .job-list-btn {
@@ -5676,7 +5293,7 @@
     text-align: left;
   }
   .job-list-btn:hover,
-  .job-list-btn.jlb-active { background: #eff6ff; color: var(--accent2); }
+  .job-list-btn.jlb-active { background: var(--accent-soft); color: var(--accent2); }
   .jlb-icon,
   .job-detail-icon {
     width: 32px;
@@ -5687,8 +5304,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #e0ecff;
-    color: var(--accent2);
+    background: var(--accent-soft);
+    color: var(--accent);
     font-size: 14px;
     font-weight: 900;
     position: relative;
@@ -5717,21 +5334,12 @@
   }
   .job-title-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .job-detail-icon { width: 54px; height: 54px; font-size: 22px; }
-  .job-ability-strip { display: flex; flex-wrap: wrap; gap: 6px; max-width: 420px; justify-content: flex-end; }
-  .job-ability-strip span {
-    border: 1px solid rgba(37,99,235,.18);
-    background: #eff6ff;
-    color: var(--accent2);
-    border-radius: 999px;
-    padding: 4px 9px;
-    font-size: 11px;
-    font-weight: 800;
-  }
   .job-info-gui {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    align-items: start;
     gap: 10px;
-    max-height: 420px;
+    max-height: 440px;
     overflow: auto;
     padding-right: 2px;
   }
@@ -5740,7 +5348,7 @@
     border-radius: var(--radius);
     background: var(--bg2);
     overflow: hidden;
-    box-shadow: 0 6px 16px rgba(15,23,42,.04);
+    box-shadow: var(--shadow);
   }
   .jic-head {
     padding: 11px 12px;
@@ -5763,8 +5371,8 @@
     min-height: 22px;
     padding: 3px 8px;
     border-radius: 999px;
-    border: 1px solid rgba(37,99,235,.18);
-    background: #eff6ff;
+    border: 1px solid var(--accent-line);
+    background: var(--accent-soft);
     color: var(--accent2);
     font-size: 11px;
     font-weight: 900;
@@ -5795,7 +5403,7 @@
     border-radius: 50%;
     background: var(--accent);
   }
-  .job-side-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; }
+  .job-side-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
   .job-stat-card { padding: 14px; min-width: 0; }
   .job-section-title { font-size: 13px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
   .mini-rank-row,
@@ -5813,66 +5421,69 @@
   .mini-rank-record { color: var(--text3); }
   .mini-rank-rating { color: var(--tc, var(--accent)); font-weight: 900; }
   .tier-table { max-height: 340px; overflow: auto; }
+  .rank-tiers {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg2); overflow: hidden;
+  }
+  .rank-tiers > summary {
+    padding: 12px 16px; cursor: pointer; list-style: none;
+    font-size: 13px; font-weight: 800; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rank-tiers > summary::-webkit-details-marker { display: none; }
+  .rank-tiers > summary::before {
+    content: '▸'; color: var(--text3); font-size: 11px; transition: transform .15s;
+  }
+  .rank-tiers[open] > summary::before { transform: rotate(90deg); }
+  .rank-tiers[open] > summary { border-bottom: 1px solid var(--border); }
+  .rank-tiers .tier-table { padding: 6px 16px 14px; }
+  .job-side-grid-single { grid-template-columns: minmax(0, 1fr); }
   .tier-row { grid-template-columns: 10px minmax(0, 1fr) auto; }
   .tier-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tc); box-shadow: 0 0 10px var(--tc-glow); }
   .tier-name { font-weight: 800; }
   .tier-range { color: var(--text3); font-weight: 700; }
 
   /* Help */
-  .help-page { max-width: 980px; }
+  .help-page { max-width: 820px; }
+  .help-start {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap;
+    margin-top: 6px; padding: 16px 18px;
+    border: 1px solid var(--accent-line); border-radius: var(--radius);
+    background: var(--accent-soft);
+  }
+  .help-start p { font-size: 13.5px; font-weight: 700; color: var(--text); }
   .help-header { display: flex; flex-direction: column; gap: 4px; }
   .help-header p { color: var(--text2); font-size: 14px; }
-  .help-subheader { margin-top: 10px; }
-  .lecture-stack { display: grid; gap: 12px; }
+  .lecture-stack { display: grid; gap: 8px; }
   .lecture-card {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg2);
-    padding: 16px;
-    display: grid;
-    gap: 13px;
+    overflow: hidden;
   }
   .lecture-heading {
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr) 14px;
     gap: 10px;
-    align-items: start;
+    align-items: center;
+    padding: 13px 16px;
+    cursor: pointer;
+    list-style: none;
   }
-  .lecture-heading h3 { font-size: 17px; font-weight: 900; }
-  .lecture-heading p { margin-top: 3px; color: var(--text2); font-size: 13px; line-height: 1.55; }
-  .term-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 8px;
+  .lecture-heading::-webkit-details-marker { display: none; }
+  .lecture-heading::after {
+    content: '▸'; color: var(--text3); font-size: 11px;
+    transition: transform .15s;
   }
-  .term-row {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: #fff;
-    padding: 10px;
-    display: grid;
-    gap: 5px;
+  .lecture-card[open] > .lecture-heading::after { transform: rotate(90deg); }
+  .lecture-heading:hover { background: var(--bg3); }
+  .lecture-heading h3 { font-size: 15.5px; font-weight: 900; }
+  .lecture-body {
+    display: grid; gap: 13px;
+    padding: 2px 16px 16px 54px;
   }
-  .term-row strong { font-size: 13px; font-weight: 900; color: var(--accent); }
-  .term-row span { font-size: 12px; line-height: 1.55; color: var(--text2); }
-  .lecture-points {
-    display: grid;
-    gap: 7px;
-    padding-left: 18px;
-    color: var(--text2);
-    font-size: 13px;
-    line-height: 1.55;
-  }
-  .lecture-points li::marker { color: var(--accent); }
-  .tutorial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-  .tutorial-card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg2);
-    padding: 14px;
-    display: grid;
-    gap: 7px;
-  }
+  .lecture-text { font-size: 13px; line-height: 1.6; color: var(--text2); }
   .tutorial-num {
     width: 28px;
     height: 28px;
@@ -5880,32 +5491,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
     font-size: 12px;
     font-weight: 900;
   }
-  .tutorial-card h3 { font-size: 15px; font-weight: 900; }
-  .tutorial-card p { font-size: 13px; line-height: 1.55; color: var(--text2); }
-  .command-card { padding: 14px; }
-  .command-grid {
-    display: grid;
-    grid-template-columns: minmax(110px, 1fr) minmax(0, 1.2fr);
-    gap: 0;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-    font-size: 12px;
-  }
-  .command-grid span,
-  .command-grid strong {
-    padding: 9px 11px;
-    border-bottom: 1px solid var(--border);
-  }
-  .command-grid span { background: var(--bg3); color: var(--text2); font-weight: 800; }
-  .command-grid strong { background: #fff; color: var(--text); }
-  .command-grid span:nth-last-child(-n+2),
-  .command-grid strong:nth-last-child(-n+2) { border-bottom: none; }
 
   /* Search */
   .search-bar { display: flex; gap: 10px; }
@@ -5913,40 +5503,36 @@
   .search-submit {
     height: 48px; padding: 0 24px;
     border-radius: var(--radius);
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
     font-size: 14px;
     font-weight: 700;
     display: inline-flex; align-items: center; gap: 8px;
     transition: background .18s, box-shadow .18s;
-    box-shadow: 0 4px 16px rgba(99,102,241,.35);
+    box-shadow: 0 4px 16px var(--accent-soft);
   }
   .search-submit:hover { background: var(--accent2); }
   .search-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 13px; color: var(--text2); }
   .search-meta strong { color: var(--text); }
-  .kind-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .kind-pill {
-    height: 30px; padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--border2);
-    background: transparent;
-    font-size: 12px; font-weight: 700;
-    color: var(--text2);
-    transition: background .18s, border-color .18s, color .18s;
+  .word-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(212px,1fr));
+    grid-auto-rows: 1fr;
+    gap: 10px;
+    align-content: start;
   }
-  .kind-pill:hover { border-color: var(--accent); color: var(--text); }
-  .kind-pill.kind-active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 10px; }
   .word-card {
     border: 1.5px solid var(--border);
     border-radius: var(--radius);
-    padding: 12px 14px;
+    padding: 13px 15px;
     background: var(--bg2);
-    display: flex; flex-direction: column; gap: 7px;
+    text-align: left;
+    display: flex; flex-direction: column; gap: 8px;
     animation: popIn .22s cubic-bezier(.34,1.56,.64,1) both;
     transition: border-color .15s, box-shadow .15s, transform .15s;
   }
-  .word-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+  .word-card .wc-win { margin-top: auto; }
+  .word-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
   .word-card.wc-한방 { border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.05); }
   .word-card.wc-유도 { border-color: rgba(249,115,22,.3); background: rgba(249,115,22,.05); }
   .word-card.wc-루트 { border-color: rgba(59,130,246,.3); background: rgba(59,130,246,.05); }
@@ -5961,8 +5547,9 @@
   .wc-유도 .wc-kind-badge { color: var(--orange); }
   .wc-루트 .wc-kind-badge { color: var(--blue); }
   .wc-일반 .wc-kind-badge { color: var(--text3); }
-  .wc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text3); }
+  .wc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text2); }
   .wc-win {
+    align-self: flex-start;
     font-size: 11px; font-weight: 800;
     padding: 3px 10px; border-radius: 999px;
     background: rgba(34,197,94,.15);
@@ -5978,55 +5565,50 @@
   .think-dot:nth-child(3) { animation-delay: .4s; }
   .think-label { font-size: 13px; color: var(--text2); margin-left: 8px; }
   @keyframes think-pulse { 0%,100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.1); } }
-  .think-log-panel { margin: 4px 8px 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; font-size: 12px; }
-  .think-log-panel summary { padding: 6px 12px; cursor: pointer; color: var(--text2); background: var(--bg2); user-select: none; }
-  .think-log-panel summary:hover { color: var(--accent); }
-  .think-log-entry { padding: 4px 14px; color: var(--text2); border-top: 1px solid var(--border); background: var(--bg); }
 
   /* Ranking */
-  .rank-page { max-width: 640px; }
-  .rank-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
-  .rank-title { font-size: 24px; font-weight: 900; letter-spacing: -.5px; }
-  .rank-mode-tabs { display: flex; gap: 4px; background: var(--bg3); padding: 3px; border-radius: 10px; }
-  .rmt { padding: 5px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--text2); transition: all .15s; }
-  .rmt-active { background: var(--bg2); color: var(--accent); box-shadow: 0 1px 6px rgba(0,0,0,.1); }
+  .rank-page { max-width: 760px; }
+  .rank-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .rank-title { font-size: 26px; font-weight: 900; letter-spacing: -.6px; }
+  .rank-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
   .rank-row {
     display: flex; align-items: center; gap: 14px;
     border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 18px; background: var(--bg2);
+    padding: 10px 16px; background: var(--bg2);
     animation: fadeUp .2s ease both;
-    animation-delay: calc(var(--ri) * 40ms);
-    transition: border-color .18s, box-shadow .18s;
+    animation-delay: calc(var(--ri) * 30ms);
+    transition: border-color .18s, box-shadow .18s, transform .18s;
   }
-  .rank-row:hover { border-color: var(--tc, var(--border2)); box-shadow: 0 0 0 1px var(--tc-glow, transparent); }
-  .rank-num { width: 36px; text-align: center; font-size: 18px; font-weight: 900; color: var(--text3); }
-  .rank-num.rank-top { font-size: 22px; }
+  .rank-row:hover {
+    border-color: var(--tc, var(--border2));
+    box-shadow: 0 0 0 1px var(--tc-glow, transparent);
+    transform: translateX(2px);
+  }
+  .rank-row.rank-podium { border-color: var(--tc-glow, var(--border)); background: var(--card); }
+  .rank-num {
+    width: 30px; text-align: center; font-size: 15px; font-weight: 900;
+    color: var(--text3); font-variant-numeric: tabular-nums; flex: 0 0 auto;
+  }
+  .rank-num.rank-top { color: var(--tc, var(--accent)); font-size: 17px; }
   .rank-avatar {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: var(--accent); color: #000;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent-fill); color: var(--on-accent);
     display: flex; align-items: center; justify-content: center;
-    font-size: 17px; font-weight: 900;
+    font-size: 15px; font-weight: 900;
     flex-shrink: 0;
   }
-  .rank-info { flex: 1; min-width: 0; }
-  .rank-name { font-size: 15px; font-weight: 800; display: block; overflow-wrap: anywhere; }
+  .rank-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .rank-name { font-size: 14.5px; font-weight: 800; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rank-record { font-size: 12px; color: var(--text3); }
-  .rank-tier-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .rank-tier-col { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex: 0 0 auto; }
   .rank-tier-badge {
     font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px;
     background: var(--tc-glow, #eee); color: var(--tc, #666);
     border: 1px solid var(--tc, #ddd); white-space: nowrap;
   }
-  .rank-rating { font-size: 20px; font-weight: 900; color: var(--tc, var(--accent2)); letter-spacing: -.5px; }
-  .job-rank-selector { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
-  .jrs-btn { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); transition: all .14s; }
-  .jrs-btn.jrs-active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .job-rank-section { display: flex; flex-direction: column; gap: 8px; }
-  .jr-job-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
-  .jr-job-name { font-size: 20px; font-weight: 900; }
-  .jr-job-sub { font-size: 12px; color: var(--text3); }
-  .jr-row { border-left: 3px solid var(--tc, var(--border)); }
+  .rank-rating { min-width: 46px; text-align: right; font-size: 16px; font-weight: 900; color: var(--text); letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
   .rank-empty { padding: 40px; text-align: center; color: var(--text3); font-size: 14px; }
+  .rank-empty.small { padding: 20px 12px; font-size: 13px; }
   /* Tier result overlay */
   .tier-result-overlay {
     position: fixed; inset: 0; z-index: 400;
@@ -6100,480 +5682,24 @@
   }
   @keyframes dotAnim { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} 100%{content:''} }
   @keyframes spin { to { transform:rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  /* ═══════════════════════════════════════════
-     RESPONSIVE
-  ═══════════════════════════════════════════ */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
   }
-  @media (max-width:1000px) {
-    .game-columns { grid-template-columns: 190px minmax(0,1fr) 220px; }
-    .jobs-layout { grid-template-columns: 220px minmax(0, 1fr); }
-    .job-side-grid { grid-template-columns: 1fr; }
-  }
-  @media (max-width:800px) {
-    .ingame { min-height: 0; }
-    .game-columns {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(0, 1fr) auto;
-      overflow: hidden;
-    }
-    .col-players {
-      border-right: none;
-      border-bottom: 1px solid var(--border);
-      max-height: 112px;
-      flex-direction: row;
-      flex-wrap: nowrap;
-      gap: 8px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 10px;
-    }
-    .col-players .col-label { display: none; }
-    .player-card { width: 180px; flex: 0 0 auto; padding: 9px; }
-    .player-ability-list,
-    .job-status-list { display: none; }
-    .col-control {
-      border-left: none;
-      border-top: 1px solid var(--border);
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      padding: 10px;
-      max-height: 150px;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-    .my-job-panel,
-    .game-status-panel,
-    .game-guide-panel,
-    .vote-panel { margin: 0; }
-    .game-status-panel { display: none; }
-    .ctrl-actions { grid-column: 1 / -1; flex-direction: row; }
-    .col-board { min-height: 0; padding: 10px; }
-    .word-history { min-height: 0; }
-    .jobs-layout { grid-template-columns: 1fr; min-height: auto; }
-    .jobs-list-panel { max-height: 220px; }
-    .jobs-list { grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); }
-    .job-pair-row { flex-direction: column; }
-    .jp-vs { display: none; }
-  }
-  @media (max-width:640px) {
-    .topbar {
-      height: auto;
-      padding: 10px 14px;
-      padding-left: max(14px, env(safe-area-inset-left));
-      padding-right: max(14px, env(safe-area-inset-right));
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 8px;
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
-    }
-    .brand { font-size: 18px; }
-    .top-nav {
-      grid-column: 1 / -1;
-      order: 3;
-      width: 100%;
-      overflow-x: auto;
-      scrollbar-width: none;
-      padding-bottom: 1px;
-    }
-    .top-nav::-webkit-scrollbar { display: none; }
-    .nav-btn { flex: 0 0 auto; justify-content: center; height: 32px; padding: 0 10px; font-size: 12px; }
-    .top-auth { margin-left: 0; justify-content: flex-end; gap: 5px; min-width: 0; }
-    .auth-name { max-width: 82px; overflow: hidden; text-overflow: ellipsis; }
-    .auth-input { width: 90px; height: 38px; font-size: 16px; padding: 0 8px; }
-    .auth-select { width: 80px; height: 38px; font-size: 14px; padding: 0 6px; }
-    .icon-btn { width: 32px; height: 32px; }
-    .auth-panel { margin: 0 12px 10px; }
-    .auth-panel-form { grid-template-columns: 1fr; }
-    .nav-label { display: none; }
-    .lobby-layout { grid-template-columns: 1fr; }
-    .wait-room { grid-template-columns: 1fr; }
-    .wait-room-side { order: 2; }
-    .wizard-choice-grid, .wizard-choice-grid-3 { grid-template-columns: 1fr; }
-    .lobby { align-items: flex-start; padding: 16px 12px; }
-    .lobby-card { padding: 22px 18px; gap: 16px; }
-    .lobby-title h1 { font-size: 30px; }
-    .syl-hero { grid-template-columns: 1fr auto auto; gap: 10px; padding: 8px 12px; }
-    .syl-meta { display: none; }
-    .syl-main { font-size: 34px; }
-    .syl-player-name { font-size: 13px; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .job-screen { padding: 12px; gap: 12px; }
-    .job-screen-header h2 { font-size: 20px; }
-    .ban-panel { padding: 12px; }
-    .job-grid { grid-template-columns: repeat(auto-fill, minmax(78px,1fr)); gap: 7px; }
-    .job-card { height: 76px; border-radius: 8px; }
-    .jc-portrait { width: 38px; height: 38px; }
-    .jc-name { font-size: 11px; }
-    .ban-group { margin-left: 0; }
-    .job-actions { flex-wrap: wrap; }
-    .word-grid { grid-template-columns: 1fr 1fr; }
-    .batch-grid { grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); }
-    .content-page { padding: 12px; gap: 12px; }
-    .job-detail-panel { padding: 12px; }
-    .job-detail-icon { width: 44px; height: 44px; }
-    .job-info-gui { max-height: 300px; grid-template-columns: 1fr; }
-    .tutorial-grid { grid-template-columns: 1fr; }
-    .command-grid { grid-template-columns: 1fr; }
-    .command-grid span { border-bottom: none; }
-    .match-title { font-size: 40px; }
-    .match-swords { font-size: 64px; }
-    .bottom-composer { padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 7px; }
-    .bottom-composer {
-      max-height: 34dvh;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-    .input-zone { padding: 4px; gap: 6px; }
-    .word-input { height: 44px; font-size: 16px; }
-    .send-btn { width: 44px; height: 44px; }
-    .ability-bar { grid-template-columns: 1fr; }
-    .ability-grid { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
-    .ab-btn { flex: 0 0 auto; height: 34px; font-size: 12px; }
-    .word-search-float { width: calc(100vw - 32px); right: 16px; left: 16px; }
-    .floating-chat-container { bottom: 72px; }
-    .rank-row { padding: 10px; gap: 9px; }
-    .rank-avatar { width: 34px; height: 34px; }
-    .rank-tier-badge { white-space: normal; text-align: right; }
-    .rank-rating { font-size: 17px; }
-    input, select { font-size: 16px !important; }
-  }
 
-  /* ─── Job Tooltip ─── */
-  .job-card { position: relative; }
-  .job-tooltip {
-    display: none;
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 200;
-    width: 320px;
-    max-height: 340px;
-    overflow-y: auto;
-    background: #1a1a2e;
-    border: 1px solid #3a3a5c;
-    border-radius: 10px;
-    padding: 12px 14px;
-    box-shadow: 0 8px 32px #0008;
-    pointer-events: none;
-  }
-  .job-tooltip-text {
-    font-family: inherit;
-    font-size: 11.5px;
-    line-height: 1.7;
-    color: #ccd6f6;
-    white-space: pre-wrap;
-    margin: 0;
-  }
-  .job-card:hover .job-tooltip { display: block; }
-
-  /* Player card (left in-game column) — anchor to the right of the card */
-  .player-card { overflow: visible; }
-  .player-card .job-tooltip--player {
-    bottom: auto; top: 0; left: calc(100% + 8px); transform: none;
-    width: 280px; max-height: 300px;
-  }
-  .player-card:hover .job-tooltip--player { display: block; }
-
-  /* My-job panel (right control column) — anchor to the left of the panel */
-  .my-job-panel { overflow: visible; }
-  .my-job-panel .job-tooltip--myjob {
-    bottom: auto; top: 0; right: calc(100% + 8px); left: auto; transform: none;
-    width: 280px; max-height: 300px;
-  }
-  .my-job-panel:hover .job-tooltip--myjob { display: block; }
-
-  /* Job-ranking filter button — keep default top-anchored tooltip */
-  .jrs-btn { position: relative; }
-  .jrs-btn .job-tooltip--jrs { width: 280px; max-height: 300px; text-align: left; }
-  .jrs-btn:hover .job-tooltip--jrs { display: block; }
-
-  /* Narrow screens: flip side-anchored tooltips back to top-centered */
-  @media (max-width: 980px) {
-    .player-card .job-tooltip--player,
-    .my-job-panel .job-tooltip--myjob {
-      bottom: calc(100% + 8px); top: auto; left: 50%; right: auto;
-      transform: translateX(-50%);
-    }
-  }
-
-  /* ─── Floating word search ─── */
-  .syl-search-btn {
-    background: none;
-    border: 1px solid #3a3a5c;
-    border-radius: 7px;
-    color: #8892b0;
-    padding: 5px 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: background 0.15s, color 0.15s;
-  }
-  .syl-search-btn:hover, .syl-search-btn.wsf-active {
-    background: #2a2a4a;
-    color: #ccd6f6;
-    border-color: #6272a4;
-  }
-  /* ─── Search Tab Drawer ─── */
-  .search-tab-drawer {
-    position: fixed;
-    right: 0;
-    top: 56px;
-    bottom: 0;
-    width: 320px;
-    background: var(--bg2);
-    border-left: 1px solid var(--border);
-    z-index: 150;
-    transform: translateX(100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
-    display: flex;
-    flex-direction: column;
-    box-shadow: -10px 0 40px rgba(0,0,0,0);
-  }
-  .search-tab-drawer.search-drawer-open {
-    transform: translateX(0);
-    box-shadow: -10px 0 40px rgba(15,23,42,.12);
-  }
-  .search-tab-handle {
-    position: absolute;
-    left: -34px;
-    top: 160px;
-    width: 34px;
-    height: 100px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-right: none;
-    border-radius: 12px 0 0 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: -6px 0 16px rgba(0,0,0,0.04);
-    transition: all 0.25s;
-    color: var(--text2);
-    user-select: none;
-    z-index: -1;
-  }
-  .search-tab-handle:hover {
-    color: var(--accent);
-    background: var(--bg3);
-    padding-right: 4px;
-    left: -38px;
-  }
-  .search-drawer-open .search-tab-handle {
-    background: var(--bg2);
-    color: var(--accent);
-    left: -32px;
-    box-shadow: none;
-  }
-  .handle-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    writing-mode: vertical-lr;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 2px;
-  }
-  .search-drawer-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    background: var(--bg2);
-  }
-  .sdc-header {
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--bg);
-  }
-  .sdc-header h3 { font-size: 15px; font-weight: 900; color: var(--text); letter-spacing: -.3px; }
-  .sdc-close { 
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; color: var(--text3); transition: background .15s;
-  }
-  .sdc-close:hover { background: var(--border); color: var(--text); }
-  .sdc-form { padding: 16px 20px; border-bottom: 1px solid var(--border); }
-  .sdc-input-wrap { position: relative; }
-  .sdc-input { 
-    width: 100%; height: 44px; padding: 0 48px 0 14px; 
-    font-size: 14px; background: var(--bg3); border: 1.5px solid var(--border2); border-radius: 10px; 
-    transition: all .2s;
-  }
-  .sdc-input:focus { border-color: var(--accent); background: var(--bg2); box-shadow: 0 0 0 4px rgba(59,130,246,.12); }
-  .sdc-submit { 
-    position: absolute; right: 7px; top: 7px; width: 30px; height: 30px; 
-    border-radius: 8px; background: var(--accent); color: #fff; 
-    display: flex; align-items: center; justify-content: center;
-    transition: transform .15s, background .15s;
-  }
-  .sdc-submit:hover { background: var(--accent2); transform: scale(1.05); }
-  .sdc-results { flex: 1; overflow-y: auto; padding: 8px 0; }
-  .sdc-item { 
-    width: 100%; display: flex; align-items: center; justify-content: space-between; 
-    padding: 11px 20px; gap: 12px; transition: all .15s; text-align: left; 
-    border-bottom: 1px solid rgba(0,0,0,.02);
-  }
-  .sdc-item:hover { background: rgba(37,99,235,.05); padding-left: 24px; }
-  .sdci-word { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
-  .sdci-kind { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
-  .sdci-k-한방 { background: #fee2e2; color: #ef4444; }
-  .sdci-k-유도 { background: #fff7ed; color: #f97316; }
-  .sdci-k-루트 { background: #f0fdf4; color: #22c55e; }
-  .sdci-k-일반 { background: #f8fafc; color: #64748b; }
-  .sdc-empty { padding: 48px 20px; text-align: center; color: var(--text3); font-size: 13px; }
-  
-  @media (max-width: 640px) {
-    .search-tab-drawer {
-      width: 100%; top: auto; height: 60vh;
-      transform: translateY(100%); border-left: none;
-      border-top: 1px solid var(--border); border-radius: 24px 24px 0 0;
-    }
-    .search-tab-drawer.search-drawer-open { transform: translateY(0); }
-    .search-tab-handle {
-      left: auto; right: 20px; top: -42px; width: 84px; height: 42px;
-      border-radius: 14px 14px 0 0; border: 1px solid var(--border); border-bottom: none;
-      writing-mode: horizontal-tb; z-index: 10;
-    }
-    .handle-inner { flex-direction: row; writing-mode: horizontal-tb; gap: 6px; }
-  }
-
-  /* --- Tab Styles --- */
-  .sdc-tabs {
-    display: flex;
-    background: var(--bg3);
-    padding: 0 12px;
-    gap: 2px;
-    border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .sdc-tabs::-webkit-scrollbar { display: none; }
-  .sdc-tab {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    background: #e2e8f0;
-    border: 1px solid var(--border);
-    border-bottom: none;
-    border-radius: 8px 8px 0 0;
-    font-size: 11px;
-    font-weight: 800;
-    color: #64748b;
-    cursor: pointer;
-    white-space: nowrap;
-    margin-top: 8px;
-    transition: all 0.2s;
-    position: relative;
-  }
-  .sdc-tab.tab-active {
-    background: var(--bg2);
-    color: var(--accent);
-    border-color: var(--border);
-    padding-bottom: 9px;
-    margin-bottom: -1px;
-    z-index: 2;
-  }
-  .sdc-tab-close {
-    font-size: 12px;
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background 0.2s;
-  }
-  .sdc-tab-close:hover { background: rgba(0,0,0,0.1); color: #ef4444; }
-  .sdc-tab-add {
-    padding: 8px 12px;
-    font-size: 18px;
-    font-weight: 600;
-    cursor: pointer;
-    color: #94a3b8;
-    transition: color 0.2s;
-  }
-  .sdc-tab-add:hover { color: var(--accent); }
-  /* ═══════════════════════════════════════════
-     JOB STATUS CHIPS
-  ═══════════════════════════════════════════ */
-  .job-status-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-  }
-  .status-chip {
-    display: inline-flex;
-    align-items: center;
-    height: 18px;
-    padding: 0 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    gap: 4px;
-    border: 1px solid rgba(0,0,0,.05);
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,.02);
-  }
-  .status-label { opacity: .7; font-weight: 500; }
-  .status-value { color: var(--text); }
-
-  /* MJS Grid for Right Panel */
-  .mj-status-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 12px;
-    width: 100%;
-  }
-  .mj-status-item {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px;
-    text-align: center;
-  }
-  .mjs-label { font-size: 10px; font-weight: 700; color: var(--text3); margin-bottom: 2px; }
-  .mjs-value { font-size: 14px; font-weight: 800; color: var(--text); }
-
-  /* Job Specific Styles */
-  .status-investor { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
-  .status-collector { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
-  .status-watcher { background: #fdf2f8; border-color: #fbcfe8; color: #be185d; }
-  .status-math { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-  .status-money { background: #fefce8; border-color: #fef08a; color: #a16207; }
-  .status-death { background: #fafafa; border-color: #e5e5e5; color: #171717; }
-  .status-composer, .status-composer-notes { background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; }
-  .status-repair { background: #f0f9ff; border-color: #bae6fd; color: #0369a1; }
-  .status-gojo { background: #f8fafc; border-color: #e2e8f0; color: #334155; }
-  .status-pianist { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
-  .status-vault { background: #ecfdf5; border-color: #d1fae5; color: #047857; }
-  .status-science { background: #fdf4ff; border-color: #f5d0fe; color: #a21caf; }
-  .status-gandhi { background: #fff7ed; border-color: #ffedd5; color: #9a3412; }
-  .status-star { background: #f0f9ff; border-color: #e0f2fe; color: #0369a1; }
-  .status-comet { background: #f5f3ff; border-color: #ede9fe; color: #5b21b6; }
-  .status-uranium { background: #f0fdf4; border-color: #dcfce7; color: #166534; }
-  .status-dev { background: #f8fafc; border-color: #f1f5f9; color: #0f172a; }
-
-  /* --- New feature styles --- */
-  .mj-status-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
-  .mj-status-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 6px; text-align: center; }
-  .mjs-label { display: block; font-size: 10px; color: #64748b; font-weight: 600; margin-bottom: 1px; }
-  .mjs-value { display: block; font-size: 13px; font-weight: 800; color: #1e293b; }
 
   .ab-btn { position: relative; overflow: visible; }
-  .ab-status-val { position: absolute; top: -7px; right: -7px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; min-width: 18px; max-width: 72px; height: 18px; padding: 0 5px; border-radius: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4); border: 2px solid #fff; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ab-status-val {
+    position: absolute; top: -7px; right: -6px;
+    background: var(--accent-fill); color: var(--on-accent);
+    font-size: 10px; font-weight: 800;
+    min-width: 18px; max-width: 78px; height: 18px; padding: 0 6px;
+    border-radius: 9px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--bg); z-index: 2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ab-btn.ab-not-ready .ab-status-val { background: var(--text3); }
 
   .target-selector-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
   .target-card { background: var(--bg2); border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); overflow: hidden; animation: targetPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -6588,7 +5714,7 @@
   .tc-player-btn:hover, .tc-chosung-btn:hover { background: var(--border); transform: translateY(-2px); }
   .tc-input-row { display: flex; gap: 8px; }
   .tc-input { flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; }
-  .tc-submit { background: #3b82f6; color: #fff; padding: 0 20px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; }
+  .tc-submit { background: var(--accent-fill); color: var(--on-accent); padding: 0 20px; border-radius: 8px; font-weight: 700; cursor: pointer; border: none; }
 
   .effects-layer { position: fixed; inset: 0; pointer-events: none; z-index: 3000; overflow: hidden; }
   .activation-splash { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; animation: splashOut 1.5s forwards; }
@@ -6618,78 +5744,32 @@
     100% { transform: scale(2); opacity: 0; }
   }
 
-  .ongoing-section { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px; }
-  .ongoing-title { font-size: 13px; font-weight: 700; color: var(--text3); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .ongoing-list { display: flex; flex-direction: column; gap: 8px; }
-  .ongoing-card { display: flex; flex-direction: column; align-items: flex-start; padding: 12px 16px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius-sm); transition: all 0.2s; text-align: left; }
-  .ongoing-card:hover { background: var(--bg2); border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-  .ongoing-card:disabled { cursor: default; opacity: .72; transform: none; }
-  .room-list-card { width: 100%; }
-  .og-room { font-size: 15px; font-weight: 800; color: var(--accent); }
-  .og-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
-  .og-disabled { font-size: 11px; color: #be123c; margin-top: 5px; font-weight: 800; }
-  .room-empty {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    border: 1px dashed var(--border2);
-    border-radius: var(--radius-sm);
-    color: var(--text3);
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .online-dot { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-left: 6px; box-shadow: 0 0 8px rgba(34,197,94,0.6); }
-  .offline-label { font-size: 10px; color: var(--text3); font-weight: 500; margin-left: 6px; }
-
   /* ═══════════════════════════════════════════
      FLOATING CHAT
   ═══════════════════════════════════════════ */
   .floating-chat-container {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 1000;
+    top: 66px;
+    right: 18px;
+    z-index: 940;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 16px;
-  }
-  .chat-toggle-btn {
-    width: 56px;
-    height: 56px;
-    border-radius: 28px;
-    background: var(--accent);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 24px rgba(37,99,235,0.4);
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  .chat-toggle-btn:hover {
-    transform: scale(1.1) rotate(5deg);
-    background: var(--accent2);
-  }
-  .chat-toggle-btn.chat-open {
-    background: #475569;
-    box-shadow: 0 8px 24px rgba(71,85,105,0.4);
   }
   .chat-window {
-    width: 320px;
-    height: 450px;
+    width: 340px;
+    height: min(460px, calc(100dvh - 96px));
     background: var(--bg2);
-    border-radius: 20px;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.18);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: chatPopUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border: 1.5px solid var(--border);
+    animation: chatPopUp .22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid var(--border);
   }
   @keyframes chatPopUp {
-    from { opacity: 0; transform: translateY(20px) scale(0.9); }
+    from { opacity: 0; transform: translateY(-10px) scale(.96); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
   .chat-header {
@@ -6706,7 +5786,7 @@
     gap: 8px;
     font-weight: 800;
     font-size: 14px;
-    color: #1e293b;
+    color: var(--text);
   }
   .chat-messages {
     flex: 1;
@@ -6755,13 +5835,13 @@
     word-break: break-word;
   }
   .my-chat .chat-text {
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
     border-radius: 14px 14px 4px 14px;
   }
   .chat-at {
     font-size: 9px;
-    color: #94a3b8;
+    color: var(--text3);
     margin-top: 4px;
   }
   .chat-form {
@@ -6781,14 +5861,14 @@
   }
   .chat-input:focus {
     border-color: var(--accent);
-    background: #fff;
+    background: var(--bg2);
   }
   .chat-send {
     width: 38px;
     height: 38px;
     border-radius: 19px;
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -6799,27 +5879,18 @@
     background: var(--accent2);
   }
   
-  @media (max-width: 640px) {
-    .floating-chat-container {
-      bottom: max(80px, calc(70px + env(safe-area-inset-bottom)));
-      right: 16px;
-    }
-    .chat-window {
-      width: calc(100vw - 32px);
-      height: 400px;
-    }
-  }
 
   /* ═══════════════════════════════════════════
      THEME BUTTON & DM BADGE
   ═══════════════════════════════════════════ */
-  .theme-btn { position: relative; }
+
+  .icon-btn.dm-unread { border-color: var(--accent); color: var(--accent); }
   .dm-badge {
     position: absolute;
     top: -4px; right: -4px;
     min-width: 16px; height: 16px;
     background: var(--red);
-    color: #fff;
+    color: var(--on-accent);
     font-size: 9px;
     font-weight: 800;
     border-radius: 8px;
@@ -6832,8 +5903,8 @@
      DM PANEL
   ═══════════════════════════════════════════ */
   .dm-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.4);
-    backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+    position: fixed; inset: 0; background: var(--overlay);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
     z-index: 900;
     animation: overlayIn .2s ease both;
   }
@@ -6842,10 +5913,10 @@
     top: 0; right: 0; bottom: 0;
     width: min(480px, 100vw);
     background: var(--bg2);
-    border-left: 1.5px solid var(--border);
+    border-left: 1px solid var(--border);
     z-index: 950;
     display: flex; flex-direction: column;
-    box-shadow: -10px 0 40px rgba(0,0,0,.15);
+    box-shadow: var(--shadow-lg);
     animation: slideFromRight .3s cubic-bezier(0.16,1,0.3,1) both;
   }
   @keyframes slideFromRight {
@@ -6898,7 +5969,7 @@
   }
   .dm-conv-avatar {
     width: 32px; height: 32px; border-radius: 50%;
-    background: var(--accent); color: #fff;
+    background: var(--accent-fill); color: var(--on-accent);
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; font-weight: 800;
     flex-shrink: 0;
@@ -6924,7 +5995,7 @@
   }
   .dm-go-btn {
     height: 36px; padding: 0 14px;
-    background: var(--accent); color: #fff;
+    background: var(--accent-fill); color: var(--on-accent);
     border-radius: 18px;
     font-size: 13px; font-weight: 700;
     transition: background .15s;
@@ -6949,7 +6020,7 @@
     color: var(--text); word-break: break-word;
   }
   .dm-msg-mine .dm-msg-text {
-    background: var(--accent); color: #fff;
+    background: var(--accent-fill); color: var(--on-accent);
     border-radius: 14px 14px 4px 14px;
   }
   .dm-msg-at { font-size: 9px; color: var(--text3); margin-top: 3px; }
@@ -6970,176 +6041,191 @@
   }
   .dm-send-btn {
     width: 38px; height: 38px; border-radius: 19px;
-    background: var(--accent); color: #fff;
+    background: var(--accent-fill); color: var(--on-accent);
     display: flex; align-items: center; justify-content: center;
     transition: background .2s, transform .2s;
   }
   .dm-send-btn:hover:not(:disabled) { background: var(--accent2); transform: scale(1.05); }
 
-  @media (max-width: 640px) {
-    .dm-panel { width: 100vw; border-left: none; }
-    .dm-inbox { width: 120px; }
-  }
 
   /* ═══════════════════════════════════════════
      SETTINGS PAGE
   ═══════════════════════════════════════════ */
-  .settings-page { max-width: 480px; }
+  .settings-page { max-width: 760px; }
   .settings-title {
     display: flex; align-items: center; gap: 10px;
-    font-size: 22px; font-weight: 900; color: var(--text);
-    margin-bottom: 28px;
+    font-size: 26px; font-weight: 900; letter-spacing: -.6px; color: var(--text);
   }
   .settings-section {
     background: var(--bg2);
-    border: 1.5px solid var(--border);
-    border-radius: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
     padding: 22px 24px;
-    margin-bottom: 16px;
+    box-shadow: var(--card-shadow);
   }
   .settings-section-label {
-    font-size: 11px; font-weight: 800; letter-spacing: .6px;
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 800; letter-spacing: .08em;
     text-transform: uppercase; color: var(--text3);
     margin-bottom: 14px;
   }
-  .settings-section-desc {
-    font-size: 12px; color: var(--text2); margin-bottom: 14px; line-height: 1.5;
+  /* 라벨 + 컨트롤 한 줄. 설정 항목이 늘어도 세로로만 쌓인다. */
+  .settings-row {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 9px 0;
   }
-  .theme-options { display: flex; gap: 10px; }
-  .theme-option-btn {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
-    padding: 16px 12px;
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    background: var(--bg3);
-    color: var(--text2);
-    font-size: 13px; font-weight: 700;
-    transition: all .2s;
+  .settings-row + .settings-row { border-top: 1px solid var(--border); }
+  .settings-row-label {
+    font-size: 13px; font-weight: 700; color: var(--text2);
+    flex: 0 0 92px;
   }
-  .theme-option-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg2); }
-  .theme-option-btn.theme-opt-active {
-    border-color: var(--accent);
-    background: var(--bg2);
-    color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
-  }
+  .settings-row .seg { flex: 0 0 auto; }
+  .settings-row .seg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 84px; }
   .settings-color-row {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    margin-bottom: 14px;
   }
-  .settings-color-preview {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px;
-    background: var(--bg3); border-radius: 10px;
-  }
-  .scp-label { font-size: 12px; color: var(--text3); font-weight: 600; }
-  .scp-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-  .scp-btn {
-    height: 28px; padding: 0 14px; border-radius: 14px;
-    color: #fff; font-size: 12px; font-weight: 700;
-  }
-
   /* Lobby / wizard / kkutu wait */
-  .lobby-kkutu { padding: 20px; overflow: auto; flex: 1; }
-  .lobby-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: 16px; max-width: 1100px; margin: 0 auto; width: 100%; }
-  .lobby-main-card, .lobby-side .ongoing-section {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: var(--shadow);
-  }
-  .lobby-actions { display: grid; gap: 12px; margin-top: 16px; }
-  .login-required-actions { display: flex; gap: 8px; margin-top: 12px; }
-  .practice-details { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
-  .practice-details summary { cursor: pointer; font-weight: 700; color: var(--text2); display: flex; align-items: center; gap: 8px; }
-  .practice-details-body { margin-top: 12px; display: grid; gap: 10px; }
-  .practice-start-btn { margin-top: 4px; }
-  .room-scroll { max-height: 420px; overflow: auto; }
-  .og-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
   .wizard-overlay {
     position: fixed; inset: 0; z-index: 200;
-    background: rgba(10, 12, 18, .55);
+    background: var(--overlay);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
     display: flex; align-items: center; justify-content: center;
     padding: 20px;
+    animation: fadeIn .16s ease both;
   }
   .wizard-card {
     width: min(720px, 100%);
-    max-height: min(86vh, 900px);
+    max-height: min(86dvh, 900px);
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 24px 80px rgba(0,0,0,.28);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
     display: flex; flex-direction: column;
     color: var(--text);
+    animation: popIn .2s cubic-bezier(.22,1,.36,1) both;
   }
-  .wizard-head, .wizard-foot { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-  .wizard-head-main { display: grid; gap: 6px; min-width: 0; }
-  .wizard-progress { display: flex; gap: 6px; margin-top: 4px; }
-  .wizard-progress-dot {
-    width: 28px; height: 4px; border-radius: 999px;
-    background: var(--border2); transition: background .2s, transform .2s;
-  }
-  .wizard-progress-done { background: color-mix(in srgb, var(--accent) 55%, var(--border2)); }
-  .wizard-progress-current { background: var(--accent); transform: scaleY(1.35); }
-  .wizard-head h2 { font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px; }
+  .wizard-head, .wizard-foot { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .wizard-head h2 { font-size: 18px; font-weight: 800; color: var(--text); }
   .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
-  .wizard-body { padding: 18px; overflow: auto; flex: 1; }
+  .wizard-body { padding: 16px 18px; overflow: auto; flex: 1; display: grid; gap: 16px; align-content: start; }
   .wizard-close { color: var(--text3); }
-  .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .wizard-choice {
-    text-align: left;
-    padding: 16px;
-    border: 2px solid var(--border2);
-    border-radius: 12px;
-    background: var(--bg3);
-    color: var(--text);
-    display: grid;
-    gap: 6px;
-    transition: border-color .15s, background .15s, box-shadow .15s;
+
+  /* ── 방 만들기(한 화면) ── */
+  .create-field { display: grid; gap: 7px; min-width: 0; }
+  .create-label { font-size: 12px; font-weight: 700; color: var(--text3); }
+  .create-label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .create-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+
+  .mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mode-tile {
+    text-align: left; padding: 9px 11px; border-radius: 10px;
+    border: 1px solid var(--border2); background: var(--bg3); color: var(--text);
+    display: grid; gap: 1px; min-width: 0;
+    transition: border-color .15s, background .15s, color .15s;
   }
-  .wizard-choice:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: var(--bg2);
+  .mode-tile strong { font-size: 13.5px; font-weight: 800; }
+  .mode-tile span { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mode-tile:hover { border-color: var(--accent); }
+  .mode-tile-on {
+    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg2));
   }
-  .wizard-choice strong { font-size: 15px; font-weight: 800; color: var(--text); }
-  .wizard-choice span { font-size: 12px; line-height: 1.45; color: var(--text2); }
-  .wizard-choice-active {
-    border-color: var(--accent);
-    background: var(--bg2);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  .mode-tile-on strong { color: var(--accent); }
+
+  .count-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .count-btn {
+    min-width: 38px; height: 36px; padding: 0 10px; border-radius: 9px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    font-size: 13px; font-weight: 800; color: var(--text2);
+    transition: border-color .15s, color .15s, background .15s;
   }
-  .wizard-choice-active strong { color: var(--accent); }
-  .wizard-choice-active span { color: var(--text2); }
-  .wizard-choice-disabled { opacity: .45; cursor: not-allowed; }
-  .wizard-hint { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
-  .wizard-extras { display: grid; gap: 12px; }
-  .extras-label { font-size: 12px; font-weight: 700; color: var(--text3); margin-right: 8px; }
+  .count-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .count-btn-on {
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg2));
+    border-color: var(--accent); color: var(--accent);
+  }
+  .count-slider { flex: 1; min-width: 90px; accent-color: var(--accent); }
+
+  .seg {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 4px;
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px;
+  }
+  .seg-btn {
+    flex: 1; min-width: 64px; height: 32px; padding: 0 10px; border-radius: 7px;
+    font-size: 12.5px; font-weight: 700; color: var(--text2); background: transparent;
+    transition: background .15s, color .15s;
+  }
+  .seg-btn:hover:not(:disabled) { color: var(--text); background: var(--bg2); }
+  .seg-btn-on { background: var(--accent-fill); color: var(--on-accent); }
+  .seg-btn-on:hover { background: var(--accent-fill); color: var(--on-accent); }
+  .seg-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  .create-adv { border: 1px solid var(--border); border-radius: 12px; background: var(--bg3); }
+  .create-adv > summary {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--text);
+    list-style: none;
+  }
+  .create-adv > summary::-webkit-details-marker { display: none; }
+  .create-adv > summary::before {
+    content: '▸'; color: var(--text3); font-size: 11px;
+    transition: transform .15s; display: inline-block;
+  }
+  .create-adv[open] > summary::before { transform: rotate(90deg); }
+  .create-adv-sum {
+    margin-left: auto; font-size: 12px; font-weight: 600; color: var(--text3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;
+  }
+  .create-adv-body {
+    display: grid; gap: 13px; padding: 4px 14px 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 13px;
+  }
+  .create-toggles { display: grid; gap: 9px; }
+  .create-nums { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+  .create-nums .setting-inline { justify-content: flex-start; gap: 8px; }
   .setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
   .wait-room {
     flex: 1; min-height: 0; display: grid;
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-    gap: 16px; padding: 16px 20px 20px;
-    background:
-      radial-gradient(ellipse 70% 45% at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
-      var(--bg);
+    align-items: start;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    gap: 16px; padding: 20px;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    width: 100%; max-width: 1320px; margin: 0 auto;
+    background: var(--bg);
+    overflow: hidden;
   }
   .wait-room-side {
     display: flex; flex-direction: column; gap: 12px;
-    padding: 16px; border-radius: 18px;
+    padding: 16px; border-radius: var(--radius-lg);
     background: var(--card); border: 1px solid var(--border);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+    box-shadow: var(--card-shadow);
+    overflow: auto;
+    min-height: 0; max-height: 100%;
   }
-  .wait-room-card { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .wait-room-card { display: grid; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .wait-room-code {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 4px; padding: 8px 12px; border-radius: var(--radius-sm);
+    background: var(--bg3); border: 1px dashed var(--border2);
+    font-size: 12px; font-weight: 700; color: var(--text3);
+    text-align: left;
+  }
+  .wait-room-code strong {
+    flex: 1; min-width: 0; font-size: 14px; font-weight: 900; color: var(--text);
+    letter-spacing: .08em; overflow: hidden; text-overflow: ellipsis;
+  }
+  .wait-room-copy { color: var(--accent); font-weight: 800; }
+  .wait-room-code:hover { border-color: var(--accent); }
   .wait-room-kicker { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
   .wait-room-title { font-size: 22px; font-weight: 900; line-height: 1.25; }
   .wait-room-mode {
-    display: inline-flex; align-self: flex-start;
+    display: inline-flex; justify-self: start; align-items: center;
     font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 12%, var(--bg3)); color: var(--accent);
+    background: var(--accent-soft); color: var(--accent);
   }
   .wait-room-rules h3 { font-size: 13px; font-weight: 800; color: var(--text2); margin-bottom: 10px; }
   .wait-rules-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
@@ -7150,7 +6236,6 @@
     font-size: 12px; font-weight: 800; color: var(--accent);
   }
   .wait-settings-form { display: grid; gap: 10px; }
-  .wait-settings-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .wait-ready-group {
     display: inline-flex; padding: 4px; gap: 4px;
     border-radius: 12px; background: var(--bg3); border: 1px solid var(--border2);
@@ -7165,27 +6250,31 @@
     box-shadow: 0 1px 4px rgba(15, 23, 42, .08);
   }
   .wait-ready-btn:disabled { opacity: .55; }
-  .wait-leave-inline { margin-left: auto; }
   .wait-player-status.cpu { color: var(--text3); }
-  .wait-room-rules ul { list-style: none; display: grid; gap: 8px; }
-  .wait-room-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
-  .wait-room-rules span { color: var(--text3); }
-  .wait-room-rules strong { font-weight: 800; }
+  .wait-rule-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wait-rule-chip {
+    font-size: 12px; font-weight: 700; color: var(--text2);
+    padding: 4px 9px; border-radius: 999px;
+    background: var(--bg3); border: 1px solid var(--border2);
+  }
   .wait-invite-side { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
   .wait-leave { margin-top: auto; }
   .wait-room-main {
-    padding: 18px 20px; border-radius: 18px;
+    padding: 20px; border-radius: var(--radius-lg);
     background: var(--card); border: 1px solid var(--border);
-    overflow: auto; display: flex; flex-direction: column; gap: 16px;
+    box-shadow: var(--card-shadow);
+    overflow: auto; display: flex; flex-direction: column; gap: 18px;
+    min-height: 0; max-height: 100%;
   }
   .wait-room-head h2 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
   .wait-room-head p { color: var(--text2); font-size: 14px; }
-  .wait-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .wait-player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; align-content: start; }
   .wait-player-slot {
-    min-height: 128px; border-radius: 16px;
+    min-height: 104px; border-radius: var(--radius);
     border: 1px solid var(--border2);
     background: var(--bg2);
-    padding: 14px; display: flex; flex-direction: column; justify-content: center; gap: 10px;
+    padding: 14px; display: flex; flex-direction: column; justify-content: center; gap: 8px;
+    min-width: 0;
   }
   .wait-slot-filled { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); background: var(--card); }
   .wait-slot-me { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -7196,15 +6285,15 @@
     background: color-mix(in srgb, var(--accent) 14%, var(--bg3));
     color: var(--accent); font-weight: 900; font-size: 16px;
   }
-  .wait-player-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .wait-player-name { font-size: 17px; font-weight: 800; }
+  .wait-player-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+  .wait-player-name { font-size: 16px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wait-badge.host {
     font-size: 11px; padding: 2px 8px; border-radius: 999px;
     background: color-mix(in srgb, var(--accent) 14%, var(--bg3));
     color: var(--accent); font-weight: 800;
   }
-  .wait-player-status { font-size: 13px; font-weight: 700; color: var(--text3); }
-  .wait-player-status.ready { color: #16a34a; }
+  .wait-player-status { font-size: 12.5px; font-weight: 700; color: var(--text3); }
+  .wait-player-status.ready { color: var(--ok-fg); }
   .wait-slot-actions { display: grid; gap: 8px; }
   .wait-slot-primary, .wait-slot-secondary {
     width: 100%; min-height: 44px; border-radius: 12px;
@@ -7224,14 +6313,9 @@
   .wait-slot-waiting { text-align: center; color: var(--text3); display: grid; gap: 4px; }
   .wait-slot-waiting span { font-weight: 800; }
   .wait-slot-waiting small { font-size: 12px; }
-  .wait-room-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-  .wait-start { min-width: 140px; }
-  .wait-chat { border: 1px solid var(--border); border-radius: 14px; background: var(--bg2); overflow: hidden; }
-  .wait-chat-log { max-height: 180px; overflow: auto; padding: 12px; font-size: 13px; }
-  .wait-chat-line { margin-bottom: 6px; }
-  .wait-chat-form { display: flex; border-top: 1px solid var(--border); }
-  .wait-chat-form input { flex: 1; border: 0; padding: 12px; background: transparent; color: var(--text); }
-  .wait-chat-form button { width: 44px; color: var(--accent); }
+  .wait-room-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .wait-start { min-width: 150px; justify-content: center; }
+  .wait-start-hint { font-size: 12.5px; color: var(--text3); }
 
   .invite-modal { width: min(420px, 100%); }
   .invite-modal-body { display: grid; gap: 14px; }
@@ -7260,165 +6344,530 @@
   .bot-setup-body { display: grid; gap: 14px; }
   .bot-setup-field { display: grid; gap: 8px; }
   .bot-setup-label { font-size: 12px; font-weight: 800; color: var(--text3); }
+  .bot-setup-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .bot-adv-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; color: var(--text2);
+    cursor: pointer; user-select: none;
+  }
+  .bot-adv-toggle input[type=checkbox] { display: none; }
+  .bot-draft-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); }
+  .bot-depth-block {
+    display: grid; gap: 12px;
+    padding: 14px; border-radius: var(--radius);
+    background: var(--bg3); border: 1px solid var(--border2);
+  }
+  .bot-depth-value { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+  .bot-depth-value strong {
+    font-size: 30px; font-weight: 900; line-height: 1; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .bot-depth-value span { font-size: 13px; font-weight: 700; color: var(--text2); }
+  .bot-depth-hint { font-size: 12.5px; line-height: 1.5; color: var(--text3); text-align: center; }
   /* Lobby */
   .lobby-hub {
     flex: 1; min-height: 0; display: flex; flex-direction: column;
-    gap: 10px; padding: 12px 16px 16px; background: var(--bg);
+    background: var(--bg);
+    overflow: hidden;
   }
-  .lobby-bar { display: flex; justify-content: flex-end; }
+  .lobby-inner {
+    flex: 1; min-height: 0;
+    width: 100%; max-width: 1180px; margin: 0 auto;
+    padding: 24px 24px 28px;
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+    display: flex; flex-direction: column; gap: 22px;
+    animation: fadeUp .28s ease both;
+  }
+  .lobby-bar {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  .lobby-heading h1 { font-size: 26px; font-weight: 900; letter-spacing: -.6px; }
+  .lobby-heading p { margin-top: 4px; font-size: 14px; color: var(--text2); }
   .lobby-create-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    height: 40px; padding: 0 14px; border-radius: 10px;
-    background: var(--accent); color: #fff; font-weight: 800; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 44px; padding: 0 20px; border-radius: var(--radius);
+    background: var(--accent-fill); color: var(--on-accent);
+    font-weight: 800; font-size: 14.5px;
+    box-shadow: var(--shadow);
+    transition: background .16s, transform .16s, box-shadow .16s;
+  }
+  .lobby-create-btn:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .lobby-create-btn:active:not(:disabled) { transform: translateY(0); }
+  .lobby-section { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .lobby-section-grow { flex: 1; min-height: 0; }
+  .lobby-section-label {
+    font-size: 11.5px; font-weight: 800; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3);
   }
   .lobby-chips { display: flex; gap: 8px; flex-wrap: wrap; }
   .lobby-chip {
     display: inline-flex; align-items: center; gap: 8px;
-    height: 34px; padding: 0 12px; border-radius: 10px;
+    min-height: 38px; padding: 0 8px 0 14px; border-radius: 999px;
+    max-width: 100%;
     background: var(--card); border: 1px solid var(--border);
-    font-size: 13px; font-weight: 700;
+    font-size: 13px; font-weight: 700; color: var(--text);
+    box-shadow: var(--card-shadow);
   }
-  .lobby-chip-invite { padding-right: 6px; }
+  .lobby-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lobby-chip-action { padding-right: 8px; transition: border-color .16s; }
+  .lobby-chip-action:hover { border-color: var(--accent); }
+  .lobby-chip-tag {
+    font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    background: var(--bg3); color: var(--text2);
+  }
+  .lobby-chip-tag.is-live { background: var(--ok-bg); color: var(--ok-fg); }
+  .lobby-chip-invite { border-color: var(--accent-line); background: var(--accent-soft); }
   .chip-btn {
-    height: 26px; padding: 0 8px; border-radius: 7px;
-    background: var(--accent); color: #fff; font-size: 12px; font-weight: 800;
+    height: 28px; padding: 0 11px; border-radius: 999px;
+    background: var(--accent-fill); color: var(--on-accent); font-size: 12px; font-weight: 800;
+    flex: 0 0 auto;
   }
-  .chip-btn-ghost { background: transparent; color: var(--text3); font-size: 16px; padding: 0 6px; }
+  .chip-btn-ghost { background: transparent; color: var(--text3); font-size: 16px; padding: 0 8px; }
+  .chip-btn-ghost:hover { color: var(--text); }
   .room-grid {
     flex: 1; min-height: 0; overflow: auto;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 8px; align-content: start;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+    gap: 12px; align-content: start;
+    padding-bottom: 4px;
   }
   .room-tile {
-    text-align: left; padding: 12px 14px;
+    text-align: left; padding: 14px 16px; min-width: 0;
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; display: grid; gap: 6px;
+    border-radius: var(--radius); display: grid; gap: 10px;
+    box-shadow: var(--card-shadow);
+    transition: border-color .16s, transform .16s, box-shadow .16s;
   }
-  .room-tile:hover:not(:disabled) { border-color: var(--accent); }
-  .room-tile-row { display: flex; align-items: center; gap: 8px; }
-  .room-tile-name { flex: 1; font-size: 15px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .room-tile-count { font-size: 12px; font-weight: 800; color: var(--text2); font-variant-numeric: tabular-nums; }
-  .room-tile-sub { font-size: 12px; color: var(--text3); justify-content: space-between; }
+  .room-tile:hover:not(:disabled) {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .room-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .room-tile-name {
+    flex: 1; min-width: 0; font-size: 15px; font-weight: 800;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .room-tile-lock { flex: 0 0 auto; font-size: 12px; line-height: 1; }
+  .room-tile-meta { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+  .room-tile-mode {
+    font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    white-space: nowrap;
+  }
+  .room-tile-phase {
+    font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+    background: var(--bg3); color: var(--text2);
+    white-space: nowrap;
+  }
+  .room-tile-phase.is-live { background: var(--ok-bg); color: var(--ok-fg); }
+  .room-tile-foot { display: flex; align-items: center; gap: 10px; }
+  .room-tile-bar {
+    flex: 1; height: 5px; border-radius: 999px;
+    background: var(--bg3); overflow: hidden;
+  }
+  .room-tile-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+  .room-tile-count {
+    font-size: 13px; font-weight: 900; color: var(--text);
+    font-variant-numeric: tabular-nums; flex: 0 0 auto;
+  }
+  .room-tile-count span { color: var(--text3); font-weight: 700; }
   .room-empty-state {
-    grid-column: 1 / -1; text-align: center; padding: 40px 16px;
-    display: grid; gap: 10px; justify-items: center; color: var(--text2);
+    grid-column: 1 / -1; text-align: center; padding: 56px 16px;
+    display: grid; gap: 8px; justify-items: center; color: var(--text2);
+    border: 1px dashed var(--border2); border-radius: var(--radius-lg);
   }
-  .practice-details-min { margin-top: auto; font-size: 13px; }
-
-  .player-slider-block {
-    padding: 16px; border-radius: 14px;
-    background: var(--bg3); border: 1px solid var(--border2);
-    display: grid; gap: 14px;
-  }
-  .player-slider-value {
-    display: flex; align-items: baseline; justify-content: center; gap: 4px;
-  }
-  .player-slider-value strong {
-    font-size: 42px; font-weight: 900; line-height: 1; color: var(--accent);
-    font-variant-numeric: tabular-nums;
-  }
-  .player-slider-value span { font-size: 16px; font-weight: 800; color: var(--text2); }
-  .player-slider {
-    width: 100%; height: 8px; appearance: none; border-radius: 999px;
-    background: linear-gradient(90deg, var(--accent) 0%, var(--accent) calc((var(--value, 2) - 1) / 19 * 100%), var(--border2) calc((var(--value, 2) - 1) / 19 * 100%));
-    accent-color: var(--accent);
-  }
-  .player-slider::-webkit-slider-thumb {
-    appearance: none; width: 22px; height: 22px; border-radius: 50%;
-    background: #fff; border: 3px solid var(--accent);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, .18);
-    cursor: pointer;
-  }
-  .player-slider::-moz-range-thumb {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: #fff; border: 3px solid var(--accent);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, .18);
-    cursor: pointer;
-  }
-  .player-slider-quick { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-  .player-slider-preset {
-    min-width: 40px; height: 34px; padding: 0 10px; border-radius: 10px;
-    background: var(--bg2); border: 1px solid var(--border2);
-    font-size: 13px; font-weight: 800; color: var(--text2);
-    transition: border-color .15s, color .15s, background .15s;
-  }
-  .player-slider-preset:hover { border-color: var(--accent); color: var(--accent); }
-  .player-slider-preset-active {
-    background: color-mix(in srgb, var(--accent) 12%, var(--bg2));
-    border-color: var(--accent); color: var(--accent);
-  }
+  .room-empty-gem { font-size: 22px; color: var(--accent); opacity: .6; }
+  .room-empty-state p { font-size: 15px; font-weight: 800; color: var(--text); }
+  .room-empty-state small { font-size: 13px; color: var(--text3); }
+  .room-empty-state .accent-btn { margin-top: 8px; }
 
   .auth-gate {
     flex: 1; min-height: 100dvh;
     display: flex; align-items: center; justify-content: center;
     padding: 24px 16px;
-    background: linear-gradient(180deg, var(--bg3) 0%, var(--bg) 100%);
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, var(--accent-soft), transparent 70%),
+      linear-gradient(180deg, var(--bg3) 0%, var(--bg) 60%);
   }
   .auth-gate-card {
     width: min(400px, 100%);
-    background: var(--card, var(--bg2));
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 28px 24px 24px;
-    box-shadow: var(--card-shadow, 0 8px 32px rgba(0,0,0,.08));
-    display: grid; gap: 18px;
+    border-radius: var(--radius-lg);
+    padding: 32px 28px 28px;
+    box-shadow: var(--shadow-lg);
+    display: grid; gap: 20px;
+    animation: fadeUp .3s cubic-bezier(.22,1,.36,1) both;
   }
-  .auth-gate-loading { text-align: center; color: var(--text2); }
-  .auth-gate-brand { text-align: center; display: grid; gap: 6px; }
-  .auth-gate-brand h1 { font-size: 28px; font-weight: 900; }
+  .auth-gate-loading { text-align: center; color: var(--text2); display: grid; gap: 10px; justify-items: center; }
+  .auth-gate-brand { text-align: center; display: grid; gap: 6px; justify-items: center; }
+  .auth-gate-brand .brand-gem { font-size: 22px; }
+  .auth-gate-brand h1 { font-size: 30px; font-weight: 900; letter-spacing: -.8px; }
   .auth-gate-brand p { font-size: 14px; color: var(--text2); }
-  .auth-gate-tabs { justify-content: center; }
-  .auth-gate-form { display: grid; gap: 10px; }
+  .auth-gate-tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    padding: 4px; border-radius: 999px;
+    background: var(--bg3); border: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .auth-gate-tabs .auth-panel-tab { height: 38px; background: transparent; }
+  .auth-gate-tabs .auth-panel-tab-active { background: var(--accent-fill); color: var(--on-accent); }
+  .auth-gate-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .wizard-card-sm { width: min(360px, 100%); }
   .wizard-join-hint { font-size: 13px; color: var(--text2); line-height: 1.45; }
   .wizard-join-form { display: grid; gap: 12px; }
   .wizard-field { display: grid; gap: 6px; }
   .wizard-field span { font-size: 12px; font-weight: 700; color: var(--text3); }
-  .wizard-field-hint { font-size: 12px; color: var(--text2); line-height: 1.4; }
 
   /* Simple in-game */
   .ingame-simple {
     flex: 1; min-height: 0; display: flex; flex-direction: column;
-    padding: 12px 16px 0; gap: 10px;
+    overflow: hidden;
   }
-  .simple-hero {
-    text-align: center; padding: 16px 12px;
+  .simple-stage {
+    flex: 1; min-height: 0;
+    width: 100%; max-width: 1000px; margin: 0 auto;
+    padding: 16px 20px 12px;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .simple-head {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 16px;
     background: var(--card); border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
+    transition: border-color .2s, box-shadow .2s;
   }
-  .simple-hero.my-turn { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
-  .simple-syl { font-size: clamp(42px, 10vw, 64px); font-weight: 900; line-height: 1.1; }
-  .simple-turn { margin-top: 8px; font-size: 14px; color: var(--text2); display: flex; gap: 10px; justify-content: center; align-items: center; }
+  .simple-head.my-turn { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .simple-head-meta { flex: 1; min-width: 0; display: grid; gap: 7px; }
+  .simple-syl {
+    font-size: clamp(34px, 5.4vw, 50px); font-weight: 900; line-height: 1;
+    letter-spacing: -.02em; flex: 0 0 auto;
+  }
+  .simple-turn { font-size: 13.5px; color: var(--text2); display: flex; gap: 8px; align-items: center; }
   .simple-turn strong { color: var(--accent); }
-  .simple-clock { font-variant-numeric: tabular-nums; font-weight: 700; }
-  .simple-job { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--text3); }
+  .simple-clock {
+    font-variant-numeric: tabular-nums; font-weight: 800;
+    padding: 2px 9px; border-radius: 999px;
+    background: var(--bg3); color: var(--text);
+  }
   .simple-vote {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 10px 12px; border-radius: 12px;
-    background: #fff7ed; border: 1px solid #fed7aa; font-size: 13px;
+    padding: 10px 14px; border-radius: var(--radius);
+    background: var(--warn-bg); border: 1px solid var(--warn-line); font-size: 13px;
   }
-  .simple-players { display: flex; gap: 8px; flex-wrap: wrap; }
+  .simple-vote-text { flex: 1; min-width: 0; font-weight: 700; color: var(--warn-fg); }
+  .simple-players { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
   .simple-player {
-    font-size: 13px; font-weight: 700; padding: 6px 10px;
+    display: inline-flex; align-items: baseline; gap: 5px;
+    font-size: 12.5px; font-weight: 700; padding: 4px 10px;
     border-radius: 999px; background: var(--bg2); color: var(--text2);
+    border: 1px solid var(--border);
+    max-width: 220px;
   }
-  .simple-player.active { background: var(--accent); color: #fff; }
-  .simple-player.me { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .simple-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .simple-player-job { font-size: 11.5px; font-weight: 700; opacity: .7; white-space: nowrap; }
+  .simple-player.active { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--on-accent); }
+  .simple-player.me { box-shadow: 0 0 0 2px var(--accent-soft); }
   .simple-history {
-    flex: 1; min-height: 80px; overflow: auto;
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 12px; background: var(--card);
-    border: 1px solid var(--border); border-radius: 14px;
+    flex: 1; min-height: 120px; overflow: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 16px; background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
   }
   .simple-word {
-    font-size: 16px; font-weight: 700; padding: 8px 12px;
-    background: var(--bg2); border-radius: 10px;
+    align-self: flex-start; max-width: min(70%, 460px);
+    font-size: 17px; font-weight: 800; padding: 9px 16px;
+    background: var(--bg3); color: var(--text);
+    border-radius: 14px 14px 14px 4px;
+    word-break: break-all;
+    animation: fadeUp .2s ease both;
   }
-  .simple-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .simple-word-alt {
+    align-self: flex-end;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 14px 14px 4px 14px;
+  }
+  .simple-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  /* ═══════════════════════════════════════════
+     ANALYSIS PAGE
+  ═══════════════════════════════════════════ */
+  .job-pair-row {
+    display: flex; align-items: flex-end; gap: 14px;
+    padding: 16px; border-radius: var(--radius-lg);
+    background: var(--card); border: 1px solid var(--border);
+    box-shadow: var(--card-shadow);
+  }
+  .jp-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+  .jp-label { font-size: 12px; font-weight: 800; color: var(--text3); }
+  .jp-side.atk .jp-label { color: var(--red); }
+  .jp-side.def .jp-label { color: var(--blue); }
+  .jp-select { width: 100%; height: 44px; }
+  .jp-vs { font-size: 13px; font-weight: 900; color: var(--text3); padding-bottom: 12px; }
+
+  .analysis-modes { align-self: flex-start; max-width: 100%; }
+  .analysis-modes .seg-btn { flex: 0 0 auto; min-width: 0; padding: 0 14px; white-space: nowrap; }
+
+  .syl-form-row { display: flex; gap: 10px; align-items: center; }
+  .syl-inp { width: 92px; height: 48px; text-align: center; font-size: 22px; font-weight: 900; }
+  .situ-text {
+    width: 100%; min-height: 108px; padding: 12px 14px;
+    font-size: 14px; line-height: 1.6; resize: vertical;
+  }
+  .batch-run { align-self: flex-start; }
+
+  .analysis-spinner {
+    display: flex; align-items: center; gap: 10px; justify-content: center;
+    padding: 28px; font-size: 14px; font-weight: 700; color: var(--text2);
+  }
+  .spin-ring {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2.5px solid var(--border2); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+
+  .force-bar, .ability-info-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 12px 14px; border-radius: var(--radius);
+    background: var(--bg2); border: 1px solid var(--border);
+  }
+  .force-lbl, .ai-label { font-size: 12px; font-weight: 800; color: var(--text3); white-space: nowrap; }
+  .force-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    font-size: 12px; font-weight: 700; color: var(--text2);
+  }
+  .fc-via { color: var(--text3); }
+  .fc-syl { font-size: 14px; font-weight: 900; color: var(--text); }
+  .fc-cnt { font-variant-numeric: tabular-nums; }
+  .fc-k { color: var(--red); font-weight: 900; }
+  .fc-i { color: var(--orange); font-weight: 900; }
+
+  .ability-info-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; }
+  .ai-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .ai-atk .ai-label { color: var(--red); }
+  .ai-def .ai-label { color: var(--blue); }
+  .ai-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ai-chip {
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--danger-bg); border: 1px solid var(--danger-line); color: var(--danger-fg);
+    font-size: 12px; font-weight: 800;
+  }
+  .ai-chip.def { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+  .sum-card {
+    display: grid; gap: 4px; justify-items: center; text-align: center;
+    padding: 14px 10px; border-radius: var(--radius);
+    background: var(--bg2); border: 1px solid var(--border);
+    box-shadow: var(--card-shadow);
+  }
+  .sum-card.sc-win { border-color: var(--ok-line); background: var(--ok-bg); }
+  .sum-card.sc-danger { border-color: var(--danger-line); background: var(--danger-bg); }
+  .sc-syl { font-size: 26px; font-weight: 900; line-height: 1.1; }
+  .sc-verdict { font-size: 12.5px; font-weight: 800; color: var(--text2); }
+  .sc-win-badge {
+    font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
+    background: var(--ok-bg); color: var(--ok-fg);
+  }
+  .sc-score { font-size: 12px; color: var(--text3); font-variant-numeric: tabular-nums; }
+
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+  .detail-card {
+    display: flex; flex-direction: column; gap: 10px; min-width: 0;
+    padding: 14px; border-radius: var(--radius);
+    background: var(--card); border: 1px solid var(--border);
+    box-shadow: var(--card-shadow);
+  }
+  .dc-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dc-syl { font-size: 20px; font-weight: 900; }
+  .dc-dueum, .dc-verdict, .dc-win {
+    font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
+    background: var(--bg3); color: var(--text2);
+  }
+  .dc-win { background: var(--ok-bg); color: var(--ok-fg); }
+  .dc-counts { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cnt-chip {
+    font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px;
+    background: var(--bg3); color: var(--text2);
+  }
+  .cnt-한방 { background: var(--danger-bg); color: var(--danger-fg); }
+  .cnt-유도 { background: var(--warn-bg); color: var(--warn-fg); }
+  .cnt-루트 { background: var(--accent-soft); color: var(--accent); }
+
+  .move-list { display: flex; flex-direction: column; gap: 8px; }
+  .move-block {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: var(--bg2); border: 1px solid var(--border);
+  }
+  .move-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mv-word { font-size: 15px; font-weight: 800; }
+  .mv-kind, .mv-res, .mv-reply, .mv-win {
+    font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+    background: var(--bg3); color: var(--text2); white-space: nowrap;
+  }
+  .mv-kind.mk-한방 { background: var(--danger-bg); color: var(--danger-fg); }
+  .mv-kind.mk-유도 { background: var(--warn-bg); color: var(--warn-fg); }
+  .mv-kind.mk-루트 { background: var(--accent-soft); color: var(--accent); }
+  .mv-res.mr-이김 { background: var(--ok-bg); color: var(--ok-fg); }
+  .mv-res.mr-짐 { background: var(--danger-bg); color: var(--danger-fg); }
+  .mv-win { background: var(--ok-bg); color: var(--ok-fg); }
+  .mv-reply { margin-left: auto; }
+  .result-explain {
+    font-size: 12px; line-height: 1.5; color: var(--text2);
+    padding: 7px 10px; border-radius: var(--radius-sm);
+    background: var(--bg3);
+  }
+  .sub-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
+  .sub-lbl { font-weight: 800; color: var(--text3); white-space: nowrap; }
+  .sub-lbl.esc-lbl { color: var(--blue); }
+  .sub-lbl.atk-lbl { color: var(--red); }
+  .rs-chip, .esc-chip, .atk-chip {
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    color: var(--text2); font-weight: 700;
+  }
+  .esc-chip { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+  .esc-chip.esc-zero { background: var(--bg3); border-color: var(--border2); color: var(--text3); }
+  .atk-chip { background: var(--danger-bg); border-color: var(--danger-line); color: var(--danger-fg); }
+
+  .batch-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text2); }
+  .bh-type {
+    font-size: 12px; font-weight: 900; padding: 3px 11px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .bh-count { font-weight: 800; color: var(--text); }
+  .bh-vs { margin-left: auto; color: var(--text3); }
+  .batch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 10px; align-items: start; }
+  .batch-card {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 12px; border-radius: var(--radius);
+    background: var(--bg2); border: 1px solid var(--border);
+  }
+  .bc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .bc-syl { font-size: 22px; font-weight: 900; line-height: 1.1; }
+  .bc-win {
+    font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+    background: var(--ok-bg); color: var(--ok-fg);
+  }
+  .bc-verdict { font-size: 12.5px; font-weight: 800; color: var(--text2); }
+  .bc-score { font-size: 11.5px; color: var(--text3); }
+  .bc-moves { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+  .bc-move { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+  .bc-move .mv-word { font-size: 13px; }
+
+  /* ═══════════════════════════════════════════
+     RESPONSIVE
+     Kept last so these overrides always win.
+  ═══════════════════════════════════════════ */
+  @media (max-width: 1180px) {
+    .jobs-layout { grid-template-columns: 224px minmax(0, 1fr); }
+    .job-side-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 980px) {
+    .wait-room {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: auto;
+    }
+    .wait-room-side { order: 2; max-height: none; overflow: visible; }
+    .wait-room-main { order: 1; overflow: visible; }
+    .jobs-layout { grid-template-columns: minmax(0, 1fr); }
+    .jobs-list-panel { position: static; max-height: 240px; }
+    .jobs-list { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .job-pair-row { flex-direction: column; align-items: stretch; }
+    .jp-vs { display: none; }
+    .ability-info-row { grid-template-columns: minmax(0, 1fr); }
+    .detail-grid { grid-template-columns: minmax(0, 1fr); }
+    .job-info-gui { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 820px) {
+    .dm-panel { width: min(440px, 100%); }
+  }
+  @media (max-width: 620px) {
+    .topbar { flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; gap: 10px; }
+    .top-auth { margin-left: auto; }
+    .top-nav {
+      order: 3;
+      flex: 1 0 100%;
+      margin: 0 -18px;
+      padding: 0 18px 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+  @media (max-width: 720px) {
+    .lobby-inner { padding: 18px 16px 22px; gap: 18px; }
+    .lobby-heading h1 { font-size: 22px; }
+    .lobby-create-btn { height: 42px; padding: 0 16px; }
+    .room-grid { grid-template-columns: minmax(0, 1fr); }
+    .wait-room { padding: 14px; gap: 12px; }
+    .wait-player-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .content-page { padding: 16px 14px 20px; gap: 14px; }
+    .simple-stage { padding: 12px 14px 10px; gap: 10px; }
+    .job-screen { padding: 14px; gap: 14px; }
+    .job-screen-header h2 { font-size: 20px; }
+    .job-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+    .job-card { min-height: 88px; }
+    .jc-portrait { width: 40px; height: 40px; }
+    .jc-name { font-size: 11px; }
+    .word-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .batch-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .create-row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-section { padding: 18px; }
+    .dm-panel { width: 100vw; border-left: none; }
+    .dm-panel-body { flex-direction: column; }
+    .dm-inbox {
+      width: auto; max-height: 148px; flex-shrink: 0;
+      border-right: none; border-bottom: 1px solid var(--border);
+    }
+  }
+  @media (max-width: 560px) {
+    .topbar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+    .top-nav { margin: 0 -12px; padding: 0 12px 2px; }
+    .brand { font-size: 17px; }
+    .nav-btn { height: 34px; padding: 0 11px; font-size: 13px; }
+    .auth-chip { padding: 0 4px; }
+    .auth-chip .auth-name { display: none; }
+    .icon-btn { width: 34px; height: 34px; }
+    .lobby-bar { align-items: stretch; }
+    .lobby-create-btn { width: 100%; justify-content: center; }
+    .simple-syl { font-size: clamp(32px, 11vw, 46px); }
+    .simple-head { flex-wrap: wrap; padding: 12px; gap: 10px 12px; }
+    .simple-head-meta { flex: 1 1 140px; }
+    /* 무효·항복은 자주 쓰는 버튼이 아니다. 좁은 화면에서 한 줄을 통째로
+       차지하면 기보가 그만큼 밀린다. 오른쪽에 붙여 둔다. */
+    .simple-actions { margin-left: auto; }
+    .simple-actions .ctrl-btn { height: 32px; padding: 0 12px; font-size: 12.5px; }
+    .simple-word { max-width: 82%; font-size: 16px; }
+    .wizard-card { max-height: calc(100dvh - 32px); }
+    .acct-menu { min-width: 150px; }
+    .tool-switch { width: 100%; }
+    .tool-switch .seg-btn { min-width: 0; }
+    .word-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .lecture-body { padding-left: 16px; }
+    .bottom-composer { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 8px; }
+    .bottom-composer { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
+    .input-zone { padding: 5px; gap: 8px; }
+    .word-input { height: 46px; }
+    .send-btn { width: 46px; height: 46px; }
+    .ability-grid { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .ab-btn { flex: 0 0 auto; }
+    .rank-row { padding: 9px 12px; gap: 10px; }
+    .rank-tier-badge { white-space: nowrap; }
+    .settings-title { font-size: 22px; }
+    input, select, textarea { font-size: 16px; }
+  }
+
   :global([data-theme="dark"]) .wait-room-side,
   :global([data-theme="dark"]) .wait-room-main { box-shadow: none; }
   :global([data-theme="dark"]) .wait-player-slot { background: var(--bg3); }
   :global([data-theme="dark"]) .auth-panel-input { background: var(--bg2); }
-  :global([data-theme="dark"]) .job-tooltip { background: #0d0f14; border-color: var(--border2); }
-  :global([data-theme="dark"]) .job-tooltip-text { color: #b8c4e0; }
 </style>

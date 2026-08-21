@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +17,15 @@ function writeLines(filePath, words) {
 
 if (!existsSync(kkutuSrc)) {
   console.warn('skip dict prep: kkutu_wordlist.txt missing');
+  process.exit(0);
+}
+
+// dev 마다 30MB 를 다시 쓰지 않는다. 원본보다 새 결과물이 다 있으면 건너뛴다.
+const outputs = ['kkutu_wordlist.json', 'urimalsam_wordlist.txt', 'roble_wordlist.txt', 'jime_wordlist.txt']
+  .map((name) => path.join(dataDir, name));
+const srcTime = Math.max(statSync(kkutuSrc).mtimeMs, statSync(wordlistPath).mtimeMs);
+if (outputs.every((f) => existsSync(f) && statSync(f).mtimeMs >= srcTime)) {
+  console.log('dict prep: 최신 상태 · 건너뜀');
   process.exit(0);
 }
 
