@@ -747,10 +747,17 @@ export async function botStartWebLobby(room, meta = {}) {
   const gameType = raw.gameType || raw.ruleType || 'charynn';
   const gs = raw.gueruleSettings || {};
 
+  // 모드에 필요한 사전을 여기서 확인한다. 정본은 시작 전에 반드시 이걸 통과해야
+  // 하는데, 웹은 그동안 건너뛰고 있었다. 그래서 끄투 사전이 없으면 방은 멀쩡히
+  // 열리고 모든 단어가 "사전에 등록되지 않은 단어입니다"로 거부됐다.
+  // 조용히 망가지느니 시작을 거부하는 편이 낫다.
+  assertDictionaryReady(scope, raw);
+
+  // 표한 · 검맞은 직업이 없지만 그래도 playerStates 가 필요하다. 정본의 시작
+  // 함수가 playerStates / playerLives / 모드별 상태 뭉치를 한꺼번에 세운다.
+  // 여기서 phase 만 바꾸고 넘어가면 첫 수에서 상태가 undefined 라 엔진이 터진다.
   if (gameType === 'pyohan' || meta.gameMode === 'pyohan') {
-    raw.phase = 'playing';
-    raw.history = [];
-    raw.used = raw.used || new Set();
+    startJoblessMode(scope, raw, room, replier, 'pyohan');
     return serializeGame(raw);
   }
 
@@ -763,11 +770,21 @@ export async function botStartWebLobby(room, meta = {}) {
   }
 
   if (gameType === 'geonmat' || String(meta.gameMode || '').startsWith('geonmat:')) {
-    raw.phase = 'playing';
+    startJoblessMode(scope, raw, room, replier, 'geonmat');
     return serializeGame(raw);
   }
 
   if (gameType === 'kkutu' || meta.gameMode === 'kkutu' || gs.dictSource === 'kkutu') {
+    // 끄투 전용 로비에는 CPU 차례를 돌리는 코드가 없다. 정본도 같은 이유로
+    // cpuFill 방은 끄투 로비 대신 크로스 엔진(같은 끄투 사전, CPU 지원)으로
+    // 보낸다. 웹은 그걸 안 해서 봇을 넣은 끄투 방은 봇이 한 수도 두지 않았다.
+    const hasCpu = (raw.players || []).some((p) => scope.isCpuPlayerName?.(p));
+    if (hasCpu && typeof scope.startCrossGame === 'function') {
+      raw.cpuFill = true;
+      scope.startCrossGame(raw, replier);
+      raw.isPractice = true; // CPU 가 낀 방은 레이팅 대상이 아니다.
+      return serializeGame(raw);
+    }
     if (typeof scope.__bootKkutuLobby === 'function') {
       scope.__bootKkutuLobby(raw, replier);
       return serializeGame(raw);
@@ -784,6 +801,58 @@ export async function botStartWebLobby(room, meta = {}) {
   }
   runBotDraft(bot, scope, room, raw);
   return serializeGame(raw);
+}
+
+/**
+ * 이 방의 모드가 쓸 사전이 준비돼 있는가. 없으면 시작을 거부한다.
+ *
+ * 정본의 validateLobbyStart 를 그대로 쓴다 — 필요한 사전을 불러오고, 그래도
+ * 없으면 무엇이 없는지 알려 준다. 그 메시지를 그대로 예외로 올린다.
+ * (사전은 `npm run build` 의 scripts/prepare-dicts.js 가 만든다.)
+ */
+function assertDictionaryReady(scope, raw) {
+  if (typeof scope.validateLobbyStart !== 'function') return;
+  let reason = '';
+  const ok = scope.validateLobbyStart(raw, { reply(text) { reason = String(text || ''); } });
+  if (ok) return;
+  raw.started = false;
+  raw.webManualStart = true;
+  raw.phase = 'waiting';
+  throw new Error(reason.split('\n')[0] || '이 모드에 필요한 사전이 준비되지 않았습니다.');
+}
+
+/**
+ * 직업 없는 모드(표한 · 검맞) 시작.
+ *
+ * 정본의 startPyohanGame / startGeonmatGame 을 그대로 부른다. 웹이 따로
+ * 흉내내면 반드시 어긋난다 — 실제로 playerStates 를 안 세워서 사람의 첫 수마다
+ * "Cannot read properties of undefined" 로 터졌다.
+ *
+ * 정본 함수는 isPractice 를 제 방식대로 덮으므로(표한은 무조건 false), 웹이
+ * 정한 값을 앞뒤로 보존한다. 봇이 낀 방은 연습으로 취급돼야 CPU 경로가 돈다.
+ */
+function startJoblessMode(scope, raw, room, replier, kind) {
+  const wantPractice = raw.isPractice;
+  const start = kind === 'pyohan' ? scope.startPyohanGame : scope.startGeonmatGame;
+
+  if (typeof start === 'function') {
+    if (kind === 'pyohan') start(raw, replier);
+    else start(raw, room, replier);
+  } else {
+    // 정본 함수를 못 찾은 경우의 최소 안전망. 최소한 상태는 있어야 한다.
+    raw.phase = 'playing';
+    raw.started = true;
+    raw.history = raw.history || [];
+    raw.used = raw.used || new Set();
+  }
+
+  raw.isPractice = wantPractice;
+  raw.playerStates = raw.playerStates || {};
+  const label = kind === 'pyohan' ? '표한' : '검맞';
+  for (const name of raw.players || []) {
+    if (!raw.playerStates[name]) raw.playerStates[name] = { job: label };
+  }
+  return raw;
 }
 
 /**

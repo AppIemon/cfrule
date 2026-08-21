@@ -223,6 +223,31 @@ patch(
       chooseRecommendedJobForPlayer = function (game, player, selectableJobs, preferredJob) {`
 );
 
+/* 10) 직업 없는 모드의 정본 시작 함수 노출 — 표한/검맞.
+
+   웹의 botStartWebLobby 는 이 두 모드를 `phase = 'playing'` 한 줄로 시작시켜
+   왔다. 그런데 정본의 startPyohanGame / startGeonmatGame 은 playerStates,
+   playerLives, pyohan/geonmat 상태 뭉치, 킥 상태까지 세워 준다. 그게 없으니
+   사람의 첫 수에서 cpuPassesDebuffs 가 undefined 상태를 읽고 터졌다
+   ("Cannot read properties of undefined (reading 'bulletproof_debuff_turns')").
+
+   웹이 정본과 똑같은 초기화를 타도록 두 함수를 Bot.scope 에 올린다. */
+patch(
+  '로비 시작 함수 노출',
+  '  function startLobbyGame(game, replier) {',
+  `  /* cfrule 적응: 웹 로비가 정본과 같은 초기화·검증을 타게 한다.
+     validateLobbyStart 는 모드에 필요한 사전을 확인하고 없으면 불러온다.
+     이걸 건너뛰면 사전이 빈 채로 방이 열려 모든 단어가 거부된다. */
+  Bot.scope.startPyohanGame = startPyohanGame;
+  Bot.scope.startGeonmatGame = startGeonmatGame;
+  Bot.scope.startCrossGame = startCrossGame;
+  Bot.scope.startCharynnLobbyGame = startCharynnLobbyGame;
+  Bot.scope.validateLobbyStart = validateLobbyStart;
+  Bot.scope.getRuleType = getRuleType;
+
+  function startLobbyGame(game, replier) {`
+);
+
 /* 10) eval 관리자 명령 — 웹 운영 중 상태를 들여다볼 수단. */
 patch(
   'eval 관리자 명령',

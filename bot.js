@@ -25723,6 +25723,16 @@ Alt-F4 콤보를 준비합니다.`;
     game.bannedJobs = [];
     replier.reply(S.systemLine("직업 선택: " + S.PREFIX + "ㅈㅅ 직업명"));
   }
+  /* cfrule 적응: 웹 로비가 정본과 같은 초기화·검증을 타게 한다.
+     validateLobbyStart 는 모드에 필요한 사전을 확인하고 없으면 불러온다.
+     이걸 건너뛰면 사전이 빈 채로 방이 열려 모든 단어가 거부된다. */
+  Bot.scope.startPyohanGame = startPyohanGame;
+  Bot.scope.startGeonmatGame = startGeonmatGame;
+  Bot.scope.startCrossGame = startCrossGame;
+  Bot.scope.startCharynnLobbyGame = startCharynnLobbyGame;
+  Bot.scope.validateLobbyStart = validateLobbyStart;
+  Bot.scope.getRuleType = getRuleType;
+
   function startLobbyGame(game, replier) {
     var req = requiredPlayers(game);
     if (!game || !game.players || game.players.length !== req) return;
