@@ -2,8 +2,8 @@
   import { browser } from '$app/environment';
   import { onDestroy, tick } from 'svelte';
   import {
-    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare, Moon, Plus,
-    Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
+    Ban, BarChart3, BookOpen, Bot, BriefcaseBusiness, ChevronDown, Clock, Flag, Info, LogIn, LogOut, Mail, MessageSquare,
+    Moon, Plus, Search, Send, Settings, Shuffle, Sparkles, Sun, Swords, UserRoundPlus, Users, Vote, X
   } from 'lucide-svelte';
   import { apiUrl, wsUrl } from '$lib/api-base';
   import { jobImageSrc } from '$lib/jobImages';
@@ -175,7 +175,7 @@
   let showAuthPanel = $state(false);
   let authReady = $state(false);
   let showCreateWizard = $state(false);
-  let wizardStep = $state(0);
+  let createAdvOpen = $state(false);
   let chainMode = $state('end');
   let ruleMode = $state('guerule');
   let duEum = $state(true);
@@ -310,6 +310,7 @@
 
   // DM (Direct Message)
   let showDM = $state(false);
+  let showAcctMenu = $state(false);
   let dmTarget = $state('');
   let dmInput = $state('');
   let dmMessages = $state([]);
@@ -815,14 +816,20 @@
   const isGeonmatMode = $derived(String(ruleMode).startsWith('geonmat:'));
   const supportsChainPick = $derived(!isGeonmatMode && ['guerule', 'combat', 'card', 'pyohan', 'kkutu'].includes(ruleMode));
   const supportsDuEum = $derived(supportsChainPick && chainMode === 'end' && ['guerule', 'combat', 'card', 'pyohan'].includes(ruleMode));
-  const wizardSteps = $derived.by(() => {
-    const steps = ['room', 'mode'];
-    if (supportsChainPick) steps.push('chain');
-    steps.push('dict');
-    if (supportsDuEum) steps.push('dueum');
-    steps.push('options');
-    if (ruleMode === 'guerule') steps.push('jobs');
-    return steps;
+  // 미니게임만 홀수·다인원이 되므로 프리셋도 그때만 넓게 연다.
+  const playerPresets = $derived(isGeonmatMode ? [2, 3, 4, 6, 10, 20] : [2, 4, 6]);
+  // 고급 설정을 접어 둔 채로도 지금 무엇이 걸려 있는지 한 줄로 보인다.
+  const advancedSummary = $derived.by(() => {
+    const bits = [];
+    if (chainMode === 'start') bits.push('앞말잇기');
+    if (dictSource !== 'default') bits.push(dictLabel(dictSource));
+    if (supportsDuEum && !duEum) bits.push('두음 끔');
+    if (!searchAllowed) bits.push('검색 잠금');
+    if (!rated && !isGuest) bits.push('레이팅 미반영');
+    if (timerEnabled) bits.push(`${timerMinutes}분+${timerIncrement}초`);
+    if (roomPassword) bits.push('비밀번호');
+    if (disabledJobs.length) bits.push(`직업 ${disabledJobs.length}개 제한`);
+    return bits.length ? bits.join(' · ') : '기본값';
   });
   const isGuest = $derived(!!user?.isGuest);
   const connectionStale = $derived(!!room && (syncFailed || (lastSyncAt > 0 && now - lastSyncAt > 8000)));
@@ -952,9 +959,6 @@
   });
 
   $effect(() => {
-    if (showCreateWizard && wizardStep >= wizardSteps.length) {
-      wizardStep = Math.max(0, wizardSteps.length - 1);
-    }
   });
 
   $effect(() => {
@@ -1025,7 +1029,6 @@
     }
   }
 
-  const wizardStepKey = $derived(wizardSteps[wizardStep] || 'chain');
 
   function requireLogin() {
     if (user?.nickname && !user.isGuest) return user;
@@ -1047,22 +1050,12 @@
 
   function openCreateWizard() {
     if (!user?.nickname) return;
-    wizardStep = 0;
+    createAdvOpen = false;
     showCreateWizard = true;
   }
 
   function closeCreateWizard() {
     showCreateWizard = false;
-    wizardStep = 0;
-  }
-
-  function wizardNext() {
-    if (wizardStep < wizardSteps.length - 1) wizardStep += 1;
-    else finishCreateWizard();
-  }
-
-  function wizardBack() {
-    if (wizardStep > 0) wizardStep -= 1;
   }
 
   function selectRuleMode(value) {
@@ -1075,19 +1068,6 @@
   function selectChainMode(value) {
     chainMode = value;
     if (value === 'start' && isGeonmatMode) ruleMode = 'guerule';
-  }
-
-  function wizardStepTitle(key) {
-    const map = {
-      room: '방 설정',
-      mode: '게임 모드',
-      chain: '잇기 방향',
-      dict: '사전',
-      dueum: '두음법칙',
-      options: '게임 옵션',
-      jobs: '직업 제한'
-    };
-    return map[key] || '';
   }
 
   function dictLabel(value) {
@@ -2152,8 +2132,16 @@
     if (showInviteModal) { showInviteModal = false; return; }
     if (showJoinPassword) { showJoinPassword = false; pendingJoinRoom = ''; return; }
     if (showCreateWizard) { closeCreateWizard(); return; }
+    if (showAcctMenu) { showAcctMenu = false; return; }
     if (showDM) { showDM = false; return; }
     if (showChat) { showChat = false; }
+  }
+
+  // 계정 메뉴는 바깥을 누르면 닫힌다. 안 그러면 열어 놓고 다른 걸 누를 때 걸리적거린다.
+  function handleGlobalPointerDown(event) {
+    if (!showAcctMenu) return;
+    if (event.target?.closest?.('.acct')) return;
+    showAcctMenu = false;
   }
 
   function hideBrokenImage(event) {
@@ -2169,7 +2157,7 @@
   if (browser) loadMe();
 </script>
 
-<svelte:window onkeydown={handleGlobalKeydown} />
+<svelte:window onkeydown={handleGlobalKeydown} onpointerdown={handleGlobalPointerDown} />
 
 <svelte:head>
   <title>채끄</title>
@@ -2227,11 +2215,8 @@
       <button type="button" class="nav-btn" class:nav-active={tab === 'game'} aria-current={tab === 'game' ? 'page' : undefined} onclick={() => (tab = 'game')}>
         <Swords size={15} /><span>게임</span>
       </button>
-      <button type="button" class="nav-btn" class:nav-active={tab === 'search'} aria-current={tab === 'search' ? 'page' : undefined} onclick={() => (tab = 'search')}>
+      <button type="button" class="nav-btn" class:nav-active={tab === 'search' || tab === 'analysis'} aria-current={tab === 'search' || tab === 'analysis' ? 'page' : undefined} onclick={() => (tab = 'search')}>
         <Search size={15} /><span>검색</span>
-      </button>
-      <button type="button" class="nav-btn" class:nav-active={tab === 'analysis'} aria-current={tab === 'analysis' ? 'page' : undefined} onclick={() => (tab = 'analysis')}>
-        <Swords size={15} /><span>분석</span>
       </button>
       <button type="button" class="nav-btn" class:nav-active={tab === 'jobs'} aria-current={tab === 'jobs' ? 'page' : undefined} onclick={() => openJobsTab()}>
         <BriefcaseBusiness size={15} /><span>직업</span>
@@ -2241,13 +2226,6 @@
           <BarChart3 size={15} /><span>랭킹</span>
         </button>
       {/if}
-      <span class="nav-sep" aria-hidden="true"></span>
-      <button type="button" class="nav-btn nav-btn-ghost" class:nav-active={tab === 'help'} aria-current={tab === 'help' ? 'page' : undefined} onclick={() => (tab = 'help')}>
-        <BookOpen size={15} /><span>도움말</span>
-      </button>
-      <button type="button" class="nav-btn nav-btn-ghost" class:nav-active={tab === 'settings'} aria-current={tab === 'settings' ? 'page' : undefined} onclick={() => { tab = 'settings'; fetchFriends(); }}>
-        <Settings size={15} /><span>설정</span>
-      </button>
     </nav>
     <div class="top-auth">
       {#if room && !isGuest}
@@ -2261,11 +2239,35 @@
           {#if dmInbox.length > 0}<span class="dm-badge">{dmInbox.length}</span>{/if}
         </button>
       {/if}
-      <span class="auth-chip" title={user.nickname}>
-        <span class="auth-avatar" aria-hidden="true">{user.nickname?.[0] ?? '?'}</span>
-        <span class="auth-name">{user.nickname}</span>
-      </span>
-      <button type="button" class="icon-btn" onclick={signout} title="로그아웃" aria-label="로그아웃"><LogOut size={16} /></button>
+      <!-- 계정 메뉴. 도움말·설정·로그아웃처럼 자주 안 쓰는 것을 여기 모은다. -->
+      <div class="acct">
+        <button
+          type="button"
+          class="auth-chip"
+          class:auth-chip-on={showAcctMenu}
+          onclick={() => (showAcctMenu = !showAcctMenu)}
+          aria-haspopup="menu"
+          aria-expanded={showAcctMenu}
+          title={user.nickname}
+        >
+          <span class="auth-avatar" aria-hidden="true">{user.nickname?.[0] ?? '?'}</span>
+          <span class="auth-name">{user.nickname}</span>
+          <ChevronDown size={14} />
+        </button>
+        {#if showAcctMenu}
+          <div class="acct-menu" role="menu">
+            <button type="button" role="menuitem" class="acct-item" onclick={() => { tab = 'help'; showAcctMenu = false; }}>
+              <BookOpen size={15} />도움말
+            </button>
+            <button type="button" role="menuitem" class="acct-item" onclick={() => { tab = 'settings'; fetchFriends(); showAcctMenu = false; }}>
+              <Settings size={15} />설정
+            </button>
+            <button type="button" role="menuitem" class="acct-item acct-item-danger" onclick={() => { showAcctMenu = false; signout(); }}>
+              <LogOut size={15} />로그아웃
+            </button>
+          </div>
+        {/if}
+      </div>
     </div>
   </header>
 
@@ -2376,51 +2378,14 @@
         <div class="wizard-overlay" role="dialog" aria-modal="true" aria-label="방 만들기">
           <div class="wizard-card">
             <div class="wizard-head">
-              <div class="wizard-head-main">
-                <span class="panel-kicker">STEP {wizardStep + 1} / {wizardSteps.length}</span>
-                <h2>{wizardStepTitle(wizardStepKey)}</h2>
-                <div class="wizard-progress" aria-hidden="true">
-                  {#each wizardSteps as step, i}
-                    <span class="wizard-progress-dot" class:wizard-progress-done={i < wizardStep} class:wizard-progress-current={i === wizardStep}></span>
-                  {/each}
-                </div>
-              </div>
+              <h2>방 만들기</h2>
               <button type="button" class="wizard-close" onclick={closeCreateWizard} aria-label="닫기"><X size={18} /></button>
             </div>
 
             <div class="wizard-body">
-              {#if wizardStepKey === 'room'}
-                <div class="wizard-extras">
-                  <label class="wizard-field">
-                    <span>방 이름</span>
-                    <input class="lobby-input" bind:value={roomName} placeholder="예: 친선전, 연습방" maxlength="32" />
-                  </label>
-                  <label class="wizard-field">
-                    <span>비밀번호 (선택)</span>
-                    <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
-                  </label>
-                  <div class="wizard-field">
-                    <span>인원</span>
-                    <div class="player-slider-block">
-                      <div class="player-slider-value">
-                        <strong>{playerCount}</strong>
-                        <span>명</span>
-                      </div>
-                      <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}; --max: 20`} />
-                      <div class="player-slider-quick">
-                        {#each [2, 4, 6, 10, 20] as preset}
-                          <button type="button" class="player-slider-preset" class:player-slider-preset-active={playerCount === preset} onclick={() => (playerCount = preset)}>
-                            {preset}
-                          </button>
-                        {/each}
-                      </div>
-                    </div>
-                    <span class="wizard-field-hint">일반 모드는 짝수(2·4·6)로 맞춰지고, 미니게임은 홀수도 가능합니다.</span>
-                  </div>
-                </div>
-              {:else if wizardStepKey === 'mode'}
-                <p class="wizard-hint">미니게임은 끝말잇기만 지원합니다.</p>
-                <div class="wizard-choice-grid wizard-choice-grid-3">
+              <div class="create-field">
+                <span class="create-label">게임 모드</span>
+                <div class="mode-grid">
                   {#each [
                     ['guerule', '채린룰', '직업·능력'],
                     ['combat', '조합', '능력 드래프트'],
@@ -2432,110 +2397,128 @@
                     ['geonmat:bingo', '빙고맞', '3×3 빙고'],
                     ['geonmat:relay', '이어달리기', '다단 경로']
                   ] as [value, title, desc]}
-                    <button class="wizard-choice" class:wizard-choice-active={ruleMode === value} onclick={() => selectRuleMode(value)}>
+                    <button type="button" class="mode-tile" class:mode-tile-on={ruleMode === value} onclick={() => selectRuleMode(value)}>
                       <strong>{title}</strong>
                       <span>{desc}</span>
                     </button>
                   {/each}
                 </div>
-              {:else if wizardStepKey === 'chain'}
-                <div class="wizard-choice-grid">
-                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'end'} onclick={() => selectChainMode('end')}>
-                    <strong>끝말잇기</strong>
-                    <span>마지막 글자로 이어 말합니다</span>
-                  </button>
-                  <button class="wizard-choice" class:wizard-choice-active={chainMode === 'start'} onclick={() => selectChainMode('start')}>
-                    <strong>앞말잇기</strong>
-                    <span>첫 글자로 끝나는 단어를 냅니다</span>
-                  </button>
+              </div>
+
+              <div class="create-row">
+                <label class="create-field">
+                  <span class="create-label">방 이름</span>
+                  <input class="lobby-input" bind:value={roomName} placeholder="예: 친선전, 연습방" maxlength="32" />
+                </label>
+                <div class="create-field">
+                  <span class="create-label">인원 · <b>{playerCount}명</b></span>
+                  <div class="count-row">
+                    {#each playerPresets as preset}
+                      <button type="button" class="count-btn" class:count-btn-on={playerCount === preset} onclick={() => (playerCount = preset)}>{preset}</button>
+                    {/each}
+                    {#if isGeonmatMode}
+                      <input class="count-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} aria-label="인원" />
+                    {/if}
+                  </div>
                 </div>
-              {:else if wizardStepKey === 'dict'}
-                <div class="wizard-choice-grid wizard-choice-grid-3">
-                  {#each [
-                    ['default', '구엜룰'],
-                    ['urimalsam', '우리말샘'],
-                    ['roble', '로블'],
-                    ['jime', '지메'],
-                    ['kkutu', '끄투']
-                  ] as [value, title]}
-                    {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
-                    <button
-                      class="wizard-choice"
-                      class:wizard-choice-active={dictSource === value}
-                      class:wizard-choice-disabled={locked}
-                      onclick={() => { if (!locked) dictSource = value; }}
-                      disabled={locked}
-                    >
-                      <strong>{title}</strong>
-                      {#if locked}<span>끄투 모드 전용</span>{/if}
-                    </button>
-                  {/each}
-                </div>
-              {:else if wizardStepKey === 'dueum'}
-                <div class="wizard-choice-grid">
-                  <button class="wizard-choice" class:wizard-choice-active={duEum} onclick={() => (duEum = true)}>
-                    <strong>두음법칙 켬</strong>
-                    <span>라→나, 로→노 등 허용</span>
-                  </button>
-                  <button class="wizard-choice" class:wizard-choice-active={!duEum} onclick={() => (duEum = false)}>
-                    <strong>두음법칙 끔</strong>
-                    <span>표기 그대로만 이어갑니다</span>
-                  </button>
-                </div>
-              {:else if wizardStepKey === 'options'}
-                <div class="wizard-extras">
-                  <label class="practice-toggle">
-                    <input type="checkbox" bind:checked={searchAllowed} />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    게임 중 검색 허용
+              </div>
+
+              <details class="create-adv" bind:open={createAdvOpen}>
+                <summary>
+                  <span>고급 설정</span>
+                  <span class="create-adv-sum">{advancedSummary}</span>
+                </summary>
+
+                <div class="create-adv-body">
+                  <label class="create-field">
+                    <span class="create-label">비밀번호 (선택)</span>
+                    <input class="lobby-input" type="password" bind:value={roomPassword} placeholder="친선전용 비밀번호" maxlength="32" />
                   </label>
-                  {#if !isGuest}
-                    <label class="practice-toggle">
-                      <input type="checkbox" bind:checked={rated} />
-                      <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                      레이팅 반영
-                    </label>
-                  {/if}
-                  <label class="practice-toggle">
-                    <input type="checkbox" bind:checked={timerEnabled} />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    체스식 타이머
-                  </label>
-                  {#if timerEnabled}
-                    <div class="timer-row">
-                      <label><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
-                      <label><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+
+                  {#if supportsChainPick}
+                    <div class="create-field">
+                      <span class="create-label">잇기 방향</span>
+                      <div class="seg">
+                        <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'end'} onclick={() => selectChainMode('end')}>끝말잇기</button>
+                        <button type="button" class="seg-btn" class:seg-btn-on={chainMode === 'start'} onclick={() => selectChainMode('start')}>앞말잇기</button>
+                      </div>
                     </div>
                   {/if}
-                  {#if ruleMode === 'pyohan'}
-                    <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
+
+                  <div class="create-field">
+                    <span class="create-label">사전</span>
+                    <div class="seg">
+                      {#each [['default', '구엜룰'], ['urimalsam', '우리말샘'], ['roble', '로블'], ['jime', '지메'], ['kkutu', '끄투']] as [value, title]}
+                        {@const locked = ruleMode === 'kkutu' && value !== 'kkutu'}
+                        <button type="button" class="seg-btn" class:seg-btn-on={dictSource === value} disabled={locked} onclick={() => (dictSource = value)}>{title}</button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <div class="create-toggles">
+                    {#if supportsDuEum}
+                      <label class="practice-toggle">
+                        <input type="checkbox" bind:checked={duEum} />
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        두음법칙 (라→나)
+                      </label>
+                    {/if}
+                    <label class="practice-toggle">
+                      <input type="checkbox" bind:checked={searchAllowed} />
+                      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                      게임 중 검색 허용
+                    </label>
+                    {#if !isGuest}
+                      <label class="practice-toggle">
+                        <input type="checkbox" bind:checked={rated} />
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        레이팅 반영
+                      </label>
+                    {/if}
+                    <label class="practice-toggle">
+                      <input type="checkbox" bind:checked={timerEnabled} />
+                      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                      체스식 타이머
+                    </label>
+                  </div>
+
+                  {#if timerEnabled || ruleMode === 'pyohan' || isGeonmatMode}
+                    <div class="create-nums">
+                      {#if timerEnabled}
+                        <label class="setting-inline"><span>기본</span><input class="mini-num" type="number" min="1" max="60" bind:value={timerMinutes} />분</label>
+                        <label class="setting-inline"><span>증가</span><input class="mini-num" type="number" min="0" max="60" bind:value={timerIncrement} />초</label>
+                      {/if}
+                      {#if ruleMode === 'pyohan'}
+                        <label class="setting-inline"><span>표한 목숨</span><input class="mini-num" type="number" min="1" max="9" bind:value={pyohanLives} /></label>
+                      {/if}
+                      {#if isGeonmatMode}
+                        <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
+                      {/if}
+                    </div>
                   {/if}
-                  {#if isGeonmatMode}
-                    <label class="setting-inline"><span>라운드 수</span><input class="mini-num" type="number" min="1" max="20" bind:value={geonmatRounds} /></label>
+
+                  {#if ruleMode === 'guerule'}
+                    <div class="disabled-job-box">
+                      <div class="disabled-job-head">
+                        <span><Ban size={14} />선택 불가 직업</span>
+                        {#if disabledJobs.length}<button class="tiny-btn" onclick={() => (disabledJobs = [])}>초기화</button>{/if}
+                      </div>
+                      <div class="disabled-job-grid">
+                        {#each availableJobs as job}
+                          <button class="disable-job-chip" class:djc-active={disabledJobs.includes(job)} onclick={() => toggleDisabledJob(job)}>
+                            {job}
+                          </button>
+                        {/each}
+                      </div>
+                    </div>
                   {/if}
                 </div>
-              {:else}
-                <div class="disabled-job-box">
-                  <div class="disabled-job-head">
-                    <span><Ban size={14} />선택 불가 직업</span>
-                    {#if disabledJobs.length}<button class="tiny-btn" onclick={() => (disabledJobs = [])}>초기화</button>{/if}
-                  </div>
-                  <div class="disabled-job-grid">
-                    {#each availableJobs as job}
-                      <button class="disable-job-chip" class:djc-active={disabledJobs.includes(job)} onclick={() => toggleDisabledJob(job)}>
-                        {job}
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
+              </details>
             </div>
 
             <div class="wizard-foot">
-              <button class="ghost-btn" onclick={wizardBack} disabled={wizardStep === 0}>이전</button>
-              <button class="accent-btn" onclick={wizardNext}>
-                {wizardStep >= wizardSteps.length - 1 ? '방 만들기' : '다음'}
-              </button>
+              <button class="ghost-btn" onclick={closeCreateWizard}>취소</button>
+              <button class="accent-btn" onclick={finishCreateWizard} disabled={busy}>방 만들기</button>
             </div>
           </div>
         </div>
@@ -2577,7 +2560,7 @@
                 </label>
                 <div class="wizard-field">
                   <span>인원 ({playerCount}명)</span>
-                  <input class="player-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} style={`--value: ${playerCount}; --max: 20`} />
+                  <input class="count-slider" type="range" min="1" max="20" step="1" bind:value={playerCount} />
                 </div>
                 {#if !String(snapshot?.meta?.gameMode || '').startsWith('geonmat:')}
                   <div class="wait-settings-row">
@@ -2828,13 +2811,12 @@
                       <span>수읽기 깊이</span>
                     </div>
                     <input
-                      class="player-slider"
+                      class="count-slider"
                       type="range"
                       min="1"
                       max={BOT_MAX_DEPTH}
                       step="1"
                       bind:value={botCpuDepth}
-                      style={`--value: ${botCpuDepth}; --max: ${BOT_MAX_DEPTH}`}
                       aria-label="수읽기 깊이"
                     />
                     <p class="bot-depth-hint">{botDepthHint}</p>
@@ -3325,6 +3307,10 @@
   <!-- ══════════════════════ SEARCH TAB ══════════════════════ -->
   {:else if tab === 'search'}
     <div class="content-page">
+      <div class="tool-switch" role="tablist" aria-label="단어 도구">
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'search'} aria-selected={tab === 'search'} onclick={() => (tab = 'search')}>단어 검색</button>
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'analysis'} aria-selected={tab === 'analysis'} onclick={() => (tab = 'analysis')}>수 분석</button>
+      </div>
       <form class="search-bar" onsubmit={submitSearch}>
         <input class="search-input" bind:value={searchText} placeholder="기* · *차 · 기*차 · 기차" />
         <button class="search-submit"><Search size={16} />검색</button>
@@ -3466,6 +3452,10 @@
   <!-- ══════════════════════ ANALYSIS TAB ══════════════════════ -->
   {:else if tab === 'analysis'}
     <div class="content-page">
+      <div class="tool-switch" role="tablist" aria-label="단어 도구">
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'search'} aria-selected={tab === 'search'} onclick={() => (tab = 'search')}>단어 검색</button>
+        <button type="button" role="tab" class="seg-btn" class:seg-btn-on={tab === 'analysis'} aria-selected={tab === 'analysis'} onclick={() => (tab = 'analysis')}>수 분석</button>
+      </div>
       <div class="job-pair-row">
         <div class="jp-side atk">
           <span class="jp-label">⚔ 공격</span>
@@ -3730,69 +3720,44 @@
     <div class="content-page settings-page">
       <h2 class="settings-title"><Settings size={20} />설정</h2>
 
-      <!-- 계정 섹션 -->
+      <!-- 화면 — 테마와 강조색은 같은 결정이라 한 칸에 둔다.
+           계정/로그아웃은 상단 계정 메뉴에 있으므로 여기서 중복하지 않는다. -->
       <div class="settings-section">
-        <div class="settings-section-label">계정</div>
-        <div class="account-row">
-          <span class="account-avatar" aria-hidden="true">{user.nickname?.[0] ?? '?'}</span>
-          <div class="account-meta">
-            <strong>{user.nickname}</strong>
-            <span>{isGuest ? '게스트로 이용 중입니다' : '로그인됨'}</span>
-          </div>
-          <button type="button" class="ghost-btn" onclick={signout}><LogOut size={15} />로그아웃</button>
-        </div>
-      </div>
-
-      <!-- 테마 섹션 -->
-      <div class="settings-section">
-        <div class="settings-section-label">테마</div>
-        <div class="theme-options">
-          <button
-            class="theme-option-btn"
-            class:theme-opt-active={theme === 'light'}
-            onclick={() => { theme = 'light'; if (browser) { localStorage.setItem('theme', 'light'); document.documentElement.setAttribute('data-theme', 'light'); } }}
-          >
-            <Sun size={20} />
-            <span>라이트</span>
-          </button>
-          <button
-            class="theme-option-btn"
-            class:theme-opt-active={theme === 'dark'}
-            onclick={() => { theme = 'dark'; if (browser) { localStorage.setItem('theme', 'dark'); document.documentElement.setAttribute('data-theme', 'dark'); } }}
-          >
-            <Moon size={20} />
-            <span>다크</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 강조 색상 섹션 -->
-      <div class="settings-section">
-        <div class="settings-section-label">강조 색상</div>
-        <p class="settings-section-desc">버튼·팀 마커·단어 버블 등 UI 강조색을 변경합니다.</p>
-        <div class="settings-color-row">
-          {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
+        <div class="settings-section-label">화면</div>
+        <div class="settings-row">
+          <span class="settings-row-label">테마</span>
+          <div class="seg">
             <button
-              class="color-chip"
-              class:color-chip-sel={lineColor === c}
-              style="background: {c}"
-              onclick={() => (lineColor = c)}
-              title={c}
-            ></button>
-          {/each}
-          <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" />
+              type="button" class="seg-btn" class:seg-btn-on={theme === 'light'}
+              onclick={() => { theme = 'light'; if (browser) { localStorage.setItem('theme', 'light'); document.documentElement.setAttribute('data-theme', 'light'); } }}
+            ><Sun size={14} />라이트</button>
+            <button
+              type="button" class="seg-btn" class:seg-btn-on={theme === 'dark'}
+              onclick={() => { theme = 'dark'; if (browser) { localStorage.setItem('theme', 'dark'); document.documentElement.setAttribute('data-theme', 'dark'); } }}
+            ><Moon size={14} />다크</button>
+          </div>
         </div>
-        <div class="settings-color-preview">
-          <span class="scp-label">미리보기</span>
-          <span class="scp-dot" style="background: {lineColor}; box-shadow: 0 0 8px {lineColor}88"></span>
-          <span class="scp-btn" style="background: {lineColor}">버튼 예시</span>
+        <div class="settings-row">
+          <span class="settings-row-label">강조 색상</span>
+          <div class="settings-color-row">
+            {#each ['#2563eb','#dc2626','#16a34a','#d97706','#9333ea','#db2777','#0891b2','#374151'] as c}
+              <button
+                class="color-chip"
+                class:color-chip-sel={lineColor === c}
+                style="background: {c}"
+                onclick={() => (lineColor = c)}
+                title={c}
+                aria-label={`강조 색상 ${c}`}
+              ></button>
+            {/each}
+            <input type="color" class="color-picker-input" bind:value={lineColor} title="직접 선택" aria-label="강조 색상 직접 선택" />
+          </div>
         </div>
       </div>
 
       {#if !isGuest}
         <div class="settings-section">
           <div class="settings-section-label"><Users size={15} />친구</div>
-          <p class="settings-section-desc">닉네임으로 친구를 추가하고 대기실에서 초대할 수 있습니다.</p>
           <form class="friend-add-row" onsubmit={(e) => { e.preventDefault(); addFriend(); }}>
             <input class="lobby-input" bind:value={friendAddInput} placeholder="닉네임" maxlength="24" />
             <button class="accent-btn" type="submit" disabled={friendsBusy || !friendAddInput.trim()}>친구 추가</button>
@@ -4119,14 +4084,33 @@
     padding: 0;
   }
   .brand:hover { color: var(--accent); }
-  .nav-sep {
-    width: 1px;
-    height: 20px;
-    margin: 0 6px;
-    background: var(--border2);
-    flex: 0 0 auto;
+  /* ── 계정 메뉴 ── */
+  .acct { position: relative; flex: 0 0 auto; }
+  .acct-menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 120;
+    min-width: 168px; padding: 5px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow-lg);
+    display: grid; gap: 2px;
+    animation: popIn .14s cubic-bezier(.22,1,.36,1) both;
   }
-  .nav-btn-ghost { color: var(--text3); }
+  .acct-item {
+    display: flex; align-items: center; gap: 9px;
+    height: 36px; padding: 0 10px; border-radius: 8px;
+    font-size: 13px; font-weight: 700; color: var(--text);
+    background: transparent; text-align: left;
+  }
+  .acct-item:hover { background: var(--bg3); }
+  .acct-item-danger { color: var(--danger); }
+  .acct-item-danger:hover { background: var(--danger-bg); }
+
+  /* ── 단어 도구 전환 (검색 ↔ 분석) ── */
+  .tool-switch {
+    display: flex; gap: 4px; padding: 4px; margin-bottom: 14px;
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px;
+    width: fit-content;
+  }
+  .tool-switch .seg-btn { min-width: 92px; }
   .auth-panel-tabs { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
   .auth-panel-tab {
     height: 34px;
@@ -4199,7 +4183,11 @@
     background: var(--bg3);
     border: 1px solid var(--border);
     min-width: 0;
+    color: var(--text3);
+    transition: border-color .15s, background .15s;
   }
+  .auth-chip:hover { border-color: var(--accent); }
+  .auth-chip-on { border-color: var(--accent); background: var(--bg2); }
   .auth-avatar {
     width: 26px; height: 26px;
     border-radius: 50%;
@@ -6219,51 +6207,21 @@
   .settings-section-desc {
     font-size: 13px; color: var(--text2); margin: -6px 0 16px; line-height: 1.55;
   }
-  .account-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .account-avatar {
-    width: 42px; height: 42px; border-radius: 50%;
-    display: grid; place-items: center;
-    background: var(--accent-fill); color: var(--on-accent);
-    font-size: 18px; font-weight: 900; flex: 0 0 auto;
+  /* 라벨 + 컨트롤 한 줄. 설정 항목이 늘어도 세로로만 쌓인다. */
+  .settings-row {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 9px 0;
   }
-  .account-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .account-meta strong { font-size: 16px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .account-meta span { font-size: 12.5px; color: var(--text3); }
-  .theme-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 340px; }
-  .theme-option-btn {
-    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
-    padding: 16px 12px;
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    background: var(--bg3);
-    color: var(--text2);
-    font-size: 13px; font-weight: 700;
-    transition: all .2s;
+  .settings-row + .settings-row { border-top: 1px solid var(--border); }
+  .settings-row-label {
+    font-size: 13px; font-weight: 700; color: var(--text2);
+    flex: 0 0 92px;
   }
-  .theme-option-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg2); }
-  .theme-option-btn.theme-opt-active {
-    border-color: var(--accent);
-    background: var(--bg2);
-    color: var(--accent);
-    box-shadow: 0 0 0 3px var(--focus-ring);
-  }
+  .settings-row .seg { flex: 0 0 auto; }
+  .settings-row .seg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 84px; }
   .settings-color-row {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    margin-bottom: 14px;
   }
-  .settings-color-preview {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px;
-    background: var(--bg3); border-radius: 10px;
-  }
-  .scp-label { font-size: 12px; color: var(--text3); font-weight: 600; }
-  .scp-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-  .scp-btn {
-    height: 28px; padding: 0 14px; border-radius: 14px;
-    color: #fff; font-size: 12px; font-weight: 800;
-    text-shadow: 0 1px 2px rgba(0,0,0,.28);
-  }
-
   /* Lobby / wizard / kkutu wait */
 
   .wizard-overlay {
@@ -6286,48 +6244,85 @@
     color: var(--text);
     animation: popIn .2s cubic-bezier(.22,1,.36,1) both;
   }
-  .wizard-head, .wizard-foot { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-  .wizard-head-main { display: grid; gap: 6px; min-width: 0; }
-  .wizard-progress { display: flex; gap: 6px; margin-top: 4px; }
-  .wizard-progress-dot {
-    width: 28px; height: 4px; border-radius: 999px;
-    background: var(--border2); transition: background .2s, transform .2s;
-  }
-  .wizard-progress-done { background: color-mix(in srgb, var(--accent) 55%, var(--border2)); }
-  .wizard-progress-current { background: var(--accent); transform: scaleY(1.35); }
-  .wizard-head h2 { font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px; }
+  .wizard-head, .wizard-foot { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .wizard-head h2 { font-size: 18px; font-weight: 800; color: var(--text); }
   .wizard-foot { border-bottom: 0; border-top: 1px solid var(--border); justify-content: flex-end; }
-  .wizard-body { padding: 18px; overflow: auto; flex: 1; }
+  .wizard-body { padding: 16px 18px; overflow: auto; flex: 1; display: grid; gap: 16px; align-content: start; }
   .wizard-close { color: var(--text3); }
-  .wizard-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .wizard-choice-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .wizard-choice {
-    text-align: left;
-    padding: 16px;
-    border: 2px solid var(--border2);
-    border-radius: 12px;
-    background: var(--bg3);
-    color: var(--text);
-    display: grid;
-    gap: 6px;
-    transition: border-color .15s, background .15s, box-shadow .15s;
+
+  /* ── 방 만들기(한 화면) ── */
+  .create-field { display: grid; gap: 7px; min-width: 0; }
+  .create-label { font-size: 12px; font-weight: 700; color: var(--text3); }
+  .create-label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .create-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+
+  .mode-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mode-tile {
+    text-align: left; padding: 9px 11px; border-radius: 10px;
+    border: 1px solid var(--border2); background: var(--bg3); color: var(--text);
+    display: grid; gap: 1px; min-width: 0;
+    transition: border-color .15s, background .15s, color .15s;
   }
-  .wizard-choice:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: var(--bg2);
+  .mode-tile strong { font-size: 13.5px; font-weight: 800; }
+  .mode-tile span { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mode-tile:hover { border-color: var(--accent); }
+  .mode-tile-on {
+    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg2));
   }
-  .wizard-choice strong { font-size: 15px; font-weight: 800; color: var(--text); }
-  .wizard-choice span { font-size: 12px; line-height: 1.45; color: var(--text2); }
-  .wizard-choice-active {
-    border-color: var(--accent);
-    background: var(--bg2);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  .mode-tile-on strong { color: var(--accent); }
+
+  .count-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .count-btn {
+    min-width: 38px; height: 36px; padding: 0 10px; border-radius: 9px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    font-size: 13px; font-weight: 800; color: var(--text2);
+    transition: border-color .15s, color .15s, background .15s;
   }
-  .wizard-choice-active strong { color: var(--accent); }
-  .wizard-choice-active span { color: var(--text2); }
-  .wizard-choice-disabled { opacity: .45; cursor: not-allowed; }
-  .wizard-hint { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
-  .wizard-extras { display: grid; gap: 12px; }
+  .count-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .count-btn-on {
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg2));
+    border-color: var(--accent); color: var(--accent);
+  }
+  .count-slider { flex: 1; min-width: 90px; accent-color: var(--accent); }
+
+  .seg {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 4px;
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px;
+  }
+  .seg-btn {
+    flex: 1; min-width: 64px; height: 32px; padding: 0 10px; border-radius: 7px;
+    font-size: 12.5px; font-weight: 700; color: var(--text2); background: transparent;
+    transition: background .15s, color .15s;
+  }
+  .seg-btn:hover:not(:disabled) { color: var(--text); background: var(--bg2); }
+  .seg-btn-on { background: var(--accent-fill); color: var(--on-accent); }
+  .seg-btn-on:hover { background: var(--accent-fill); color: var(--on-accent); }
+  .seg-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  .create-adv { border: 1px solid var(--border); border-radius: 12px; background: var(--bg3); }
+  .create-adv > summary {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--text);
+    list-style: none;
+  }
+  .create-adv > summary::-webkit-details-marker { display: none; }
+  .create-adv > summary::before {
+    content: '▸'; color: var(--text3); font-size: 11px;
+    transition: transform .15s; display: inline-block;
+  }
+  .create-adv[open] > summary::before { transform: rotate(90deg); }
+  .create-adv-sum {
+    margin-left: auto; font-size: 12px; font-weight: 600; color: var(--text3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;
+  }
+  .create-adv-body {
+    display: grid; gap: 13px; padding: 4px 14px 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 13px;
+  }
+  .create-toggles { display: grid; gap: 9px; }
+  .create-nums { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+  .create-nums .setting-inline { justify-content: flex-start; gap: 8px; }
   .setting-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
   .wait-room {
@@ -6630,54 +6625,6 @@
   .room-empty-state small { font-size: 13px; color: var(--text3); }
   .room-empty-state .accent-btn { margin-top: 8px; }
 
-  .player-slider-block {
-    padding: 16px; border-radius: 14px;
-    background: var(--bg3); border: 1px solid var(--border2);
-    display: grid; gap: 14px;
-  }
-  .player-slider-value {
-    display: flex; align-items: baseline; justify-content: center; gap: 4px;
-  }
-  .player-slider-value strong {
-    font-size: 42px; font-weight: 900; line-height: 1; color: var(--accent);
-    font-variant-numeric: tabular-nums;
-  }
-  .player-slider-value span { font-size: 16px; font-weight: 800; color: var(--text2); }
-  .player-slider {
-    width: 100%; height: 8px; appearance: none; border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      var(--accent) 0%,
-      var(--accent) calc((var(--value, 2) - 1) / (var(--max, 20) - 1) * 100%),
-      var(--border2) calc((var(--value, 2) - 1) / (var(--max, 20) - 1) * 100%)
-    );
-    accent-color: var(--accent);
-  }
-  .player-slider::-webkit-slider-thumb {
-    appearance: none; width: 22px; height: 22px; border-radius: 50%;
-    background: var(--bg2); border: 3px solid var(--accent);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, .18);
-    cursor: pointer;
-  }
-  .player-slider::-moz-range-thumb {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--bg2); border: 3px solid var(--accent);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, .18);
-    cursor: pointer;
-  }
-  .player-slider-quick { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-  .player-slider-preset {
-    min-width: 40px; height: 34px; padding: 0 10px; border-radius: 10px;
-    background: var(--bg2); border: 1px solid var(--border2);
-    font-size: 13px; font-weight: 800; color: var(--text2);
-    transition: border-color .15s, color .15s, background .15s;
-  }
-  .player-slider-preset:hover { border-color: var(--accent); color: var(--accent); }
-  .player-slider-preset-active {
-    background: color-mix(in srgb, var(--accent) 12%, var(--bg2));
-    border-color: var(--accent); color: var(--accent);
-  }
-
   .auth-gate {
     flex: 1; min-height: 100dvh;
     display: flex; align-items: center; justify-content: center;
@@ -6715,7 +6662,6 @@
   .wizard-join-form { display: grid; gap: 12px; }
   .wizard-field { display: grid; gap: 6px; }
   .wizard-field span { font-size: 12px; font-weight: 700; color: var(--text3); }
-  .wizard-field-hint { font-size: 12px; color: var(--text2); line-height: 1.4; }
 
   /* Simple in-game */
   .ingame-simple {
@@ -7000,6 +6946,9 @@
     .job-info-gui { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 820px) {
+    .dm-panel { width: min(440px, 100%); }
+  }
+  @media (max-width: 620px) {
     .topbar { flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; gap: 10px; }
     .top-auth { margin-left: auto; }
     .top-nav {
@@ -7009,8 +6958,6 @@
       padding: 0 18px 2px;
       -webkit-overflow-scrolling: touch;
     }
-    .nav-sep { display: none; }
-    .dm-panel { width: min(440px, 100%); }
   }
   @media (max-width: 720px) {
     .lobby-inner { padding: 18px 16px 22px; gap: 18px; }
@@ -7019,7 +6966,6 @@
     .room-grid { grid-template-columns: minmax(0, 1fr); }
     .wait-room { padding: 14px; gap: 12px; }
     .wait-player-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-    .wizard-choice-grid, .wizard-choice-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .content-page { padding: 16px 14px 20px; gap: 14px; }
     .simple-stage { padding: 12px 14px 10px; gap: 10px; }
     .job-screen { padding: 14px; gap: 14px; }
@@ -7030,8 +6976,9 @@
     .jc-name { font-size: 11px; }
     .word-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
     .batch-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .create-row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-section { padding: 18px; }
-    .theme-options { max-width: none; }
     .dm-panel { width: 100vw; border-left: none; }
     .dm-panel-body { flex-direction: column; }
     .dm-inbox {
@@ -7055,8 +7002,10 @@
     .simple-actions { width: 100%; }
     .simple-actions .ctrl-btn { flex: 1; }
     .simple-word { max-width: 82%; font-size: 16px; }
-    .wizard-choice-grid, .wizard-choice-grid-3 { grid-template-columns: minmax(0, 1fr); }
     .wizard-card { max-height: calc(100dvh - 32px); }
+    .acct-menu { min-width: 150px; }
+    .tool-switch { width: 100%; }
+    .tool-switch .seg-btn { min-width: 0; }
     .word-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     .tutorial-grid, .term-grid { grid-template-columns: minmax(0, 1fr); }
     .bottom-composer { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 8px; }
