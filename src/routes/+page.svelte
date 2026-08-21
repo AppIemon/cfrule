@@ -835,6 +835,18 @@
   const connectionStale = $derived(!!room && (syncFailed || (lastSyncAt > 0 && now - lastSyncAt > 8000)));
   const isGueruleRoom = $derived(['guerule', 'combat'].includes(snapshot?.meta?.gameMode || 'guerule'));
   const isRoomHost = $derived(snapshot?.meta?.owner === nickname);
+  // 대기실에 걸린 규칙 요약. 기본값과 다른 것만 눈에 띄게 앞에 온다.
+  const roomRuleChips = $derived.by(() => {
+    const meta = snapshot?.meta || {};
+    const out = [`${requiredPlayers}명`];
+    out.push(meta.chainMode === 'start' ? '앞말잇기' : '끝말잇기');
+    out.push(dictLabel(meta.dictSource || 'default'));
+    if (meta.duEum === false) out.push('두음 끔');
+    out.push(meta.searchAllowed ? '검색 허용' : '검색 불가');
+    out.push(meta.rated === false ? '레이팅 미반영' : '레이팅 반영');
+    out.push(timerState?.enabled ? `${formatClock(timerState.initialSeconds)}+${timerState.incrementSeconds}초` : '타이머 없음');
+    return out;
+  });
   const roomReadyMap = $derived(snapshot?.meta?.ready || {});
   const requiredPlayers = $derived(
     Number(snapshot?.meta?.geonmatPlayerCap) >= 1
@@ -2630,15 +2642,10 @@
                 <button class="accent-btn" onclick={saveWaitSettings} disabled={busy}>설정 저장</button>
               </div>
             {:else}
-              <ul>
-                <li><span>잇기</span><strong>{snapshot?.meta?.chainMode === 'start' ? '앞말잇기' : '끝말잇기'}</strong></li>
-                <li><span>사전</span><strong>{dictLabel(snapshot?.meta?.dictSource || 'default')}</strong></li>
-                <li><span>두음</span><strong>{snapshot?.meta?.duEum === false ? '끔' : '켬'}</strong></li>
-                <li><span>인원</span><strong>{requiredPlayers}명</strong></li>
-                <li><span>검색</span><strong>{snapshot?.meta?.searchAllowed ? '허용' : '불가'}</strong></li>
-                <li><span>레이팅</span><strong>{snapshot?.meta?.rated === false ? '미반영' : '반영'}</strong></li>
-                <li><span>타이머</span><strong>{timerState?.enabled ? `${formatClock(timerState.initialSeconds)} + ${timerState.incrementSeconds}초` : '없음'}</strong></li>
-              </ul>
+              <!-- 7줄짜리 표였다. 읽기만 하는 값이라 칩 한 뭉치로 충분하다. -->
+              <div class="wait-rule-chips">
+                {#each roomRuleChips as chip}<span class="wait-rule-chip">{chip}</span>{/each}
+              </div>
             {/if}
           </div>
           {#if isRoomHost}
@@ -2970,13 +2977,12 @@
             {/if}
           </div>
         {:else if bannedJobs.length}
-          <div class="ban-panel compact">
-            <span class="panel-kicker">BANNED</span>
-            <div class="selected-ban-row">
-              {#each bannedJobs as job}
-                <span class="ban-chip locked">{job}</span>
-              {/each}
-            </div>
+          <!-- 밴 결과는 읽기만 하면 되므로 카드 대신 한 줄. -->
+          <div class="banned-line">
+            <span class="banned-line-label">밴</span>
+            {#each bannedJobs as job}
+              <span class="ban-chip locked">{job}</span>
+            {/each}
           </div>
         {/if}
 
@@ -3072,21 +3078,34 @@
       <div class="ingame ingame-simple" class:board-hit={!!castFx}>
 
         <div class="simple-stage">
-          <div class="simple-hero" class:my-turn={canPlay}>
+          <!-- 음절 · 차례 · 참가자 · 조작을 한 줄로. 예전에는 카드 두 장을
+               위아래로 쌓아 화면 위쪽을 다 먹었고, 내 직업은 참가자 칩과 중복이었다. -->
+          <div class="simple-head" class:my-turn={canPlay}>
             <div class="simple-syl">{nextSyllable}</div>
-            <div class="simple-turn">
-              {#if canPlay}
-                <strong>내 차례</strong>
-              {:else}
-                <span>{currentPlayer || '—'} 차례</span>
-              {/if}
-              {#if timerState?.enabled}
-                <span class="simple-clock">{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</span>
-              {/if}
+            <div class="simple-head-meta">
+              <div class="simple-turn">
+                {#if canPlay}
+                  <strong>내 차례</strong>
+                {:else}
+                  <span>{currentPlayer || '—'} 차례</span>
+                {/if}
+                {#if timerState?.enabled}
+                  <span class="simple-clock">{formatClock(timerState.remaining?.[currentPlayer] ?? timerState.initialSeconds)}</span>
+                {/if}
+              </div>
+              <div class="simple-players">
+                {#each game.players || [] as player}
+                  <span class="simple-player" class:active={player === currentPlayer} class:me={player === nickname}>
+                    <span class="simple-player-name">{player}</span>
+                    {#if game.playerStates?.[player]?.job}<span class="simple-player-job">{game.playerStates[player].job}</span>{/if}
+                  </span>
+                {/each}
+              </div>
             </div>
-            {#if myState?.job}
-              <div class="simple-job">내 직업 · {myState.job}</div>
-            {/if}
+            <div class="simple-actions">
+              <button type="button" class="ctrl-btn" onclick={() => send('1무효')} disabled={busy}>무효</button>
+              <button type="button" class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={busy}>항복</button>
+            </div>
           </div>
 
           {#if game.isWaitingVote}
@@ -3096,21 +3115,6 @@
               <button type="button" class="vote-no" onclick={() => send('1거절')}>거절</button>
             </div>
           {/if}
-
-          <div class="simple-bar">
-            <div class="simple-players">
-              {#each game.players || [] as player}
-                <span class="simple-player" class:active={player === currentPlayer} class:me={player === nickname}>
-                  <span class="simple-player-name">{player}</span>
-                  {#if game.playerStates?.[player]?.job}<span class="simple-player-job">{game.playerStates[player].job}</span>{/if}
-                </span>
-              {/each}
-            </div>
-            <div class="simple-actions">
-              <button type="button" class="ctrl-btn" onclick={() => send('1무효')} disabled={busy}>무효</button>
-              <button type="button" class="ctrl-btn danger" onclick={() => send('ㅈㅈ')} disabled={busy}>항복</button>
-            </div>
-          </div>
 
           <div class="simple-history" bind:this={historyEl}>
             {#if !(game.history || []).length}
@@ -4533,9 +4537,13 @@
     gap: 12px;
     box-shadow: var(--shadow-md);
   }
-  .ban-panel.compact {
-    box-shadow: none;
-    padding: 12px 14px;
+  .banned-line {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .banned-line-label {
+    font-size: 11px; font-weight: 800; letter-spacing: .06em;
+    color: var(--text3); text-transform: uppercase;
   }
   .ban-panel-top {
     display: flex;
@@ -4597,12 +4605,12 @@
   }
   .job-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px;
   }
   .job-card {
-    min-height: 92px;
-    padding: 10px 8px;
+    min-height: 78px;
+    padding: 8px 6px;
     border-radius: var(--radius);
     background: var(--bg2);
     border: 1px solid var(--border2);
@@ -4640,8 +4648,8 @@
     animation: jobIn .5s cubic-bezier(.22,1,.36,1) both, selectedGlow 2s ease-in-out infinite;
   }
   .jc-portrait {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: linear-gradient(140deg, var(--accent-soft), var(--bg3));
     border: 2px solid var(--accent-line);
@@ -6391,10 +6399,12 @@
   }
   .wait-ready-btn:disabled { opacity: .55; }
   .wait-player-status.cpu { color: var(--text3); }
-  .wait-room-rules ul { list-style: none; display: grid; gap: 8px; }
-  .wait-room-rules li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
-  .wait-room-rules span { color: var(--text3); }
-  .wait-room-rules strong { font-weight: 800; }
+  .wait-rule-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wait-rule-chip {
+    font-size: 12px; font-weight: 700; color: var(--text2);
+    padding: 4px 9px; border-radius: 999px;
+    background: var(--bg3); border: 1px solid var(--border2);
+  }
   .wait-invite-side { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
   .wait-leave { margin-top: auto; }
   .wait-room-main {
@@ -6676,40 +6686,37 @@
     padding-right: max(20px, env(safe-area-inset-right));
     display: flex; flex-direction: column; gap: 12px;
   }
-  .simple-hero {
-    text-align: center; padding: 18px 16px;
+  .simple-head {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 16px;
     background: var(--card); border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--card-shadow);
     transition: border-color .2s, box-shadow .2s;
   }
-  .simple-hero.my-turn { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .simple-head.my-turn { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .simple-head-meta { flex: 1; min-width: 0; display: grid; gap: 7px; }
   .simple-syl {
-    font-size: clamp(40px, 7vw, 60px); font-weight: 900; line-height: 1.05;
-    letter-spacing: -.02em;
+    font-size: clamp(34px, 5.4vw, 50px); font-weight: 900; line-height: 1;
+    letter-spacing: -.02em; flex: 0 0 auto;
   }
-  .simple-turn { margin-top: 8px; font-size: 14px; color: var(--text2); display: flex; gap: 10px; justify-content: center; align-items: center; }
+  .simple-turn { font-size: 13.5px; color: var(--text2); display: flex; gap: 8px; align-items: center; }
   .simple-turn strong { color: var(--accent); }
   .simple-clock {
     font-variant-numeric: tabular-nums; font-weight: 800;
     padding: 2px 9px; border-radius: 999px;
     background: var(--bg3); color: var(--text);
   }
-  .simple-job { margin-top: 8px; font-size: 12.5px; font-weight: 700; color: var(--text3); }
   .simple-vote {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 10px 14px; border-radius: var(--radius);
     background: var(--warn-bg); border: 1px solid var(--warn-line); font-size: 13px;
   }
   .simple-vote-text { flex: 1; min-width: 0; font-weight: 700; color: var(--warn-fg); }
-  .simple-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; flex-wrap: wrap;
-  }
   .simple-players { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
   .simple-player {
-    display: inline-flex; align-items: baseline; gap: 6px;
-    font-size: 13px; font-weight: 700; padding: 6px 12px;
+    display: inline-flex; align-items: baseline; gap: 5px;
+    font-size: 12.5px; font-weight: 700; padding: 4px 10px;
     border-radius: 999px; background: var(--bg2); color: var(--text2);
     border: 1px solid var(--border);
     max-width: 220px;
@@ -6996,11 +7003,13 @@
     .icon-btn { width: 34px; height: 34px; }
     .lobby-bar { align-items: stretch; }
     .lobby-create-btn { width: 100%; justify-content: center; }
-    .simple-syl { font-size: clamp(36px, 13vw, 52px); }
-    .simple-hero { padding: 14px 12px; }
-    .simple-bar { gap: 8px; }
-    .simple-actions { width: 100%; }
-    .simple-actions .ctrl-btn { flex: 1; }
+    .simple-syl { font-size: clamp(32px, 11vw, 46px); }
+    .simple-head { flex-wrap: wrap; padding: 12px; gap: 10px 12px; }
+    .simple-head-meta { flex: 1 1 140px; }
+    /* 무효·항복은 자주 쓰는 버튼이 아니다. 좁은 화면에서 한 줄을 통째로
+       차지하면 기보가 그만큼 밀린다. 오른쪽에 붙여 둔다. */
+    .simple-actions { margin-left: auto; }
+    .simple-actions .ctrl-btn { height: 32px; padding: 0 12px; font-size: 12.5px; }
     .simple-word { max-width: 82%; font-size: 16px; }
     .wizard-card { max-height: calc(100dvh - 32px); }
     .acct-menu { min-width: 150px; }
