@@ -57,7 +57,15 @@ export async function signup({ username, password, nickname }) {
     updatedAt: now,
     stats: { games: 0, wins: 0, losses: 0 }
   };
-  const result = await db.collection('users').insertOne(user);
+  let result;
+  try {
+    result = await db.collection('users').insertOne(user);
+  } catch (err) {
+    // username 에 unique 인덱스가 걸려 있다. 중복이면 드라이버가 E11000 을 던지는데
+    // 그 문자열이 그대로 브라우저까지 갔었다 ("E11000 duplicate key error collection: ...").
+    if (err?.code === 11000) throw new Error('username_taken');
+    throw err;
+  }
   user._id = result.insertedId;
   return { user: publicUser(user), token: await createSession(result.insertedId) };
 }

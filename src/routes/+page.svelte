@@ -264,6 +264,7 @@
   let showAcctMenu = $state(false);
   // 회원가입 직후 한 번만 도움말로 보낸다. 새로고침하면 다시 뜨지 않는다.
   let justSignedUp = $state(false);
+  let authError = $state('');
   let dmTarget = $state('');
   let dmInput = $state('');
   let dmMessages = $state([]);
@@ -784,6 +785,14 @@
     if (disabledJobs.length) bits.push(`직업 ${disabledJobs.length}개 제한`);
     return bits.length ? bits.join(' · ') : '기본값';
   });
+  // 서버 규칙과 같은 기준. auth.js 의 signup() 이 이 두 가지를 본다.
+  const authProblem = $derived.by(() => {
+    const id = username.trim();
+    if (id.length < 2) return ERROR_TEXT.username_too_short;
+    if (authMode === 'signup' && password.length < 8) return ERROR_TEXT.password_too_short;
+    if (!password) return '비밀번호를 입력해 주세요.';
+    return '';
+  });
   const isGuest = $derived(!!user?.isGuest);
   const connectionStale = $derived(!!room && (syncFailed || (lastSyncAt > 0 && now - lastSyncAt > 8000)));
   const isGueruleRoom = $derived(['guerule', 'combat'].includes(snapshot?.meta?.gameMode || 'guerule'));
@@ -934,13 +943,32 @@
 
   // 서버가 실패를 JSON 이나 HTML 오류 문서로 돌려줄 때가 있다. 그대로 띄우면
   // 화면을 뒤덮는 긴 빨간 창이 되므로 읽을 수 있는 한 줄만 남긴다.
+  /**
+   * 서버가 내려주는 실패 코드를 사람이 읽는 문장으로.
+   * 예전에는 `{"error":"password_too_short"}` 가 그대로 화면에 떴다.
+   */
+  const ERROR_TEXT = {
+    username_too_short: '아이디는 2자 이상이어야 합니다.',
+    password_too_short: '비밀번호는 8자 이상이어야 합니다.',
+    username_taken: '이미 쓰이고 있는 아이디입니다. 다른 아이디를 골라 주세요.',
+    invalid_login: '아이디 또는 비밀번호가 맞지 않습니다.',
+    guest_disabled: '게스트 이용은 막혀 있습니다. 회원가입 후 이용해 주세요.',
+    server_error: '서버에서 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    rate_limited: '시도가 너무 잦습니다. 잠시 후 다시 시도해 주세요.'
+  };
+
   function cleanErrorText(raw) {
     let text = String(raw ?? '').trim();
     if (!text) return '알 수 없는 오류가 발생했습니다.';
     try {
       const parsed = JSON.parse(text);
-      if (parsed && typeof parsed === 'object' && parsed.message) text = String(parsed.message);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.error && ERROR_TEXT[parsed.error]) return ERROR_TEXT[parsed.error];
+        if (parsed.error) text = String(parsed.error);
+        else if (parsed.message) text = String(parsed.message);
+      }
     } catch { /* JSON 이 아니면 그대로 둔다 */ }
+    if (ERROR_TEXT[text]) return ERROR_TEXT[text];
     if (/^</.test(text) || /<\/?[a-z][\s\S]*>/i.test(text)) return '서버 오류가 발생했습니다.';
     text = text.replace(/\s+/g, ' ').trim();
     return text.length > 110 ? `${text.slice(0, 110)}…` : text;
@@ -954,7 +982,11 @@
     errorTimer = setTimeout(() => { error = ''; }, 4000);
   }
 
-  async function request(path, options = {}) {
+  /**
+   * quiet: 실패를 토스트로 띄우지 않는다. 호출한 쪽이 제자리에 보여 줄 때 쓴다
+   * (로그인/회원가입은 카드 안에 남겨야 사용자가 읽고 고칠 수 있다).
+   */
+  async function request(path, { quiet = false, ...options } = {}) {
     busy = true;
     error = '';
     try {
@@ -962,7 +994,7 @@
       if (!res.ok) throw new Error(await res.text());
       return await res.json();
     } catch (err) {
-      showError(err?.message);
+      if (!quiet) showError(err?.message);
       throw err;
     } finally {
       busy = false;
@@ -1003,11 +1035,23 @@
 
   async function auth() {
     const wasSignup = authMode === 'signup';
-    const data = await request('/api/auth', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: authMode, username, password })
-    });
+    authError = '';
+    // 서버가 거절할 조건을 먼저 여기서 걸러 준다. 눌러 보고 나서야
+    // "8자 이상"이라는 걸 알게 되면 고장 난 것처럼 느껴진다.
+    if (authProblem) { authError = authProblem; return; }
+    let data;
+    try {
+      data = await request('/api/auth', {
+        quiet: true,
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: authMode, username, password })
+      });
+    } catch (err) {
+      // 카드 안에 남겨 둔다. 입력을 고치면 지워진다.
+      authError = cleanErrorText(err?.message);
+      return;
+    }
     user = data.user;
     if (user?.nickname) nickname = user.nickname;
     password = '';
@@ -2164,14 +2208,34 @@
           <p>로그인 후 이용할 수 있습니다</p>
         </div>
         <div class="auth-panel-tabs auth-gate-tabs">
-          <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'login'} onclick={() => (authMode = 'login')}>로그인</button>
-          <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'signup'} onclick={() => (authMode = 'signup')}>회원가입</button>
+          <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'login'} onclick={() => { authMode = 'login'; authError = ''; }}>로그인</button>
+          <button class="auth-panel-tab" class:auth-panel-tab-active={authMode === 'signup'} onclick={() => { authMode = 'signup'; authError = ''; }}>회원가입</button>
         </div>
         <form class="auth-panel-form auth-gate-form" onsubmit={(e) => { e.preventDefault(); auth(); }}>
-          <input class="auth-panel-input" bind:value={username} placeholder="아이디" autocomplete="username" />
-          <input class="auth-panel-input" bind:value={password} placeholder="비밀번호" type="password" autocomplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
-          <button class="auth-panel-submit" type="submit" disabled={!username.trim() || !password.trim() || busy}>
-            {authMode === 'signup' ? '회원가입' : '로그인'}
+          <input
+            class="auth-panel-input"
+            bind:value={username}
+            oninput={() => (authError = '')}
+            placeholder="아이디"
+            autocomplete="username"
+          />
+          <input
+            class="auth-panel-input"
+            bind:value={password}
+            oninput={() => (authError = '')}
+            placeholder="비밀번호"
+            type="password"
+            autocomplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+          />
+          {#if authMode === 'signup'}
+            <!-- 규칙을 미리 보여 준다. 눌러 본 뒤에 알게 되면 고장 난 것처럼 보인다. -->
+            <p class="auth-rule">아이디 2자 이상 · 비밀번호 8자 이상</p>
+          {/if}
+          {#if authError}
+            <p class="auth-error" role="alert">{authError}</p>
+          {/if}
+          <button class="auth-panel-submit" type="submit" disabled={busy}>
+            {busy ? '처리 중...' : authMode === 'signup' ? '회원가입' : '로그인'}
           </button>
         </form>
       </div>
@@ -6515,6 +6579,13 @@
   .auth-gate-tabs .auth-panel-tab { height: 38px; background: transparent; }
   .auth-gate-tabs .auth-panel-tab-active { background: var(--accent-fill); color: var(--on-accent); }
   .auth-gate-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .auth-rule { font-size: 12px; color: var(--text3); line-height: 1.5; }
+  .auth-error {
+    font-size: 12.5px; font-weight: 700; line-height: 1.5;
+    color: var(--danger);
+    background: var(--danger-bg); border: 1px solid var(--danger-line);
+    border-radius: var(--radius-sm); padding: 9px 11px;
+  }
   .wizard-card-sm { width: min(360px, 100%); }
   .wizard-join-hint { font-size: 13px; color: var(--text2); line-height: 1.45; }
   .wizard-join-form { display: grid; gap: 12px; }
