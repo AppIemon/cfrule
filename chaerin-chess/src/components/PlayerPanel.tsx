@@ -1,6 +1,5 @@
 'use client';
 
-import { PIECE_NAME_KO } from '@/lib/chess/board';
 import type { Color, PieceType } from '@/lib/chess/types';
 import { abilityStatuses } from '@/lib/rule/engine';
 import { activeEffectLabels } from '@/lib/rule/effects';
@@ -29,75 +28,58 @@ export default function PlayerPanel({
   const player = game.players[color];
   const job = player.jobId ? JOB_BY_ID[player.jobId] : null;
   const active = game.phase === 'playing' && game.turn === color;
-  const statuses = abilityStatuses(game, color);
   const effects = activeEffectLabels(game, color);
 
   return (
-    <div className={`player${active ? ' active' : ''}`}>
-      <div className="top">
-        <span className={`chip ${color}`} />
-        <span className="who">{player.name}</span>
-        <span className="job">{job ? `${job.name} · ${job.passive.name}` : '직업 미정'}</span>
+    <div className={`player${active ? ' on' : ''}`}>
+      <div className="head">
+        <span className="name">{player.name}</span>
+        <span className="role">{job?.name ?? '직업 미정'}</span>
+        {job?.resource ? (
+          <span className="res">
+            {job.resource.name} {player.resource}
+          </span>
+        ) : null}
       </div>
 
-      {job?.resource ? (
-        <div className="meter">
-          {job.resource.name} <b>{player.resource}</b> / {job.resource.max}
-        </div>
-      ) : null}
-
-      {statuses.map(({ ability, slot, usable, reason }) => (
+      {abilityStatuses(game, color).map(({ ability, slot, usable, reason }) => (
         <button
           key={ability.id}
           type="button"
-          className={`ability-btn${armedAbility === ability.id ? ' armed' : ''}`}
+          className={`abil${armedAbility === ability.id ? ' on' : ''}`}
           disabled={!usable && armedAbility !== ability.id}
           onClick={() => onUseAbility(ability.id)}
+          title={ability.desc}
         >
-          <span className="line1">
-            <b>〈{ability.name}〉</b>
-            <span className="cost">
-              {ability.cost ? `${job?.resource?.name ?? '자원'} ${ability.cost} · ` : ''}
-              {slot.uses < 0 ? '무제한' : `${slot.uses}회 남음`}
-              {ability.cooldown ? ` · 쿨 ${ability.cooldown}` : ''}
-              {ability.endsTurn ? ' · 턴 소모' : ''}
-            </span>
+          <span className="t">{ability.name}</span>
+          <span className="m">
+            {ability.cost ? `${job?.resource?.name ?? ''} ${ability.cost} · ` : ''}
+            {slot.uses < 0 ? '무제한' : `${slot.uses}회`}
+            {ability.endsTurn ? ' · 턴 소모' : ''}
           </span>
-          <span className="why">{usable ? ability.desc : reason}</span>
+          {/* 설명은 자기 차례일 때만. 나머지 시간엔 이름만 남아 조용하다. */}
+          {active ? <span className="d">{usable ? ability.desc : reason}</span> : null}
         </button>
       ))}
 
-      {job?.id === 'collector' ? (
+      {job?.id === 'collector' && player.stash.length ? (
         <div className="stash">
-          창고:{' '}
-          {player.stash.length === 0 ? (
-            '비어 있음'
-          ) : (
-            player.stash.map((piece, index) => (
-              <button
-                key={`${piece}-${index}`}
-                type="button"
-                className={stashPickable ? 'pickable' : ''}
-                disabled={!stashPickable}
-                onClick={() => onPickStash(index)}
-                title={PIECE_NAME_KO[piece]}
-              >
-                {SOLID[piece]}
-              </button>
-            ))
-          )}
-        </div>
-      ) : null}
-
-      {effects.length ? (
-        <div className="effects">
-          {effects.map((label) => (
-            <span className="effect" key={label}>
-              {label}
-            </span>
+          창고{' '}
+          {player.stash.map((piece, index) => (
+            <button
+              key={`${piece}-${index}`}
+              type="button"
+              className={stashPickable ? 'pick' : ''}
+              disabled={!stashPickable}
+              onClick={() => onPickStash(index)}
+            >
+              {SOLID[piece]}
+            </button>
           ))}
         </div>
       ) : null}
+
+      {effects.length ? <div className="fxlist">{effects.join(' · ')}</div> : null}
     </div>
   );
 }

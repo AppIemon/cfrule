@@ -3,8 +3,9 @@
 import { fileOf, makeSquare, rankOf, toAlgebraic } from '@/lib/chess/board';
 import type { Board, Color, PieceType, Square } from '@/lib/chess/types';
 
-/** 양쪽 모두 채워진 글자를 쓰고 색으로만 구분한다. 작은 화면에서 훨씬 잘 읽힌다. */
+/** 양쪽 다 채워진 글자를 쓰고 색으로만 구분한다. 작은 화면에서 더 잘 읽힌다. */
 const SOLID: Record<PieceType, string> = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' };
+const FILES = 'abcdefgh';
 
 interface Props {
   board: Board;
@@ -13,7 +14,7 @@ interface Props {
   moveTargets: Square[];
   abilityTargets: Square[];
   checkSquare: Square | null;
-  marked: Square[];
+  blocked: Square[];
   onSquare(square: Square): void;
 }
 
@@ -24,11 +25,13 @@ export default function BoardView({
   moveTargets,
   abilityTargets,
   checkSquare,
-  marked,
+  blocked,
   onSquare
 }: Props) {
   const ranks = orientation === 'w' ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
   const files = orientation === 'w' ? [0, 1, 2, 3, 4, 5, 6, 7] : [7, 6, 5, 4, 3, 2, 1, 0];
+  const bottomRank = ranks[7];
+  const leftFile = files[0];
 
   return (
     <div className="board">
@@ -36,14 +39,14 @@ export default function BoardView({
         files.map((file) => {
           const square = makeSquare(file, rank);
           const piece = board[square];
-          const isDark = (file + rank) % 2 === 0;
-          const classes = ['square'];
-          if (isDark) classes.push('dark');
-          if (square === selected) classes.push('selected');
-          if (abilityTargets.includes(square)) classes.push('ability-target');
-          else if (moveTargets.includes(square) && piece) classes.push('target');
-          if (square === checkSquare) classes.push('check');
-          if (marked.includes(square)) classes.push('marked');
+          const isTarget = moveTargets.includes(square);
+          const classes = ['sq'];
+          if ((file + rank) % 2 === 0) classes.push('d');
+          if (square === selected) classes.push('sel');
+          if (abilityTargets.includes(square)) classes.push('fx');
+          else if (isTarget && piece) classes.push('cap');
+          if (square === checkSquare) classes.push('chk');
+          if (blocked.includes(square)) classes.push('blk');
 
           return (
             <button
@@ -51,15 +54,19 @@ export default function BoardView({
               type="button"
               className={classes.join(' ')}
               onClick={() => onSquare(square)}
-              aria-label={`${toAlgebraic(square)}${piece ? ` ${piece.color === 'w' ? '백' : '흑'} ${piece.type}` : ''}`}
+              aria-label={toAlgebraic(square)}
             >
-              {moveTargets.includes(square) && !piece && !abilityTargets.includes(square) ? (
-                <span className="dot" />
+              {rank === bottomRank || file === leftFile ? (
+                <span className="co">
+                  {rank === bottomRank && file === leftFile
+                    ? toAlgebraic(square)
+                    : rank === bottomRank
+                      ? FILES[fileOf(square)]
+                      : rankOf(square) + 1}
+                </span>
               ) : null}
-              {piece ? <span className={`piece ${piece.color}`}>{SOLID[piece.type]}</span> : null}
-              {fileOf(square) === (orientation === 'w' ? 0 : 7) || rankOf(square) === (orientation === 'w' ? 0 : 7) ? (
-                <span className="coord">{toAlgebraic(square)}</span>
-              ) : null}
+              {isTarget && !piece && !abilityTargets.includes(square) ? <span className="dot" /> : null}
+              {piece ? <span className={`p ${piece.color}`}>{SOLID[piece.type]}</span> : null}
             </button>
           );
         })

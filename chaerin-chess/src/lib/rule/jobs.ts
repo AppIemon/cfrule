@@ -455,7 +455,7 @@ const collector: Job = {
 const watcher: Job = {
   id: 'watcher',
   name: '감시자',
-  tagline: '상대의 수를 지켜보다 되돌린다',
+  tagline: '지켜보다 되돌린다',
   resource: { name: '감시', initial: 0, max: 20 },
   passive: {
     name: '감시',
@@ -578,7 +578,7 @@ const jeonuchi: Job = {
 const werewolf: Job = {
   id: 'werewolf',
   name: '늑대인간',
-  tagline: '턴이 갈수록 짐승이 된다',
+  tagline: '갈수록 짐승이 된다',
   passive: {
     name: '보름달',
     desc: '자기 턴을 8번 받은 뒤부터, 자신의 폰은 모두 나이트처럼도 움직일 수 있습니다.'

@@ -36,7 +36,7 @@ export default function GameClient() {
   const [selected, setSelected] = useState<Square | null>(null);
   const [armed, setArmed] = useState<{ id: string; picks: TargetPick[] } | null>(null);
   const [promo, setPromo] = useState<{ from: Square; to: Square; options: PieceType[] } | null>(null);
-  const [notice, setNotice] = useState<{ text: string; kind: 'error' | 'info' } | null>(null);
+  const [hint, setHint] = useState<{ text: string; bad: boolean } | null>(null);
   const [bans, setBans] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
 
@@ -53,22 +53,22 @@ export default function GameClient() {
     return [...new Set(movesFromSquare(game, selected).map((move) => move.to))];
   }, [armed, game, selected]);
 
-  const checkSquare = useMemo(() => {
-    if (game.phase !== 'playing') return null;
-    return isInCheck(game, turn) ? findKing(game.board, turn) : null;
-  }, [game, turn]);
+  const checkSquare = useMemo(
+    () => (game.phase === 'playing' && isInCheck(game, turn) ? findKing(game.board, turn) : null),
+    [game, turn]
+  );
 
-  const marked = useMemo(
+  const blocked = useMemo(
     () => game.effects.filter((fx) => fx.kind === 'blockade' && fx.square != null).map((fx) => fx.square as Square),
     [game.effects]
   );
 
-  function resetGame(): void {
+  function reset(): void {
     setGame(createGame(game.players.w.name, game.players.b.name));
     setSelected(null);
     setArmed(null);
     setPromo(null);
-    setNotice(null);
+    setHint(null);
     setBans([]);
   }
 
@@ -82,11 +82,10 @@ export default function GameClient() {
 
   function runAbility(id: string, picks: TargetPick[]): void {
     const outcome = useAbility(game, turn, id, picks);
-    if (outcome.error) {
-      setNotice({ text: outcome.error, kind: 'error' });
-    } else {
+    if (outcome.error) setHint({ text: outcome.error, bad: true });
+    else {
       setGame(outcome.state);
-      setNotice(null);
+      setHint(null);
     }
     setArmed(null);
     setSelected(null);
@@ -95,6 +94,7 @@ export default function GameClient() {
   function armAbility(id: string): void {
     if (armed?.id === id) {
       setArmed(null);
+      setHint(null);
       return;
     }
     const ability = abilityById(id);
@@ -105,7 +105,7 @@ export default function GameClient() {
     }
     setArmed({ id, picks: [] });
     setSelected(null);
-    setNotice({ text: `${ability.name}: ${withObjectParticle(abilityStepPrompt(id, 0))} 고르세요.`, kind: 'info' });
+    setHint({ text: `${ability.name} — ${withObjectParticle(abilityStepPrompt(id, 0))} 고르세요.`, bad: false });
   }
 
   function pushPick(pick: TargetPick): void {
@@ -118,9 +118,9 @@ export default function GameClient() {
       return;
     }
     setArmed({ ...armed, picks });
-    setNotice({
-      text: `${ability.name}: ${withObjectParticle(abilityStepPrompt(armed.id, picks.length))} 고르세요.`,
-      kind: 'info'
+    setHint({
+      text: `${ability.name} — ${withObjectParticle(abilityStepPrompt(armed.id, picks.length))} 고르세요.`,
+      bad: false
     });
   }
 
@@ -142,7 +142,7 @@ export default function GameClient() {
         }
         setGame(submitMove(game, selected, square, promotions[0]));
         setSelected(null);
-        setNotice(null);
+        setHint(null);
         return;
       }
     }
@@ -155,98 +155,142 @@ export default function GameClient() {
     setGame(submitMove(game, promo.from, promo.to, type));
     setPromo(null);
     setSelected(null);
-    setNotice(null);
+    setHint(null);
   }
 
-  const orientation: Color = flipped ? 'b' : 'w';
+  const draft = game.draft;
+  const stepLabel =
+    game.phase === 'draft'
+      ? draft.step === 'ban'
+        ? `${game.players[draft.firstPicker].name} 밴 · 최대 ${draft.maxBans}개`
+        : `${game.players[draft.step === 'pick-first' ? draft.firstPicker : draft.firstPicker === 'w' ? 'b' : 'w'].name} 직업 선택`
+      : '';
 
   return (
     <div className="shell">
-      <header className="masthead">
+      <div className="masthead">
         <h1>
-          채린룰 <span className="accent">체스</span>
+          채린룰 <span>체스</span>
         </h1>
-        <p>직업을 고르고, 밴하고, 능력을 쓰면서 두는 체스</p>
-      </header>
+        <span className="step">{stepLabel}</span>
+      </div>
 
       {game.phase === 'draft' ? (
-        <DraftView
-          game={game}
-          bans={bans}
-          setBans={setBans}
-          onRename={rename}
-          onPick={(jobId) => setGame(pickJob(game, jobId))}
-          onConfirmBans={() => {
-            setGame(submitBans(game, bans));
-            setBans([]);
-          }}
-        />
+        <>
+          {draft.step === 'pick-first' ? (
+            <div className="names">
+              <input value={game.players.w.name} onChange={(event) => rename('w', event.target.value)} aria-label="백 이름" />
+              <input value={game.players.b.name} onChange={(event) => rename('b', event.target.value)} aria-label="흑 이름" />
+            </div>
+          ) : null}
+
+          {draft.step === 'ban' ? (
+            <div className="row" style={{ marginBottom: 12 }}>
+              <span className="muted">상대가 못 고르게 할 직업 {bans.length}/{draft.maxBans}</span>
+              <button type="button" className="solid-btn" onClick={() => { setGame(submitBans(game, bans)); setBans([]); }}>
+                {bans.length ? '밴 확정' : '밴 없이 진행'}
+              </button>
+            </div>
+          ) : null}
+
+          <div className="job-grid">
+            {JOBS.map((job) => {
+              const open = availableJobs(game).includes(job.id);
+              const banning = draft.step === 'ban';
+              return (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  disabled={!open}
+                  on={banning ? bans.includes(job.id) : job.id === game.players[draft.firstPicker].jobId}
+                  onClick={() =>
+                    banning
+                      ? setBans(
+                          bans.includes(job.id)
+                            ? bans.filter((id) => id !== job.id)
+                            : bans.length >= draft.maxBans
+                              ? bans
+                              : [...bans, job.id]
+                        )
+                      : setGame(pickJob(game, job.id))
+                  }
+                />
+              );
+            })}
+          </div>
+
+          <details className="rules">
+            <summary>규칙</summary>
+            체스 규칙은 그대로입니다. 캐슬링·앙파상·승격·체크메이트·스테일메이트가 모두 동작합니다.
+            <br />
+            백이 먼저 두는 대신, 직업은 흑이 먼저 고르고 백의 직업을 밴합니다.
+            <br />
+            능력은 한 턴에 하나. <b>턴 소모</b> 능력은 그 턴의 수를 대신하고, 나머지는 쓴 뒤에도 한 수를 둡니다.
+            <br />
+            킹은 능력의 표적이 되지 않고, 능력에 묶여 둘 수가 없으면 체크메이트가 아니라 턴을 넘깁니다.
+          </details>
+        </>
       ) : (
         <>
           {game.result ? (
-            <div className="banner">
-              <b>
-                {game.result.winner
-                  ? `${game.players[game.result.winner].name}(${game.result.winner === 'w' ? '백' : '흑'}) 승리`
-                  : '무승부'}
-              </b>{' '}
-              — {game.result.reason}
-              <div className="row" style={{ marginTop: 10 }}>
-                <button type="button" className="btn primary" onClick={resetGame}>
-                  새 대국
-                </button>
-              </div>
+            <div className="result">
+              <span>
+                <b>
+                  {game.result.winner ? `${game.players[game.result.winner].name} 승리` : '무승부'}
+                </b>{' '}
+                · {game.result.reason}
+              </span>
+              <span className="spacer" />
+              <button type="button" className="solid-btn" onClick={reset}>
+                새 대국
+              </button>
             </div>
           ) : null}
 
           <div className="play">
-            <div className="board-wrap">
-              <div className="row" style={{ marginBottom: 10 }}>
-                <strong>
-                  {game.phase === 'playing'
-                    ? `${game.players[turn].name}(${turn === 'w' ? '백' : '흑'}) 차례`
-                    : '대국 종료'}
-                </strong>
-                {game.pendingExtra ? <span className="tag">{game.pendingExtra.label} 추가 이동</span> : null}
-                {checkSquare != null ? <span className="tag turn">체크</span> : null}
+            <div>
+              <div className="turnbar">
+                <b>{game.phase === 'playing' ? `${game.players[turn].name} 차례` : '종료'}</b>
+                {checkSquare != null ? <span className="pill hot">체크</span> : null}
+                {game.pendingExtra ? <span className="pill cool">{game.pendingExtra.label}</span> : null}
                 <span className="spacer" />
-                <button type="button" className="btn ghost" onClick={() => setFlipped((value) => !value)}>
-                  판 뒤집기
+                <button type="button" className="link-btn" onClick={() => setFlipped((value) => !value)}>
+                  뒤집기
                 </button>
               </div>
 
               <BoardView
                 board={game.board}
-                orientation={orientation}
+                orientation={flipped ? 'b' : 'w'}
                 selected={selected}
                 moveTargets={moveTargets}
                 abilityTargets={abilityTargets}
                 checkSquare={checkSquare}
-                marked={marked}
+                blocked={blocked}
                 onSquare={onSquare}
               />
 
-              {notice ? <div className={`notice${notice.kind === 'info' ? ' info' : ''}`}>{notice.text}</div> : null}
+              <div className={`hint${hint?.bad ? ' bad' : ''}`}>{hint?.text ?? ''}</div>
 
-              <div className="row" style={{ marginTop: 12 }}>
+              <div className="tools">
                 {armed ? (
-                  <button type="button" className="btn ghost" onClick={() => { setArmed(null); setNotice(null); }}>
+                  <button type="button" className="link-btn" onClick={() => { setArmed(null); setHint(null); }}>
                     능력 취소
                   </button>
                 ) : null}
                 {game.phase === 'playing' ? (
-                  <button type="button" className="btn ghost" onClick={() => setGame(resign(game, turn))}>
+                  <button type="button" className="link-btn" onClick={() => setGame(resign(game, turn))}>
                     기권
                   </button>
                 ) : null}
                 <span className="spacer" />
-                <button type="button" className="btn ghost" onClick={resetGame}>
+                <button type="button" className="link-btn" onClick={reset}>
                   처음부터
                 </button>
               </div>
             </div>
 
-            <div>
+            <div className="side">
               {(['b', 'w'] as Color[]).map((color) => (
                 <PlayerPanel
                   key={color}
@@ -262,18 +306,15 @@ export default function GameClient() {
                 />
               ))}
 
-              <div className="card" style={{ marginTop: 14 }}>
-                <h2>기보</h2>
-                <div className="log">
-                  {game.log
-                    .slice()
-                    .reverse()
-                    .map((entry) => (
-                      <div className={`entry ${entry.kind}`} key={entry.id}>
-                        {entry.text}
-                      </div>
-                    ))}
-                </div>
+              <div className="log">
+                {game.log
+                  .slice(-8)
+                  .reverse()
+                  .map((entry) => (
+                    <div key={entry.id} className={entry.kind === 'move' ? 'mv' : entry.kind === 'ability' ? 'ab' : ''}>
+                      {entry.text}
+                    </div>
+                  ))}
               </div>
             </div>
           </div>
@@ -283,8 +324,8 @@ export default function GameClient() {
       {promo ? (
         <div className="modal">
           <div className="box">
-            <h2 style={{ margin: 0 }}>무엇으로 승격할까요?</h2>
-            <div className="choices">
+            <div className="t">무엇으로 승격할까요?</div>
+            <div className="opts">
               {promo.options.map((type) => (
                 <button key={type} type="button" onClick={() => choosePromotion(type)}>
                   {PROMO_GLYPH[type]}
@@ -295,117 +336,5 @@ export default function GameClient() {
         </div>
       ) : null}
     </div>
-  );
-}
-
-interface DraftProps {
-  game: GameState;
-  bans: string[];
-  setBans(value: string[]): void;
-  onRename(color: Color, value: string): void;
-  onPick(jobId: string): void;
-  onConfirmBans(): void;
-}
-
-function DraftView({ game, bans, setBans, onRename, onPick, onConfirmBans }: DraftProps) {
-  const draft = game.draft;
-  const first = draft.firstPicker;
-  const second: Color = first === 'w' ? 'b' : 'w';
-  const open = availableJobs(game);
-  const picker = draft.step === 'ban' ? first : draft.step === 'pick-first' ? first : second;
-  const pickerName = `${game.players[picker].name}(${picker === 'w' ? '백' : '흑'})`;
-
-  return (
-    <>
-      {draft.step === 'pick-first' ? (
-        <div className="card">
-          <h2>플레이어</h2>
-          <p className="sub">한 화면에서 번갈아 두는 대국입니다. 이름을 정하세요.</p>
-          <div className="names">
-            <div className="field">
-              <label htmlFor="name-w">백</label>
-              <input id="name-w" value={game.players.w.name} onChange={(event) => onRename('w', event.target.value)} />
-            </div>
-            <div className="field">
-              <label htmlFor="name-b">흑</label>
-              <input id="name-b" value={game.players.b.name} onChange={(event) => onRename('b', event.target.value)} />
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="card">
-        <h2>
-          {draft.step === 'pick-first'
-            ? `${pickerName}의 직업 선택`
-            : draft.step === 'ban'
-              ? `${pickerName}의 밴 — 최대 ${draft.maxBans}개`
-              : `${pickerName}의 직업 선택`}
-        </h2>
-        <p className="sub">
-          {draft.step === 'ban'
-            ? '상대가 고를 수 없게 만들 직업을 고르세요. 밴 없이 넘어가도 됩니다.'
-            : '채린룰과 같이 백이 먼저 두는 대신, 직업은 흑이 먼저 고르고 백의 직업을 밴합니다.'}
-        </p>
-
-        {draft.step === 'ban' ? (
-          <div className="row" style={{ marginBottom: 12 }}>
-            <span className="tag">고른 밴 {bans.length}/{draft.maxBans}</span>
-            <button type="button" className="btn primary" onClick={onConfirmBans}>
-              밴 확정
-            </button>
-          </div>
-        ) : null}
-
-        <div className="job-grid">
-          {JOBS.map((job) => {
-            const taken = job.id === game.players[first].jobId || job.id === game.players[second].jobId;
-            const banned = draft.banned.includes(job.id);
-            if (draft.step === 'ban') {
-              return (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  selected={bans.includes(job.id)}
-                  disabled={taken}
-                  onClick={() =>
-                    setBans(
-                      bans.includes(job.id)
-                        ? bans.filter((id) => id !== job.id)
-                        : bans.length >= draft.maxBans
-                          ? bans
-                          : [...bans, job.id]
-                    )
-                  }
-                />
-              );
-            }
-            return (
-              <JobCard
-                key={job.id}
-                job={job}
-                disabled={!open.includes(job.id)}
-                selected={taken && !banned}
-                onClick={() => onPick(job.id)}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="card">
-        <h2>규칙 요약</h2>
-        <div className="rules">
-          <b>체스 규칙은 그대로입니다.</b> 캐슬링·앙파상·승격·체크메이트·스테일메이트가 모두 정상 동작합니다.
-          <br />
-          <b>능력은 한 턴에 하나만.</b> 〈턴 소모〉 표시가 있는 능력은 그 턴의 수를 대신하고, 나머지는 능력을 쓴 뒤에도
-          한 수를 둡니다.
-          <br />
-          <b>킹은 능력의 표적이 되지 않습니다.</b> 능력만으로 판을 끝낼 수는 없습니다.
-          <br />
-          <b>능력에 묶여 둘 수 있는 수가 없으면</b> 체크메이트가 아니라 그 턴을 넘깁니다.
-        </div>
-      </div>
-    </>
   );
 }
