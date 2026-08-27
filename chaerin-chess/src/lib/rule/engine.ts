@@ -22,6 +22,13 @@ import type { Ability, GameState, PlayerState, TargetPick } from './types';
 
 const MAX_BANS = 2;
 
+/** 받침 유무에 따라 이/가 를 고른다. "감시이 5 필요합니다" 같은 문장을 막는다. */
+function withSubjectParticle(word: string): string {
+  const last = word.charCodeAt(word.length - 1);
+  if (last < 0xac00 || last > 0xd7a3) return `${word}이`;
+  return (last - 0xac00) % 28 === 0 ? `${word}가` : `${word}이`;
+}
+
 function emptyPlayer(color: Color, name: string): PlayerState {
   return {
     color,
@@ -334,7 +341,7 @@ function abilityBlockReason(
   if (slot.cooldown > 0) return `쿨타임 ${slot.cooldown}턴`;
   const job = jobOf(state, color);
   if (ability.cost && state.players[color].resource < ability.cost) {
-    return `${job?.resource?.name ?? '자원'}이 ${ability.cost} 필요합니다.`;
+    return `${withSubjectParticle(job?.resource?.name ?? '자원')} ${ability.cost} 필요합니다.`;
   }
   return ability.ready ? ability.ready(state, color) : null;
 }
